@@ -29,34 +29,55 @@ Task Scheduler for Python Scripts (TASC) is a utility that allows you to schedul
 
 ### Adding a New Task
 
+There are two ways to add a new task:
+
+#### 1. Interactive Mode
+
+Use the `--add` flag to enter interactive mode, which will guide you through the process:
+
 ```bash
-python main.py --script "path/to/script.py" --name "task description" --arguments "arg1 value1" --interval minutes
+python main.py --add
+```
+
+This will prompt you for:
+
+- Script path (with validation)
+- Task name
+- Interval in minutes
+- Arguments (optional, press Enter twice to finish)
+
+#### 2. Command Line Mode
+
+Use the `--script` flag along with other parameters to add a task directly:
+
+```bash
+python main.py --script "path/to/script.py" --name "task description" --interval minutes -- script_arguments
 ```
 
 #### Parameters
 
 - `--script`: Path to the Python script to schedule (absolute path or relative to current directory)
 - `--name`: Descriptive name for the task (e.g., "convert audio notes to text")
-- `--arguments`: (Optional) Arguments to pass to the script
 - `--interval`: Interval in minutes between script executions
+- `--`: Separator after which all arguments are passed to the script
+- Arguments after `--` are passed directly to the script
 
-#### Example
+#### Examples
 
 ```bash
-# Using absolute path
-python main.py --script "D:\GIT\BenjaminKobjolke\audio-to-notes\main.py" --name "convert audio notes to text" --interval 1
-
-# Using relative path (from current directory)
+# Simple task without arguments
 python main.py --script "local_script.py" --name "local task" --interval 1
+
+# Complex task with quoted arguments and paths
+python main.py --script "D:\GIT\BenjaminKobjolke\ai-file-renamer\main.py" --name "convert XIDA invoices" --interval 5 -- --source "Z:\Resilio Sync\XIDA_Invoices" --examples "E:\Owncloud\xida\company\GmbH\[--Dokumente--]\[--Rechnungen--]\[--In--]"
 ```
+
+Note: When using arguments with spaces or special characters, make sure to:
+
+1. Use `--` to separate scheduler arguments from script arguments
+2. Quote values that contain spaces or special characters
 
 ### Managing Tasks
-
-#### Adding a New Task
-
-```bash
-python main.py --script "path/to/script.py" --name "task description" --arguments "arg1 value1" --interval minutes
-```
 
 #### Listing Tasks
 
