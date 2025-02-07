@@ -46,7 +46,7 @@ class TaskScheduler:
         self.logger.info("Scheduler shutdown")
         
     def _update_status_page(self):
-        """Update the status.html page with current task information."""
+        """Update the index.html page with current task information."""
         recent = self.db.get_recent_executions(10)
         jobs = self.scheduler.get_jobs()
         # Sort jobs by next run time

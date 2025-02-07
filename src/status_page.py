@@ -11,8 +11,8 @@ class StatusPage:
         """Initialize the status page handler."""
         self.logger = Logger("StatusPage")
         script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.template_path = os.path.join(script_dir, "sources", "web", "templates", "status.html")
-        self.output_path = os.path.join(script_dir, "web", "status.html")
+        self.template_path = os.path.join(script_dir, "sources", "web", "templates", "index.html")
+        self.output_path = os.path.join(script_dir, "web", "index.html")
         
         # Copy static files on init
         self._copy_static_files()
