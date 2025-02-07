@@ -1,5 +1,6 @@
 /logs
 /venv
 /data
-**/__pycache__/
+/web
+__pycache__/
 *.pyc
