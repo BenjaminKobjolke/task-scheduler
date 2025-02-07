@@ -73,21 +73,23 @@ def signal_handler(signum, frame):
     scheduler.shutdown()
     sys.exit(0)
 
-def format_task_list(tasks):
+def format_task_list(tasks, show_next_run: bool = True):
     """Format task list for display."""
     if not tasks:
         return "No tasks scheduled."
     
     output = []
     for task in tasks:
-        next_run = task['next_run_time'].strftime('%Y-%m-%d %H:%M:%S') if task['next_run_time'] else 'Not scheduled'
-        output.extend([
+        lines = [
             f"\n{task['id']}. {task['name']}",
             f"   Script: {task['script_path']}",
             f"   Interval: {task['interval']} minute(s)",
-            f"   Arguments: {' '.join(task['arguments']) if task['arguments'] else 'None'}",
-            f"   Next run: {next_run}"
-        ])
+            f"   Arguments: {' '.join(task['arguments']) if task['arguments'] else 'None'}"
+        ]
+        if show_next_run:
+            next_run = task['next_run_time'].strftime('%Y-%m-%d %H:%M:%S') if task['next_run_time'] else 'Not scheduled'
+            lines.append(f"   Next run: {next_run}")
+        output.extend(lines)
     return '\n'.join(output)
 
 if __name__ == "__main__":
@@ -104,7 +106,7 @@ if __name__ == "__main__":
         if args.list:
             # Just list tasks and exit
             tasks = scheduler.list_tasks()
-            logger.info("Scheduled tasks:" + format_task_list(tasks))
+            logger.info("Scheduled tasks:" + format_task_list(tasks, show_next_run=False))
             sys.exit(0)
             
         elif args.delete is not None:
@@ -118,7 +120,7 @@ if __name__ == "__main__":
             
             # Show task info and ask for confirmation
             logger.info(f"\nTask to delete:")
-            logger.info(format_task_list([task]))
+            logger.info(format_task_list([task], show_next_run=False))
             
             confirmation = input("\nAre you sure you want to delete this task? (y/N): ")
             if confirmation.lower() == 'y':
@@ -154,27 +156,38 @@ if __name__ == "__main__":
             
             # Add the task
             scheduler.add_task(args.name, script_path, args.interval, script_args)
-        
-        # Register signal handlers for graceful shutdown
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
-        
-        # Start the scheduler
-        scheduler.start()
-        
-        # Display current tasks
-        tasks = scheduler.list_tasks()
-        logger.info("Current tasks:" + format_task_list(tasks))
-        logger.info("\nPress Ctrl+C to exit")
-        
-        # Keep the main thread alive with a more graceful sleep
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            logger.info("Keyboard interrupt received")
-            scheduler.shutdown()
+            
+            # Show the added task and exit
+            logger.info("Task added successfully:")
+            logger.info(f"Name: {args.name}")
+            logger.info(f"Script: {script_path}")
+            logger.info(f"Interval: {args.interval} minute(s)")
+            if script_args:
+                logger.info(f"Arguments: {' '.join(script_args)}")
             sys.exit(0)
+        
+        # If no specific action was requested, run the scheduler
+        if not (args.script or args.list or args.delete):
+            # Register signal handlers for graceful shutdown
+            signal.signal(signal.SIGINT, signal_handler)
+            signal.signal(signal.SIGTERM, signal_handler)
+            
+            # Start the scheduler
+            scheduler.start()
+            
+            # Display current tasks
+            tasks = scheduler.list_tasks()
+            logger.info("Current tasks:" + format_task_list(tasks, show_next_run=True))
+            logger.info("\nPress Ctrl+C to exit")
+            
+            # Keep the main thread alive with a more graceful sleep
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                logger.info("Keyboard interrupt received")
+                scheduler.shutdown()
+                sys.exit(0)
         
     except Exception as e:
         logger.error(f"Error: {str(e)}")

@@ -22,6 +22,7 @@ class Database:
     def _create_tables(self):
         """Create the necessary database tables if they don't exist."""
         with sqlite3.connect(self.db_path) as conn:
+            # Create tasks table
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS tasks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,8 +32,19 @@ class Database:
                     interval INTEGER NOT NULL
                 )
             """)
+            
+            # Create task history table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS task_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id INTEGER NOT NULL,
+                    execution_time DATETIME NOT NULL,
+                    success BOOLEAN NOT NULL,
+                    FOREIGN KEY (task_id) REFERENCES tasks(id)
+                )
+            """)
     
-    def add_task(self, name: str, script_path: str, interval: int, arguments: Optional[List[str]] = None):
+    def add_task(self, name: str, script_path: str, interval: int, arguments: Optional[List[str]] = None) -> int:
         """
         Add a new task to the database.
         
@@ -41,12 +53,16 @@ class Database:
             script_path: Path to the Python script
             interval: Interval in minutes
             arguments: Optional list of command line arguments
+            
+        Returns:
+            int: ID of the newly added task
         """
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
+            cursor = conn.execute(
                 "INSERT INTO tasks (name, script_path, arguments, interval) VALUES (?, ?, ?, ?)",
                 (name, script_path, json.dumps(arguments or []), interval)
             )
+            return cursor.lastrowid
     
     def get_all_tasks(self) -> List[Dict]:
         """
@@ -75,7 +91,56 @@ class Database:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
     
-    def clear_all_tasks(self):
-        """Remove all tasks from the database."""
+    def add_task_execution(self, task_id: int, success: bool):
+        """
+        Record a task execution in the history.
+        
+        Args:
+            task_id: ID of the executed task
+            success: Whether the execution was successful
+        """
         with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "INSERT INTO task_history (task_id, execution_time, success) VALUES (?, datetime('now'), ?)",
+                (task_id, success)
+            )
+    
+    def get_recent_executions(self, limit: int = 10) -> List[Dict]:
+        """
+        Get the most recent task executions.
+        
+        Args:
+            limit: Maximum number of executions to return
+            
+        Returns:
+            List of execution records with task details
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute("""
+                SELECT 
+                    h.id as execution_id,
+                    h.execution_time,
+                    h.success,
+                    t.id as task_id,
+                    t.name,
+                    t.script_path,
+                    t.arguments
+                FROM task_history h
+                JOIN tasks t ON h.task_id = t.id
+                ORDER BY h.execution_time DESC
+                LIMIT ?
+            """, (limit,))
+            
+            executions = []
+            for row in cursor:
+                execution = dict(row)
+                execution['arguments'] = json.loads(execution['arguments'])
+                executions.append(execution)
+            return executions
+    
+    def clear_all_tasks(self):
+        """Remove all tasks and their history from the database."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("DELETE FROM task_history")
             conn.execute("DELETE FROM tasks")

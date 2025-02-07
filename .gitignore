@@ -1,3 +1,5 @@
 /logs
 /venv
 /data
+**/__pycache__/
+*.pyc

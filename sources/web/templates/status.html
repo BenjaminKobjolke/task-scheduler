@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="refresh" content="60" />
+    <title>TASC Scheduler Status</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Task Automation Scheduler Status</h1>
+        <p class="last-update">Last updated: {{last_update}}</p>
+      </header>
+
+      <section class="next-task">
+        <h2>Next Tasks</h2>
+        <div id="nextTask">{{next_tasks}}</div>
+      </section>
+
+      <section class="recent-tasks">
+        <h2>Recent Tasks</h2>
+        <div id="recentTasks">{{recent_tasks}}</div>
+      </section>
+    </div>
+  </body>
+</html>

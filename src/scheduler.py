@@ -6,6 +6,7 @@ from datetime import datetime
 from .logger import Logger
 from .script_runner import ScriptRunner
 from .database import Database
+from .status_page import StatusPage
 
 class TaskScheduler:
     """Manages scheduled tasks using APScheduler."""
@@ -21,6 +22,7 @@ class TaskScheduler:
         
         # Initialize scheduler without persistent job store
         self.scheduler = BackgroundScheduler()
+        self.status_page = StatusPage()
         
     def start(self):
         """Start the scheduler and load tasks from database."""
@@ -28,6 +30,7 @@ class TaskScheduler:
         tasks = self.db.get_all_tasks()
         for task in tasks:
             self._schedule_task(
+                task['id'],
                 task['name'],
                 task['script_path'],
                 task['interval'],
@@ -42,11 +45,20 @@ class TaskScheduler:
         self.scheduler.shutdown()
         self.logger.info("Scheduler shutdown")
         
-    def _process_job(self, name: str, script_path: str, arguments: List[str]):
+    def _update_status_page(self):
+        """Update the status.html page with current task information."""
+        recent = self.db.get_recent_executions(10)
+        jobs = self.scheduler.get_jobs()
+        # Sort jobs by next run time
+        next_jobs = sorted(jobs, key=lambda x: x.next_run_time) if jobs else []
+        self.status_page.update(recent, next_jobs)
+
+    def _process_job(self, task_id: int, name: str, script_path: str, arguments: List[str]):
         """
         Process a single job.
         
         Args:
+            task_id: ID of the task
             name: Name of the task
             script_path: Path to the script to run
             arguments: Arguments for the script
@@ -56,26 +68,32 @@ class TaskScheduler:
             self.logger.info(f"Successfully executed task '{name}': {script_path}")
         else:
             self.logger.error(f"Failed to execute task '{name}': {script_path}")
+        
+        # Record the execution
+        self.db.add_task_execution(task_id, success)
+        
+        # Update the status page
+        self._update_status_page()
     
-    def _schedule_task(self, name: str, script_path: str, interval: int, arguments: Optional[List[str]] = None):
+    def _schedule_task(self, task_id: int, name: str, script_path: str, interval: int, arguments: Optional[List[str]] = None):
         """
         Schedule a task in the APScheduler.
         
         Args:
+            task_id: ID of the task
             name: Name of the task
             script_path: Path to the Python script
             interval: Interval in minutes
             arguments: List of command line arguments for the script
         """
-        # Create a safe job ID from the script path
-        safe_path = script_path.replace(':', '').replace('\\', '_').replace('/', '_')
-        job_id = f"job_{safe_path}"
+        # Create unique job ID using task ID
+        job_id = f"job_{task_id}"
         
         # Add the job to the scheduler
         self.scheduler.add_job(
             func=self._process_job,
             trigger=IntervalTrigger(minutes=interval),
-            args=[name, script_path, arguments or []],
+            args=[task_id, name, script_path, arguments or []],
             next_run_time=datetime.now(),  # Start immediately
             id=job_id,  # Use script path as unique ID
             replace_existing=True,  # Replace if job exists
@@ -93,11 +111,11 @@ class TaskScheduler:
             arguments: List of command line arguments for the script
         """
         try:
-            # Add to database first
-            self.db.add_task(name, script_path, interval, arguments)
+            # Add to database first and get the task ID
+            task_id = self.db.add_task(name, script_path, interval, arguments)
             
-            # Schedule the task
-            self._schedule_task(name, script_path, interval, arguments)
+            # Schedule the task with the ID
+            self._schedule_task(task_id, name, script_path, interval, arguments)
             
             self.logger.info(
                 f"Added task '{name}': {script_path} with interval {interval} minutes"
@@ -127,8 +145,7 @@ class TaskScheduler:
                 # Only try to remove from scheduler if it's running
                 if self.scheduler.running:
                     try:
-                        safe_path = task['script_path'].replace(':', '').replace('\\', '_').replace('/', '_')
-                        job_id = f"job_{safe_path}"
+                        job_id = f"job_{task_id}"
                         self.scheduler.remove_job(job_id)
                     except Exception as e:
                         # Log but don't fail if job removal fails
@@ -157,8 +174,7 @@ class TaskScheduler:
         scheduler_jobs = {job.id: job for job in self.scheduler.get_jobs()}
         
         for task in tasks:
-            safe_path = task['script_path'].replace(':', '').replace('\\', '_').replace('/', '_')
-            job_id = f"job_{safe_path}"
+            job_id = f"job_{task['id']}"
             if job_id in scheduler_jobs:
                 task['next_run_time'] = scheduler_jobs[job_id].next_run_time
             else:

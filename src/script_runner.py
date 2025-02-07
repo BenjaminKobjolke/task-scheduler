@@ -43,7 +43,7 @@ class ScriptRunner:
             script_name = os.path.basename(script_path)
             
             # Prepare the command with directory change and venv activation
-            base_cmd = f"cd /d {script_dir} && call {venv_activate} && python {script_name}"
+            base_cmd = f"cd /d {script_dir} && call {venv_activate} && cd /d {script_dir} && python {script_name}"
             if arguments:
                 base_cmd += f" {' '.join(arguments)}"
             
