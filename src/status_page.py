@@ -32,28 +32,42 @@ class StatusPage:
             os.path.join(dst_dir, "styles.css")
         )
     
-    def _generate_task_card(self, name: str, script_path: str, time: str, task_id: Optional[int] = None, success: Optional[bool] = None) -> str:
+    def _generate_task_card(self, name: str, script_path: str, time: str, task_id: Optional[int] = None, arguments: Optional[List[str]] = None, success: Optional[bool] = None) -> str:
         """Generate HTML for a task card."""
         if success is not None:
             status_class = "success" if success else "error"
-            status_html = f"""
-                <span class="status {status_class}">
-                    {"Success" if success else "Failed"}
-                </span>
-            """
+            status_html = f'<span class="status {status_class}">{"Success" if success else "Failed"}</span>'
         else:
             status_html = ""
         
-        id_html = f"<span class='task-id'>#{task_id}</span>" if task_id else ""
+        # Format arguments to be more readable
+        args_html = ""
+        if arguments:
+            args_list = []
+            current_arg = []
+            for arg in arguments:
+                if arg.startswith('--'):
+                    if current_arg:
+                        args_list.append(' '.join(current_arg))
+                    current_arg = [arg]
+                else:
+                    current_arg.append(arg)
+            if current_arg:
+                args_list.append(' '.join(current_arg))
+            args_html = '<div class="task-arguments">'
+            for arg_pair in args_list:
+                args_html += f'<div class="argument">{arg_pair}</div>'
+            args_html += '</div>'
         
         return f"""
             <div class="task-card">
                 <div class="task-header">
-                    {id_html}
+                    <span class="task-id">#{task_id}</span>
                     <div class="task-title">{name}</div>
                     {status_html}
                 </div>
                 <div class="task-details">{script_path}</div>
+                {args_html}
                 <div class="task-time">{time}</div>
             </div>
         """
@@ -88,13 +102,9 @@ class StatusPage:
                         name=job.name,
                         script_path=job.args[2],
                         time=f"Next run: {job.next_run_time.strftime('%Y-%m-%d %H:%M:%S')}",
-                        task_id=job.args[0]  # task_id is first argument
+                        task_id=job.args[0],  # task_id is first argument
+                        arguments=job.args[3] if job.args[3] else None
                     )
-                    if job.args[3]:  # If there are arguments
-                        task_html = task_html.replace(
-                            "</div>",
-                            f'<div class="task-details">Arguments: {" ".join(job.args[3])}</div></div>'
-                        )
                     next_html.append(task_html)
                 next_html = '\n'.join(next_html)
             else:

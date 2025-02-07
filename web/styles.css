@@ -95,6 +95,23 @@ section {
     font-size: 0.9rem;
 }
 
+.task-arguments {
+    margin-top: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.argument {
+    color: #888;
+    font-size: 0.9rem;
+    font-family: monospace;
+    background: #222;
+    padding: 4px 8px;
+    border-radius: 4px;
+    word-break: break-all;
+}
+
 .task-card .task-time {
     color: #3498db;
     font-size: 0.9rem;

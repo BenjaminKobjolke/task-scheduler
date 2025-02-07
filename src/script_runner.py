@@ -42,24 +42,24 @@ class ScriptRunner:
             script_dir = os.path.dirname(os.path.abspath(script_path))
             script_name = os.path.basename(script_path)
             
-            # Prepare the command with directory change and venv activation
-            base_cmd = f"cd /d {script_dir} && call {venv_activate} && cd /d {script_dir} && python {script_name}"
-            if arguments:
-                base_cmd += f" {' '.join(arguments)}"
+            # Get the Python executable from the virtual environment
+            venv_python = os.path.join(os.path.dirname(venv_activate), "python.exe")
             
-            cmd = ["cmd", "/c", base_cmd]
+            # Build the command using venv's Python
+            python_cmd = [venv_python, script_name] + (arguments or [])
             
             self.logger.info(f"Working directory: {script_dir}")
-            
             self.logger.info(f"Running script: {script_path}")
             self.logger.info(f"Arguments: {arguments if arguments else 'None'}")
+            self.logger.info(f"Command: {' '.join(python_cmd)}")
             
-            # Run the script and wait for completion
+            # Run the script in the correct directory
             process = subprocess.run(
-                cmd,
+                python_cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
+                cwd=script_dir
             )
             
             if process.stdout:

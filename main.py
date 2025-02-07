@@ -15,10 +15,11 @@ def parse_arguments() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Add a new task (absolute path)
-    python main.py --script "D:/path/to/script.py" --name "daily backup" --arguments "--arg1 value1" --interval 5
+    # Add a new task with arguments (use -- to separate scheduler args from script args)
+    python main.py --script "script.py" --name "task" --interval 5 -- --source "path with spaces" --target "another path"
+                                                                    ^^ Everything after this is passed to the script
 
-    # Add a task using relative path (relative to current directory)
+    # Add a task using relative path
     python main.py --script "script.py" --name "local script" --interval 1
 
     # List and run existing tasks
@@ -41,12 +42,6 @@ Note: Each script should have its own venv in its directory.
     )
     
     parser.add_argument(
-        "--arguments",
-        type=str,
-        help="Arguments to pass to the script (optional)"
-    )
-    
-    parser.add_argument(
         "--interval",
         type=int,
         help="Interval in minutes between script executions"
@@ -63,6 +58,13 @@ Note: Each script should have its own venv in its directory.
         type=int,
         metavar="ID",
         help="Delete a task by its database ID"
+    )
+    
+    # Collect remaining arguments after --
+    parser.add_argument(
+        'script_args',
+        nargs=argparse.REMAINDER,
+        help="Arguments to pass to the script (everything after --)"
     )
     
     return parser.parse_args()
@@ -151,8 +153,8 @@ if __name__ == "__main__":
             # Convert relative script path to absolute
             script_path = os.path.abspath(args.script)
             
-            # Parse script arguments if provided
-            script_args = args.arguments.split() if args.arguments else None
+            # Remove the -- separator if present and get remaining args
+            script_args = args.script_args[1:] if args.script_args and args.script_args[0] == '--' else args.script_args
             
             # Add the task
             scheduler.add_task(args.name, script_path, args.interval, script_args)
