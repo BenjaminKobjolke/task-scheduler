@@ -1,12 +1,61 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import shlex
 import signal
 import sys
 import time
 from datetime import datetime
+from typing import Dict, Any
 from src.scheduler import TaskScheduler
 from src.logger import Logger
+
+def get_task_input() -> Dict[str, Any]:
+    """Get task details interactively from user."""
+    print("\nAdding new task interactively:")
+    
+    # Get script path with validation
+    while True:
+        script_path = input("\nScript path: ").strip()
+        if os.path.exists(script_path):
+            break
+        print("Error: Script not found. Please enter a valid path.")
+    
+    # Get task name
+    name = input("\nTask name: ").strip()
+    while not name:
+        print("Error: Name cannot be empty.")
+        name = input("Task name: ").strip()
+    
+    # Get interval with validation
+    while True:
+        try:
+            interval = int(input("\nInterval in minutes: ").strip())
+            if interval < 1:
+                print("Error: Interval must be at least 1 minute.")
+                continue
+            break
+        except ValueError:
+            print("Error: Please enter a valid number.")
+    
+    # Get arguments (optional)
+    print("\nEnter arguments (press Enter twice to finish):")
+    print("Example: --source \"path/to/source\" --target \"path/to/target\"")
+    args = []
+    while True:
+        arg = input("> ").strip()
+        if not arg and not args:  # No arguments entered
+            break
+        if not arg and args:  # Double Enter to finish
+            break
+        args.append(arg)
+    
+    return {
+        "script_path": script_path,
+        "name": name,
+        "interval": interval,
+        "arguments": shlex.split(' '.join(args)) if args else None
+    }
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
@@ -22,6 +71,9 @@ Examples:
     # Add a task using relative path
     python main.py --script "script.py" --name "local script" --interval 1
 
+    # Add a task interactively
+    python main.py --add
+
     # List and run existing tasks
     python main.py
     
@@ -29,7 +81,15 @@ Note: Each script should have its own venv in its directory.
         """
     )
     
-    parser.add_argument(
+    group = parser.add_mutually_exclusive_group()
+    
+    group.add_argument(
+        "--add",
+        action="store_true",
+        help="Interactive mode to add a new task"
+    )
+    
+    group.add_argument(
         "--script",
         type=str,
         help="Path to the Python script to schedule"
@@ -136,8 +196,29 @@ if __name__ == "__main__":
                 logger.info("Deletion cancelled")
             sys.exit(0)
             
+        elif args.add:
+            # Get task details interactively
+            task_details = get_task_input()
+            
+            # Add the task
+            scheduler.add_task(
+                name=task_details["name"],
+                script_path=os.path.abspath(task_details["script_path"]),
+                interval=task_details["interval"],
+                arguments=task_details["arguments"]
+            )
+            
+            # Show the added task and exit
+            logger.info("Task added successfully:")
+            logger.info(f"Name: {task_details['name']}")
+            logger.info(f"Script: {task_details['script_path']}")
+            logger.info(f"Interval: {task_details['interval']} minute(s)")
+            if task_details["arguments"]:
+                logger.info(f"Arguments: {' '.join(task_details['arguments'])}")
+            sys.exit(0)
+            
         elif args.script:
-            # Adding a new task
+            # Adding a new task via command line
             if not args.name:
                 logger.error("--name is required when adding a new task")
                 sys.exit(1)
