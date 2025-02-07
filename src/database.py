@@ -1,4 +1,5 @@
 import json
+import os
 import sqlite3
 from typing import List, Optional, Dict
 from datetime import datetime
@@ -6,8 +7,15 @@ from datetime import datetime
 class Database:
     """Handle SQLite database operations for task storage."""
     
-    def __init__(self, db_path: str = "data/tasks.sqlite"):
+    def __init__(self, db_path: str = None):
         """Initialize database connection and create tables if needed."""
+        if db_path is None:
+            # Get the directory where the script is located
+            script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            data_dir = os.path.join(script_dir, "data")
+            # Create data directory if it doesn't exist
+            os.makedirs(data_dir, exist_ok=True)
+            db_path = os.path.join(data_dir, "tasks.sqlite")
         self.db_path = db_path
         self._create_tables()
     

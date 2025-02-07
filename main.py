@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import os
 import signal
 import sys
 import time
@@ -14,8 +15,11 @@ def parse_arguments() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    # Add a new task
-    python main.py --script "path/to/script.py" --name "daily backup" --arguments "--arg1 value1" --interval 5
+    # Add a new task (absolute path)
+    python main.py --script "D:/path/to/script.py" --name "daily backup" --arguments "--arg1 value1" --interval 5
+
+    # Add a task using relative path (relative to current directory)
+    python main.py --script "script.py" --name "local script" --interval 1
 
     # List and run existing tasks
     python main.py
@@ -142,11 +146,14 @@ if __name__ == "__main__":
                 logger.error("Interval must be at least 1 minute")
                 sys.exit(1)
             
+            # Convert relative script path to absolute
+            script_path = os.path.abspath(args.script)
+            
             # Parse script arguments if provided
             script_args = args.arguments.split() if args.arguments else None
             
             # Add the task
-            scheduler.add_task(args.name, args.script, args.interval, script_args)
+            scheduler.add_task(args.name, script_path, args.interval, script_args)
         
         # Register signal handlers for graceful shutdown
         signal.signal(signal.SIGINT, signal_handler)

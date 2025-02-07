@@ -35,7 +35,7 @@ python main.py --script "path/to/script.py" --name "task description" --argument
 
 #### Parameters
 
-- `--script`: Path to the Python script to schedule
+- `--script`: Path to the Python script to schedule (absolute path or relative to current directory)
 - `--name`: Descriptive name for the task (e.g., "convert audio notes to text")
 - `--arguments`: (Optional) Arguments to pass to the script
 - `--interval`: Interval in minutes between script executions
@@ -43,7 +43,11 @@ python main.py --script "path/to/script.py" --name "task description" --argument
 #### Example
 
 ```bash
+# Using absolute path
 python main.py --script "D:\GIT\BenjaminKobjolke\audio-to-notes\main.py" --name "convert audio notes to text" --interval 1
+
+# Using relative path (from current directory)
+python main.py --script "local_script.py" --name "local task" --interval 1
 ```
 
 ### Managing Tasks
