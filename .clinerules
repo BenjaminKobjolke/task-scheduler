@@ -3,7 +3,12 @@ You are working on windows.
 
 Shell
 You have a windows powershell to exectute commands.
+
 Powershell does not support && to combine commands.
+For example this will not work
+python -m venv venv && .venv\Scripts\activate
+PowerShell, doesn't support that syntax. 
+Execute the commands separately.
 
 Entry Point
 Use main.py for argument parsing and overall flow.

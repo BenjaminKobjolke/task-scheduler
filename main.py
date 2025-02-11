@@ -7,6 +7,10 @@ import sys
 import time
 from datetime import datetime
 from typing import Dict, Any
+from prompt_toolkit import prompt, PromptSession
+from prompt_toolkit.completion import PathCompleter, FuzzyCompleter
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.filters import has_completions
 from src.scheduler import TaskScheduler
 from src.logger import Logger
 
@@ -14,12 +18,50 @@ def get_task_input() -> Dict[str, Any]:
     """Get task details interactively from user."""
     print("\nAdding new task interactively:")
     
-    # Get script path with validation
+    # Setup key bindings for path input
+    kb = KeyBindings()
+
+    @kb.add('enter')
+    def _(event):
+        # If completion menu is showing
+        if event.app.current_buffer.complete_state:
+            # Get the current text
+            current_text = event.app.current_buffer.text
+            
+            # If it's a directory, append backslash and move cursor
+            if os.path.isdir(current_text):
+                new_text = current_text.rstrip('\\') + '\\'
+                event.app.current_buffer.text = new_text
+                event.app.current_buffer.cursor_position = len(new_text)
+            
+            # Clear completion state
+            event.app.current_buffer.complete_state = None
+        else:
+            # No suggestions shown, complete the input
+            event.app.current_buffer.validate_and_handle()
+
+    # Get script path with validation and tab completion
+    path_completer = PathCompleter(
+        get_paths=lambda: ['.'],
+        expanduser=True
+    )
+    completer = FuzzyCompleter(path_completer)
+    session = PromptSession()
+    last_input = ""
+    
     while True:
-        script_path = input("\nScript path: ").strip()
-        if os.path.exists(script_path):
+        print("\nScript path (Use Tab for suggestions):")
+        script_path = session.prompt(
+            "Path: ",
+            completer=completer,
+            key_bindings=kb,
+            default=last_input
+        ).strip()
+        
+        last_input = script_path
+        if os.path.isfile(script_path):
             break
-        print("Error: Script not found. Please enter a valid path.")
+        print("Error: Not a valid file. Please enter a valid path.")
     
     # Get task name
     name = input("\nTask name: ").strip()
@@ -38,12 +80,13 @@ def get_task_input() -> Dict[str, Any]:
         except ValueError:
             print("Error: Please enter a valid number.")
     
-    # Get arguments (optional)
+    # Get arguments (optional) with path completion
     print("\nEnter arguments (press Enter twice to finish):")
     print("Example: --source \"path/to/source\" --target \"path/to/target\"")
     args = []
     while True:
-        arg = input("> ").strip()
+        arg = session.prompt("> ", key_bindings=kb).strip()
+        
         if not arg and not args:  # No arguments entered
             break
         if not arg and args:  # Double Enter to finish

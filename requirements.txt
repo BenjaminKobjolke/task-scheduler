@@ -1,3 +1,4 @@
 APScheduler==3.11.0
 python-dotenv==1.0.1
 SQLAlchemy==2.0.25
+prompt_toolkit==3.0.43
