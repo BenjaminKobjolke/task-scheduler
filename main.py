@@ -13,9 +13,15 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.filters import has_completions
 from src.scheduler import TaskScheduler
 from src.logger import Logger
+from src.config import Config
 
-def get_task_input() -> Dict[str, Any]:
-    """Get task details interactively from user."""
+def get_task_input(existing_task: Dict[str, Any] = None) -> Dict[str, Any]:
+    """
+    Get task details interactively from user.
+    
+    Args:
+        existing_task: Optional dictionary containing current task values for editing
+    """
     print("\nAdding new task interactively:")
     
     # Setup key bindings for path input
@@ -47,32 +53,67 @@ def get_task_input() -> Dict[str, Any]:
     )
     completer = FuzzyCompleter(path_completer)
     session = PromptSession()
-    last_input = ""
+    
+    # If editing, show current values
+    if existing_task:
+        print("\nEditing task (press Enter to keep current value):")
+        print(f"Current values:")
+        print(f"Name: {existing_task['name']}")
+        print(f"Script: {existing_task['script_path']}")
+        print(f"Interval: {existing_task['interval']} minute(s)")
+        print(f"Arguments: {' '.join(existing_task['arguments']) if existing_task['arguments'] else 'None'}")
     
     while True:
-        print("\nScript path (Use Tab for suggestions):")
+        prompt_text = "\nScript path (Use Tab for suggestions)"
+        if existing_task:
+            prompt_text += f" [{existing_task['script_path']}]"
+        prompt_text += ":"
+        print(prompt_text)
+        
         script_path = session.prompt(
             "Path: ",
             completer=completer,
             key_bindings=kb,
-            default=last_input
+            default=existing_task['script_path'] if existing_task else ""
         ).strip()
         
-        last_input = script_path
+        # Keep existing value if empty input
+        if existing_task and not script_path:
+            script_path = existing_task['script_path']
+        
         if os.path.isfile(script_path):
             break
         print("Error: Not a valid file. Please enter a valid path.")
     
     # Get task name
-    name = input("\nTask name: ").strip()
+    prompt_text = "\nTask name"
+    if existing_task:
+        prompt_text += f" [{existing_task['name']}]"
+    prompt_text += ": "
+    
+    name = input(prompt_text).strip()
+    # Keep existing value if empty input
+    if existing_task and not name:
+        name = existing_task['name']
     while not name:
         print("Error: Name cannot be empty.")
-        name = input("Task name: ").strip()
+        name = input(prompt_text).strip()
     
     # Get interval with validation
     while True:
+        prompt_text = "\nInterval in minutes"
+        if existing_task:
+            prompt_text += f" [{existing_task['interval']}]"
+        prompt_text += ": "
+        
+        interval_input = input(prompt_text).strip()
+        # Keep existing value if empty input
+        if existing_task and not interval_input:
+            interval = existing_task['interval']
+            break
+            
         try:
-            interval = int(input("\nInterval in minutes: ").strip())
+            interval = int(interval_input)
             if interval < 1:
                 print("Error: Interval must be at least 1 minute.")
                 continue
@@ -83,21 +124,29 @@ def get_task_input() -> Dict[str, Any]:
     # Get arguments (optional) with path completion
     print("\nEnter arguments (press Enter twice to finish):")
     print("Example: --source \"path/to/source\" --target \"path/to/target\"")
-    args = []
+    if existing_task and existing_task['arguments']:
+        print(f"Current arguments: {' '.join(existing_task['arguments'])}")
+    
+    args = None
+    arg_lines = []
     while True:
         arg = session.prompt("> ", key_bindings=kb).strip()
         
-        if not arg and not args:  # No arguments entered
+        if not arg:
+            if not arg_lines and existing_task:  # No new arguments entered, keep existing
+                # Re-parse existing arguments to ensure proper format
+                args = shlex.split(' '.join(existing_task['arguments']))
+            elif arg_lines:
+                # Parse all entered arguments properly
+                args = shlex.split(' '.join(arg_lines))
             break
-        if not arg and args:  # Double Enter to finish
-            break
-        args.append(arg)
+        arg_lines.append(arg)
     
     return {
         "script_path": script_path,
         "name": name,
         "interval": interval,
-        "arguments": shlex.split(' '.join(args)) if args else None
+        "arguments": args if args else None
     }
 
 def parse_arguments() -> argparse.Namespace:
@@ -117,8 +166,14 @@ Examples:
     # Add a task interactively
     python main.py --add
 
+    # Edit a task interactively
+    python main.py --edit 1
+
     # List and run existing tasks
     python main.py
+
+    # Change logging settings
+    python main.py --log-level DEBUG --detailed-logs true
     
 Note: Each script should have its own venv in its directory.
         """
@@ -130,6 +185,13 @@ Note: Each script should have its own venv in its directory.
         "--add",
         action="store_true",
         help="Interactive mode to add a new task"
+    )
+    
+    group.add_argument(
+        "--edit",
+        type=int,
+        metavar="ID",
+        help="Edit a task by its ID"
     )
     
     group.add_argument(
@@ -161,6 +223,19 @@ Note: Each script should have its own venv in its directory.
         type=int,
         metavar="ID",
         help="Delete a task by its database ID"
+    )
+    
+    parser.add_argument(
+        "--log-level",
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
+        help="Set the logging level"
+    )
+    
+    parser.add_argument(
+        "--detailed-logs",
+        type=str,
+        choices=['true', 'false'],
+        help="Enable or disable detailed argument logging"
     )
     
     # Collect remaining arguments after --
@@ -198,14 +273,19 @@ def format_task_list(tasks, show_next_run: bool = True):
     return '\n'.join(output)
 
 if __name__ == "__main__":
-    # Initialize logger
-    logger = Logger("Main")
-    
     try:
         # Parse arguments
         args = parse_arguments()
         
-        # Initialize scheduler
+        # Update logging configuration if specified
+        config = Config()
+        if args.log_level:
+            config.set_logging_level(args.log_level)
+        if args.detailed_logs:
+            config.set_detailed_logging(args.detailed_logs.lower() == 'true')
+        
+        # Initialize logger and scheduler
+        logger = Logger("Main")
         scheduler = TaskScheduler()
         
         if args.list:
@@ -237,6 +317,42 @@ if __name__ == "__main__":
                     sys.exit(1)
             else:
                 logger.info("Deletion cancelled")
+            sys.exit(0)
+            
+        elif args.edit is not None:
+            # Get task info before editing
+            tasks = scheduler.list_tasks()
+            task = next((t for t in tasks if t['id'] == args.edit), None)
+            
+            if not task:
+                logger.error(f"No task found with ID {args.edit}")
+                sys.exit(1)
+            
+            # Show current task info
+            logger.info(f"\nEditing task:")
+            logger.info(format_task_list([task], show_next_run=False))
+            
+            # Get updated task details interactively
+            task_details = get_task_input(task)
+            
+            try:
+                # Update the task
+                scheduler.edit_task(
+                    task_id=args.edit,
+                    name=task_details["name"],
+                    script_path=os.path.abspath(task_details["script_path"]),
+                    interval=task_details["interval"],
+                    arguments=task_details["arguments"]
+                )
+                logger.info("Task updated successfully:")
+                logger.info(f"Name: {task_details['name']}")
+                logger.info(f"Script: {task_details['script_path']}")
+                logger.info(f"Interval: {task_details['interval']} minute(s)")
+                if task_details["arguments"]:
+                    logger.info(f"Arguments: {' '.join(task_details['arguments'])}")
+            except ValueError as e:
+                logger.error(str(e))
+                sys.exit(1)
             sys.exit(0)
             
         elif args.add:

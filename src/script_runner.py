@@ -48,10 +48,23 @@ class ScriptRunner:
             # Build the command using venv's Python
             python_cmd = [venv_python, script_name] + (arguments or [])
             
-            self.logger.info(f"Working directory: {script_dir}")
+            # Log execution details based on configuration
             self.logger.info(f"Running script: {script_path}")
-            self.logger.info(f"Arguments: {arguments if arguments else 'None'}")
-            self.logger.info(f"Command: {' '.join(python_cmd)}")
+            
+            if self.logger.is_detailed_logging_enabled():
+                self.logger.debug("=== Script Execution Details ===")
+                self.logger.debug(f"Working directory: {script_dir}")
+                self.logger.debug("Arguments (as stored):")
+                if arguments:
+                    for i, arg in enumerate(arguments):
+                        self.logger.debug(f"  {i+1}. [{arg}]")
+                else:
+                    self.logger.debug("  No arguments")
+                self.logger.debug(f"Full command: {' '.join(python_cmd)}")
+                self.logger.debug("============================")
+            else:
+                # Basic logging when detailed logging is disabled
+                self.logger.info(f"Arguments: {' '.join(arguments) if arguments else 'None'}")
             
             # Run the script in the correct directory
             process = subprocess.run(

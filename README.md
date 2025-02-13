@@ -6,9 +6,10 @@ Task Scheduler for Python Scripts (TASC) is a utility that allows you to schedul
 
 - Schedule Python scripts to run at specified intervals
 - Give descriptive names to scheduled tasks
+- Edit existing tasks with updated parameters
 - Automatic virtual environment activation for each script
 - Persistent storage of tasks in SQLite database
-- Comprehensive logging system
+- Configurable logging system with detailed debugging options
 - Graceful shutdown handling
 
 ## Requirements
@@ -89,12 +90,33 @@ python main.py --list
 
 This will display each task's:
 
-- ID (for use with --delete)
+- ID (for use with --delete or --edit)
 - Name
 - Script path
 - Interval
 - Arguments
 - Next scheduled run time
+
+#### Editing a Task
+
+To edit an existing task:
+
+```bash
+python main.py --edit ID
+```
+
+This will:
+
+1. Show the task's current details
+2. Enter interactive mode with current values pre-filled
+3. Press Enter to keep existing values or enter new ones
+4. Update the task with any changes
+
+For example:
+
+```bash
+python main.py --edit 1
+```
 
 #### Deleting a Task
 
@@ -130,13 +152,60 @@ This will:
 2. Tasks persist between scheduler restarts
 3. The scheduler will automatically activate the appropriate virtual environment before running each script
 
-## Logging
+## Logging Configuration
+
+Logging can be configured through both the config.ini file and command-line arguments.
+
+### Config File (config.ini)
+
+```ini
+[Logging]
+# Logging level: DEBUG, INFO, WARNING, ERROR
+level = INFO
+
+# Enable/disable detailed argument logging
+detailed_args_logging = false
+```
+
+### Command Line Options
+
+Override logging settings temporarily:
+
+```bash
+# Set logging level
+python main.py --log-level DEBUG
+
+# Enable detailed argument logging
+python main.py --detailed-logs true
+
+# Combine both
+python main.py --log-level DEBUG --detailed-logs true
+```
+
+### Logging Levels
+
+- DEBUG: Show all log messages including detailed debugging information
+- INFO: Show general operational messages (default)
+- WARNING: Show only warning and error messages
+- ERROR: Show only error messages
+
+### Detailed Argument Logging
+
+When enabled (detailed_args_logging = true), shows:
+
+- Original arguments as entered
+- JSON format stored in database
+- Parsed arguments during task execution
+
+This is particularly useful when debugging issues with argument handling.
+
+### Log Files
 
 Logs are stored in the `logs` directory with the following format:
 
 - File name: `scheduler_YYYYMMDD.log`
-- Log levels: INFO, WARNING, ERROR
 - Contains execution details, script output, and any errors
+- Log level and detail settings affect what information is included
 
 ## Shutdown
 
@@ -161,11 +230,13 @@ tasc-scheduler/
 │   ├── scheduler.py         # Core scheduling logic
 │   ├── script_runner.py     # Script execution handling
 │   ├── database.py         # Task persistence
+│   ├── config.py           # Configuration handling
 │   └── logger.py           # Logging functionality
 ├── data/                    # Database directory
 │   └── tasks.sqlite        # SQLite database for tasks
 ├── logs/                    # Log files directory
 ├── main.py                  # Entry point
+├── config.ini              # Configuration file
 ├── requirements.txt         # Project dependencies
 ├── install.bat             # Installation script
 └── README.md               # This file

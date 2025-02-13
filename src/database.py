@@ -3,12 +3,14 @@ import os
 import sqlite3
 from typing import List, Optional, Dict
 from datetime import datetime
+from .logger import Logger
 
 class Database:
     """Handle SQLite database operations for task storage."""
     
     def __init__(self, db_path: str = None):
         """Initialize database connection and create tables if needed."""
+        self.logger = Logger("Database")
         if db_path is None:
             # Get the directory where the script is located
             script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -58,9 +60,24 @@ class Database:
             int: ID of the newly added task
         """
         with sqlite3.connect(self.db_path) as conn:
+            # Store arguments exactly as provided
+            json_args = json.dumps(arguments, ensure_ascii=False) if arguments else "[]"
+            
+            # Log argument details if enabled
+            if self.logger.is_detailed_logging_enabled():
+                self.logger.debug("=== Database Add Task Arguments ===")
+                self.logger.debug("Original arguments:")
+                if arguments:
+                    for i, arg in enumerate(arguments):
+                        self.logger.debug(f"  {i+1}. [{arg}]")
+                else:
+                    self.logger.debug("  No arguments")
+                self.logger.debug(f"JSON stored in database: {json_args}")
+                self.logger.debug("================================")
+            
             cursor = conn.execute(
                 "INSERT INTO tasks (name, script_path, arguments, interval) VALUES (?, ?, ?, ?)",
-                (name, script_path, json.dumps(arguments or []), interval)
+                (name, script_path, json_args, interval)
             )
             return cursor.lastrowid
     
@@ -77,7 +94,21 @@ class Database:
             tasks = []
             for row in cursor:
                 task = dict(row)
-                task['arguments'] = json.loads(task['arguments'])
+                raw_args = task['arguments']
+                task['arguments'] = json.loads(raw_args)
+                
+                # Log argument details if enabled
+                if self.logger.is_detailed_logging_enabled():
+                    self.logger.debug(f"=== Loading Task {task['id']} Arguments ===")
+                    self.logger.debug(f"Raw JSON from database: {raw_args}")
+                    self.logger.debug("Parsed arguments:")
+                    if task['arguments']:
+                        for i, arg in enumerate(task['arguments']):
+                            self.logger.debug(f"  {i+1}. [{arg}]")
+                    else:
+                        self.logger.debug("  No arguments")
+                    self.logger.debug("================================")
+                
                 tasks.append(task)
             return tasks
     
@@ -135,10 +166,64 @@ class Database:
             executions = []
             for row in cursor:
                 execution = dict(row)
-                execution['arguments'] = json.loads(execution['arguments'])
+                raw_args = execution['arguments']
+                execution['arguments'] = json.loads(raw_args)
+                
+                # Log argument details if enabled
+                if self.logger.is_detailed_logging_enabled():
+                    self.logger.debug(f"=== Loading Execution {execution['execution_id']} Arguments ===")
+                    self.logger.debug(f"Raw JSON from database: {raw_args}")
+                    self.logger.debug("Parsed arguments:")
+                    if execution['arguments']:
+                        for i, arg in enumerate(execution['arguments']):
+                            self.logger.debug(f"  {i+1}. [{arg}]")
+                    else:
+                        self.logger.debug("  No arguments")
+                    self.logger.debug("================================")
+                
                 executions.append(execution)
             return executions
     
+    def edit_task(self, task_id: int, name: str, script_path: str, interval: int, arguments: Optional[List[str]] = None) -> bool:
+        """
+        Edit an existing task in the database.
+        
+        Args:
+            task_id: ID of the task to edit
+            name: New name for the task
+            script_path: New path to the Python script
+            interval: New interval in minutes
+            arguments: New list of command line arguments
+            
+        Returns:
+            bool: True if task was found and updated, False otherwise
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            # Store arguments exactly as provided
+            json_args = json.dumps(arguments, ensure_ascii=False) if arguments else "[]"
+            
+            # Log argument details if enabled
+            if self.logger.is_detailed_logging_enabled():
+                self.logger.debug("=== Database Edit Task Arguments ===")
+                self.logger.debug("Original arguments:")
+                if arguments:
+                    for i, arg in enumerate(arguments):
+                        self.logger.debug(f"  {i+1}. [{arg}]")
+                else:
+                    self.logger.debug("  No arguments")
+                self.logger.debug(f"JSON stored in database: {json_args}")
+                self.logger.debug("================================")
+            
+            cursor = conn.execute(
+                """
+                UPDATE tasks 
+                SET name = ?, script_path = ?, arguments = ?, interval = ?
+                WHERE id = ?
+                """,
+                (name, script_path, json_args, interval, task_id)
+            )
+            return cursor.rowcount > 0
+            
     def clear_all_tasks(self):
         """Remove all tasks and their history from the database."""
         with sqlite3.connect(self.db_path) as conn:

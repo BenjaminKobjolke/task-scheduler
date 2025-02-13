@@ -163,6 +163,46 @@ class TaskScheduler:
             self.logger.error(f"Error removing task {task_id}: {str(e)}")
             raise
     
+    def edit_task(self, task_id: int, name: str, script_path: str, interval: int, arguments: Optional[List[str]] = None):
+        """
+        Edit an existing task in both database and scheduler.
+        
+        Args:
+            task_id: ID of the task to edit
+            name: New name for the task
+            script_path: New path to the Python script
+            interval: New interval in minutes
+            arguments: New list of command line arguments
+            
+        Raises:
+            ValueError: If task is not found or update fails
+        """
+        try:
+            # Update in database first
+            if not self.db.edit_task(task_id, name, script_path, interval, arguments):
+                raise ValueError(f"Task with ID {task_id} not found")
+            
+            # Update in scheduler if running
+            if self.scheduler.running:
+                # Remove old job
+                job_id = f"job_{task_id}"
+                try:
+                    self.scheduler.remove_job(job_id)
+                except Exception as e:
+                    self.logger.warning(f"Could not remove old job from scheduler: {str(e)}")
+                
+                # Schedule new job
+                self._schedule_task(task_id, name, script_path, interval, arguments)
+            
+            self.logger.info(
+                f"Updated task '{name}' (ID: {task_id}): {script_path} with interval {interval} minutes"
+                f"{' and arguments: ' + ' '.join(arguments) if arguments else ''}"
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error updating task {task_id}: {str(e)}")
+            raise
+    
     def list_tasks(self) -> List[Dict]:
         """
         Get a list of all tasks with their next run times.
