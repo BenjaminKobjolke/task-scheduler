@@ -237,6 +237,13 @@ Note: Each script should have its own venv in its directory.
         choices=['true', 'false'],
         help="Enable or disable detailed argument logging"
     )
+
+    parser.add_argument(
+        "--run_id",
+        type=int,
+        metavar="ID",
+        help="Run a specific task by its database ID"
+    )
     
     # Collect remaining arguments after --
     parser.add_argument(
@@ -407,9 +414,26 @@ if __name__ == "__main__":
             if script_args:
                 logger.info(f"Arguments: {' '.join(script_args)}")
             sys.exit(0)
+
+        elif args.run_id:
+            # Run a specific task by its ID
+            tasks = scheduler.list_tasks()
+            task = next((t for t in tasks if t['id'] == args.run_id), None)
+
+            if not task:
+                logger.error(f"No task found with ID {args.run_id}")
+                sys.exit(1)
+
+            logger.info(f"Running task {task['name']} (ID: {task['id']})")
+            try:
+                scheduler.run_task(task['id'])
+            except Exception as e:
+                logger.error(f"Error running task {task['name']} (ID: {task['id']}): {str(e)}")
+                sys.exit(1)
+            sys.exit(0)
         
         # If no specific action was requested, run the scheduler
-        if not (args.script or args.list or args.delete):
+        if not (args.script or args.list or args.delete or args.run_id):
             # Register signal handlers for graceful shutdown
             signal.signal(signal.SIGINT, signal_handler)
             signal.signal(signal.SIGTERM, signal_handler)

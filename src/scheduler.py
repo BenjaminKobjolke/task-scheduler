@@ -84,7 +84,7 @@ class TaskScheduler:
             name: Name of the task
             script_path: Path to the Python script
             interval: Interval in minutes
-            arguments: List of command line arguments for the script
+            arguments: Arguments for the script
         """
         # Create unique job ID using task ID
         job_id = f"job_{task_id}"
@@ -221,3 +221,26 @@ class TaskScheduler:
                 task['next_run_time'] = None
         
         return tasks
+
+    def run_task(self, task_id: int):
+        """
+        Run a specific task by its ID.
+
+        Args:
+            task_id: ID of the task to run
+        """
+        try:
+            # Get task details from the database
+            tasks = self.db.get_all_tasks()
+            task = next((t for t in tasks if t['id'] == task_id), None)
+
+            if not task:
+                self.logger.error(f"Task with ID {task_id} not found")
+                raise ValueError(f"Task with ID {task_id} not found")
+
+            # Run the task
+            self._process_job(task['id'], task['name'], task['script_path'], task['arguments'])
+
+        except Exception as e:
+            self.logger.error(f"Error running task {task_id}: {str(e)}")
+            raise
