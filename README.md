@@ -1,6 +1,6 @@
-# TASC Scheduler
+# TASK Scheduler
 
-Task Scheduler for Python Scripts and Batch Files (TASC) is a utility that allows you to schedule Python scripts and batch files to run at specified intervals. It handles virtual environments for Python scripts automatically and persists tasks between restarts.
+Task Scheduler for Python Scripts and Batch Files is a utility that allows you to schedule Python scripts and batch files to run at specified intervals. It handles virtual environments for Python scripts automatically and persists tasks between restarts.
 
 ## Features
 
