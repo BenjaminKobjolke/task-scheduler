@@ -1,13 +1,14 @@
 # TASC Scheduler
 
-Task Scheduler for Python Scripts (TASC) is a utility that allows you to schedule Python scripts to run at specified intervals. It handles virtual environments for each script automatically and persists tasks between restarts.
+Task Scheduler for Python Scripts and Batch Files (TASC) is a utility that allows you to schedule Python scripts and batch files to run at specified intervals. It handles virtual environments for Python scripts automatically and persists tasks between restarts.
 
 ## Features
 
-- Schedule Python scripts to run at specified intervals
+- Schedule Python scripts and batch files to run at specified intervals
 - Give descriptive names to scheduled tasks
 - Edit existing tasks with updated parameters
-- Automatic virtual environment activation for each script
+- Automatic virtual environment activation for Python scripts
+- Batch files run directly from their own directory
 - Persistent storage of tasks in SQLite database
 - Configurable logging system with detailed debugging options
 - Graceful shutdown handling
@@ -16,7 +17,8 @@ Task Scheduler for Python Scripts (TASC) is a utility that allows you to schedul
 
 - Python 3.6 or higher
 - Windows operating system
-- Each script to be scheduled must have its own virtual environment in a `venv` subfolder
+- Each **Python script** to be scheduled must have its own virtual environment in a `venv` subfolder
+- Batch files (.bat) can be scheduled without any additional requirements
 
 ## Installation
 
@@ -57,7 +59,7 @@ python main.py --script "path/to/script.py" --name "task description" --interval
 
 #### Parameters
 
-- `--script`: Path to the Python script to schedule (absolute path or relative to current directory)
+- `--script`: Path to the Python script or batch file to schedule (absolute path or relative to current directory)
 - `--name`: Descriptive name for the task (e.g., "convert audio notes to text")
 - `--interval`: Interval in minutes between script executions
 - `--`: Separator after which all arguments are passed to the script
@@ -66,11 +68,17 @@ python main.py --script "path/to/script.py" --name "task description" --interval
 #### Examples
 
 ```bash
-# Simple task without arguments
+# Simple Python task without arguments
 python main.py --script "local_script.py" --name "local task" --interval 1
 
-# Complex task with quoted arguments and paths
+# Batch file task
+python main.py --script "backup.bat" --name "daily backup" --interval 60
+
+# Complex Python task with quoted arguments and paths
 python main.py --script "D:\GIT\BenjaminKobjolke\ai-file-renamer\main.py" --name "convert XIDA invoices" --interval 5 -- --source "Z:\Resilio Sync\XIDA_Invoices" --examples "E:\Owncloud\xida\company\GmbH\[--Dokumente--]\[--Rechnungen--]\[--In--]"
+
+# Batch file with arguments
+python main.py --script "cleanup.bat" --name "cleanup temp files" --interval 30 -- --force --verbose
 ```
 
 Note: When using arguments with spaces or special characters, make sure to:
@@ -148,9 +156,10 @@ This will:
 
 ### Important Notes
 
-1. Each script must have its own virtual environment in a `venv` subfolder in its directory
-2. Tasks persist between scheduler restarts
-3. The scheduler will automatically activate the appropriate virtual environment before running each script
+1. **Python scripts:** Each Python script must have its own virtual environment in a `venv` subfolder in its directory. The scheduler will automatically activate the appropriate virtual environment before running each script.
+2. **Batch files:** Batch files (.bat) are executed directly from their own directory. No virtual environment is required.
+3. Tasks persist between scheduler restarts
+4. The scheduler executes scripts in their respective directories
 
 ## Logging Configuration
 
@@ -216,8 +225,8 @@ To stop the scheduler:
 
 ## Error Handling
 
-- If a script's virtual environment is not found, an error will be logged
-- If a script fails to execute, it will be logged and the scheduler will continue with the next script
+- If a Python script's virtual environment is not found, an error will be logged
+- If a script or batch file fails to execute, it will be logged and the scheduler will continue with the next task
 - All errors are logged with full stack traces for debugging
 
 ## Project Structure
@@ -228,7 +237,7 @@ tasc-scheduler/
 ├── src/
 │   ├── __init__.py
 │   ├── scheduler.py         # Core scheduling logic
-│   ├── script_runner.py     # Script execution handling
+│   ├── script_runner.py     # Script/batch file execution handling
 │   ├── database.py         # Task persistence
 │   ├── config.py           # Configuration handling
 │   └── logger.py           # Logging functionality

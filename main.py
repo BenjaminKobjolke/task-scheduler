@@ -152,7 +152,7 @@ def get_task_input(existing_task: Dict[str, Any] = None) -> Dict[str, Any]:
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Task Scheduler for Python Scripts",
+        description="Task Scheduler for Python Scripts and Batch Files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -162,6 +162,9 @@ Examples:
 
     # Add a task using relative path
     python main.py --script "script.py" --name "local script" --interval 1
+
+    # Add a batch file task
+    python main.py --script "backup.bat" --name "backup task" --interval 60
 
     # Add a task interactively
     python main.py --add
@@ -174,8 +177,10 @@ Examples:
 
     # Change logging settings
     python main.py --log-level DEBUG --detailed-logs true
-    
-Note: Each script should have its own venv in its directory.
+
+Note:
+    - Python scripts should have their own venv in their directory.
+    - Batch files will run from their own directory.
         """
     )
     
@@ -197,7 +202,7 @@ Note: Each script should have its own venv in its directory.
     group.add_argument(
         "--script",
         type=str,
-        help="Path to the Python script to schedule"
+        help="Path to the Python script or batch file to schedule"
     )
     
     parser.add_argument(

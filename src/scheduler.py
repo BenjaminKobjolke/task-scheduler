@@ -78,11 +78,11 @@ class TaskScheduler:
     def _schedule_task(self, task_id: int, name: str, script_path: str, interval: int, arguments: Optional[List[str]] = None):
         """
         Schedule a task in the APScheduler.
-        
+
         Args:
             task_id: ID of the task
             name: Name of the task
-            script_path: Path to the Python script
+            script_path: Path to the Python script or batch file
             interval: Interval in minutes
             arguments: Arguments for the script
         """
@@ -103,10 +103,10 @@ class TaskScheduler:
     def add_task(self, name: str, script_path: str, interval: int, arguments: Optional[List[str]] = None):
         """
         Add a new task to both database and scheduler.
-        
+
         Args:
             name: Name of the task
-            script_path: Path to the Python script
+            script_path: Path to the Python script or batch file
             interval: Interval in minutes
             arguments: List of command line arguments for the script
         """
@@ -166,14 +166,14 @@ class TaskScheduler:
     def edit_task(self, task_id: int, name: str, script_path: str, interval: int, arguments: Optional[List[str]] = None):
         """
         Edit an existing task in both database and scheduler.
-        
+
         Args:
             task_id: ID of the task to edit
             name: New name for the task
-            script_path: New path to the Python script
+            script_path: New path to the Python script or batch file
             interval: New interval in minutes
             arguments: New list of command line arguments
-            
+
         Raises:
             ValueError: If task is not found or update fails
         """
