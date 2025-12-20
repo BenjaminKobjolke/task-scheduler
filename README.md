@@ -105,6 +105,24 @@ This will display each task's:
 - Arguments
 - Next scheduled run time
 
+#### Viewing Execution History
+
+To view recent task executions:
+
+```bash
+# Show last 10 executions (default)
+python main.py --history
+
+# Show last N executions
+python main.py --history 20
+```
+
+This will display:
+
+- Execution timestamp (local time)
+- Task name
+- Success/failure status
+
 #### Editing a Task
 
 To edit an existing task:
