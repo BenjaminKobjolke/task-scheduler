@@ -132,7 +132,7 @@ class Database:
         """
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
-                "INSERT INTO task_history (task_id, execution_time, success) VALUES (?, datetime('now'), ?)",
+                "INSERT INTO task_history (task_id, execution_time, success) VALUES (?, datetime('now', 'localtime'), ?)",
                 (task_id, success)
             )
     
