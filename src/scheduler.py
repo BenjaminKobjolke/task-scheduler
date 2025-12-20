@@ -97,7 +97,9 @@ class TaskScheduler:
             next_run_time=datetime.now(),  # Start immediately
             id=job_id,  # Use script path as unique ID
             replace_existing=True,  # Replace if job exists
-            name=name  # Store task name
+            name=name,  # Store task name
+            misfire_grace_time=60,  # Allow 60 seconds of delay before considering it a misfire
+            coalesce=True  # If multiple runs were missed, only run once
         )
     
     def add_task(self, name: str, script_path: str, interval: int, arguments: Optional[List[str]] = None):
