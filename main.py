@@ -222,6 +222,15 @@ Note:
         action="store_true",
         help="List all scheduled tasks and exit"
     )
+
+    parser.add_argument(
+        "--history",
+        type=int,
+        nargs='?',
+        const=10,
+        metavar="N",
+        help="Show the last N task executions (default: 10)"
+    )
     
     parser.add_argument(
         "--delete",
@@ -265,11 +274,25 @@ def signal_handler(signum, frame):
     scheduler.shutdown()
     sys.exit(0)
 
+def format_execution_history(executions):
+    """Format execution history for display."""
+    if not executions:
+        return "No execution history found."
+
+    output = []
+    for i, execution in enumerate(executions, 1):
+        status = "Success" if execution['success'] else "Failed"
+        status_symbol = "+" if execution['success'] else "-"
+        output.append(
+            f"{i}. {execution['execution_time']} - {execution['name']} - [{status_symbol}] {status}"
+        )
+    return '\n'.join(output)
+
 def format_task_list(tasks, show_next_run: bool = True):
     """Format task list for display."""
     if not tasks:
         return "No tasks scheduled."
-    
+
     output = []
     for task in tasks:
         lines = [
@@ -305,7 +328,13 @@ if __name__ == "__main__":
             tasks = scheduler.list_tasks()
             logger.info("Scheduled tasks:" + format_task_list(tasks, show_next_run=False))
             sys.exit(0)
-            
+
+        elif args.history is not None:
+            # Show execution history and exit
+            executions = scheduler.db.get_recent_executions(args.history)
+            logger.info("Recent task executions:\n" + format_execution_history(executions))
+            sys.exit(0)
+
         elif args.delete is not None:
             # Get task info before deletion
             tasks = scheduler.list_tasks()
@@ -438,7 +467,7 @@ if __name__ == "__main__":
             sys.exit(0)
         
         # If no specific action was requested, run the scheduler
-        if not (args.script or args.list or args.delete or args.run_id):
+        if not (args.script or args.list or args.history or args.delete or args.run_id):
             # Register signal handlers for graceful shutdown
             signal.signal(signal.SIGINT, signal_handler)
             signal.signal(signal.SIGTERM, signal_handler)
