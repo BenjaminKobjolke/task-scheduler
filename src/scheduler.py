@@ -7,6 +7,7 @@ from .logger import Logger
 from .script_runner import ScriptRunner
 from .database import Database
 from .status_page import StatusPage
+from .constants import Paths, Defaults
 
 class TaskScheduler:
     """Manages scheduled tasks using APScheduler."""
@@ -18,7 +19,7 @@ class TaskScheduler:
         self.db = Database()
         
         # Create data directory if it doesn't exist
-        os.makedirs('data', exist_ok=True)
+        os.makedirs(Paths.DATA_DIR, exist_ok=True)
         
         # Initialize scheduler without persistent job store
         self.scheduler = BackgroundScheduler()
@@ -45,9 +46,20 @@ class TaskScheduler:
         self.scheduler.shutdown()
         self.logger.info("Scheduler shutdown")
         
+    def _get_job_id(self, task_id: int) -> str:
+        """Generate a unique job ID for a task.
+
+        Args:
+            task_id: ID of the task
+
+        Returns:
+            str: Unique job identifier
+        """
+        return f"job_{task_id}"
+
     def _update_status_page(self):
         """Update the index.html page with current task information."""
-        recent = self.db.get_recent_executions(10)
+        recent = self.db.get_recent_executions(Defaults.HISTORY_LIMIT)
         jobs = self.scheduler.get_jobs()
         # Sort jobs by next run time
         next_jobs = sorted(jobs, key=lambda x: x.next_run_time) if jobs else []
@@ -87,18 +99,18 @@ class TaskScheduler:
             arguments: Arguments for the script
         """
         # Create unique job ID using task ID
-        job_id = f"job_{task_id}"
-        
+        job_id = self._get_job_id(task_id)
+
         # Add the job to the scheduler
         self.scheduler.add_job(
             func=self._process_job,
             trigger=IntervalTrigger(minutes=interval),
             args=[task_id, name, script_path, arguments or []],
             next_run_time=datetime.now(),  # Start immediately
-            id=job_id,  # Use script path as unique ID
+            id=job_id,
             replace_existing=True,  # Replace if job exists
             name=name,  # Store task name
-            misfire_grace_time=60,  # Allow 60 seconds of delay before considering it a misfire
+            misfire_grace_time=Defaults.MISFIRE_GRACE_TIME,
             coalesce=True  # If multiple runs were missed, only run once
         )
     
@@ -147,8 +159,7 @@ class TaskScheduler:
                 # Only try to remove from scheduler if it's running
                 if self.scheduler.running:
                     try:
-                        job_id = f"job_{task_id}"
-                        self.scheduler.remove_job(job_id)
+                        self.scheduler.remove_job(self._get_job_id(task_id))
                     except Exception as e:
                         # Log but don't fail if job removal fails
                         self.logger.warning(f"Could not remove job from scheduler: {str(e)}")
@@ -187,9 +198,8 @@ class TaskScheduler:
             # Update in scheduler if running
             if self.scheduler.running:
                 # Remove old job
-                job_id = f"job_{task_id}"
                 try:
-                    self.scheduler.remove_job(job_id)
+                    self.scheduler.remove_job(self._get_job_id(task_id))
                 except Exception as e:
                     self.logger.warning(f"Could not remove old job from scheduler: {str(e)}")
                 
@@ -214,9 +224,9 @@ class TaskScheduler:
         """
         tasks = self.db.get_all_tasks()
         scheduler_jobs = {job.id: job for job in self.scheduler.get_jobs()}
-        
+
         for task in tasks:
-            job_id = f"job_{task['id']}"
+            job_id = self._get_job_id(task['id'])
             if job_id in scheduler_jobs:
                 task['next_run_time'] = scheduler_jobs[job_id].next_run_time
             else:

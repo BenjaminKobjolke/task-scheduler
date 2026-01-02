@@ -1,7 +1,9 @@
 import logging
 import os
 from datetime import datetime
+from typing import List, Optional
 from .config import Config
+from .constants import Paths
 
 class Logger:
     """Custom logger for the task scheduler."""
@@ -24,10 +26,10 @@ class Logger:
             self.logger.removeHandler(handler)
         
         # Create logs directory if it doesn't exist
-        os.makedirs("logs", exist_ok=True)
-        
+        os.makedirs(Paths.LOGS_DIR, exist_ok=True)
+
         # File handler
-        log_file = f"logs/scheduler_{datetime.now().strftime('%Y%m%d')}.log"
+        log_file = f"{Paths.LOGS_DIR}/scheduler_{datetime.now().strftime('%Y%m%d')}.log"
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(level)
         
@@ -67,3 +69,21 @@ class Logger:
     def debug(self, message: str):
         """Log debug level message."""
         self.logger.debug(message)
+
+    def log_arguments(self, arguments: Optional[List[str]], header: Optional[str] = None):
+        """Log arguments in a consistent format.
+
+        Args:
+            arguments: List of arguments to log, or None
+            header: Optional header text for the log block
+        """
+        if header:
+            self.debug(f"=== {header} ===")
+        self.debug("Arguments (as stored):")
+        if arguments:
+            for i, arg in enumerate(arguments):
+                self.debug(f"  {i+1}. [{arg}]")
+        else:
+            self.debug("  No arguments")
+        if header:
+            self.debug("=" * (len(header) + 8))

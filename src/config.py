@@ -1,6 +1,8 @@
 import os
 import configparser
 from typing import Optional
+from .constants import Config as ConfigConstants
+
 
 class Config:
     """Handle configuration settings for the task scheduler."""
@@ -35,43 +37,53 @@ class Config:
     
     def _create_default_config(self):
         """Create default configuration file."""
-        self.config['Logging'] = {
-            'level': 'INFO',
-            'detailed_args_logging': 'false'
+        self.config[ConfigConstants.SECTION_LOGGING] = {
+            ConfigConstants.KEY_LEVEL: ConfigConstants.DEFAULT_LEVEL,
+            ConfigConstants.KEY_DETAILED_ARGS: ConfigConstants.DEFAULT_DETAILED
         }
-        
+
         with open(self.config_path, 'w') as configfile:
             self.config.write(configfile)
-    
+
     def get_logging_level(self) -> str:
         """Get the current logging level."""
-        return self.config.get('Logging', 'level', fallback='INFO')
+        return self.config.get(
+            ConfigConstants.SECTION_LOGGING,
+            ConfigConstants.KEY_LEVEL,
+            fallback=ConfigConstants.DEFAULT_LEVEL
+        )
     
     def set_logging_level(self, level: str):
         """
         Set the logging level.
-        
+
         Args:
             level: One of DEBUG, INFO, WARNING, ERROR
         """
         if level not in ['DEBUG', 'INFO', 'WARNING', 'ERROR']:
             raise ValueError("Invalid logging level")
-        
-        self.config['Logging']['level'] = level
+
+        self.config[ConfigConstants.SECTION_LOGGING][ConfigConstants.KEY_LEVEL] = level
         self._save_config()
-    
+
     def is_detailed_logging_enabled(self) -> bool:
         """Check if detailed argument logging is enabled."""
-        return self.config.getboolean('Logging', 'detailed_args_logging', fallback=False)
-    
+        return self.config.getboolean(
+            ConfigConstants.SECTION_LOGGING,
+            ConfigConstants.KEY_DETAILED_ARGS,
+            fallback=False
+        )
+
     def set_detailed_logging(self, enabled: bool):
         """
         Enable or disable detailed argument logging.
-        
+
         Args:
             enabled: True to enable detailed logging, False to disable
         """
-        self.config['Logging']['detailed_args_logging'] = str(enabled).lower()
+        self.config[ConfigConstants.SECTION_LOGGING][ConfigConstants.KEY_DETAILED_ARGS] = (
+            str(enabled).lower()
+        )
         self._save_config()
     
     def _save_config(self):

@@ -4,6 +4,7 @@ import sqlite3
 from typing import List, Optional, Dict
 from datetime import datetime
 from .logger import Logger
+from .constants import Paths, Database as DbConstants, Defaults
 
 class Database:
     """Handle SQLite database operations for task storage."""
@@ -14,7 +15,7 @@ class Database:
         if db_path is None:
             # Get the directory where the script is located
             script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            data_dir = os.path.join(script_dir, "data")
+            data_dir = os.path.join(script_dir, Paths.DATA_DIR)
             # Create data directory if it doesn't exist
             os.makedirs(data_dir, exist_ok=True)
             db_path = os.path.join(data_dir, "tasks.sqlite")
@@ -65,15 +66,8 @@ class Database:
             
             # Log argument details if enabled
             if self.logger.is_detailed_logging_enabled():
-                self.logger.debug("=== Database Add Task Arguments ===")
-                self.logger.debug("Original arguments:")
-                if arguments:
-                    for i, arg in enumerate(arguments):
-                        self.logger.debug(f"  {i+1}. [{arg}]")
-                else:
-                    self.logger.debug("  No arguments")
+                self.logger.log_arguments(arguments, "Database Add Task Arguments")
                 self.logger.debug(f"JSON stored in database: {json_args}")
-                self.logger.debug("================================")
             
             cursor = conn.execute(
                 "INSERT INTO tasks (name, script_path, arguments, interval) VALUES (?, ?, ?, ?)",
@@ -99,15 +93,8 @@ class Database:
                 
                 # Log argument details if enabled
                 if self.logger.is_detailed_logging_enabled():
-                    self.logger.debug(f"=== Loading Task {task['id']} Arguments ===")
                     self.logger.debug(f"Raw JSON from database: {raw_args}")
-                    self.logger.debug("Parsed arguments:")
-                    if task['arguments']:
-                        for i, arg in enumerate(task['arguments']):
-                            self.logger.debug(f"  {i+1}. [{arg}]")
-                    else:
-                        self.logger.debug("  No arguments")
-                    self.logger.debug("================================")
+                    self.logger.log_arguments(task['arguments'], f"Loading Task {task['id']} Arguments")
                 
                 tasks.append(task)
             return tasks
@@ -171,15 +158,11 @@ class Database:
                 
                 # Log argument details if enabled
                 if self.logger.is_detailed_logging_enabled():
-                    self.logger.debug(f"=== Loading Execution {execution['execution_id']} Arguments ===")
                     self.logger.debug(f"Raw JSON from database: {raw_args}")
-                    self.logger.debug("Parsed arguments:")
-                    if execution['arguments']:
-                        for i, arg in enumerate(execution['arguments']):
-                            self.logger.debug(f"  {i+1}. [{arg}]")
-                    else:
-                        self.logger.debug("  No arguments")
-                    self.logger.debug("================================")
+                    self.logger.log_arguments(
+                        execution['arguments'],
+                        f"Loading Execution {execution['execution_id']} Arguments"
+                    )
                 
                 executions.append(execution)
             return executions
@@ -204,15 +187,8 @@ class Database:
             
             # Log argument details if enabled
             if self.logger.is_detailed_logging_enabled():
-                self.logger.debug("=== Database Edit Task Arguments ===")
-                self.logger.debug("Original arguments:")
-                if arguments:
-                    for i, arg in enumerate(arguments):
-                        self.logger.debug(f"  {i+1}. [{arg}]")
-                else:
-                    self.logger.debug("  No arguments")
+                self.logger.log_arguments(arguments, "Database Edit Task Arguments")
                 self.logger.debug(f"JSON stored in database: {json_args}")
-                self.logger.debug("================================")
             
             cursor = conn.execute(
                 """

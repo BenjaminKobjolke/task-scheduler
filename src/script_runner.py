@@ -2,6 +2,7 @@ import os
 import subprocess
 from typing import List, Optional
 from .logger import Logger
+from .constants import Paths
 
 class ScriptRunner:
     """Handles the execution of Python scripts with their virtual environments."""
@@ -12,19 +13,19 @@ class ScriptRunner:
     
     def _is_uv_project(self, script_dir: str) -> bool:
         """Check if the script directory is a uv-managed project."""
-        pyproject_path = os.path.join(script_dir, "pyproject.toml")
-        uv_lock_path = os.path.join(script_dir, "uv.lock")
+        pyproject_path = os.path.join(script_dir, Paths.PYPROJECT_TOML)
+        uv_lock_path = os.path.join(script_dir, Paths.UV_LOCK)
         return os.path.exists(pyproject_path) and os.path.exists(uv_lock_path)
 
     def _activate_venv(self, script_path: str) -> str:
         """Get the activation command for the script's virtual environment."""
         script_dir = os.path.dirname(script_path)
-        venv_path = os.path.join(script_dir, "venv")
+        venv_path = os.path.join(script_dir, Paths.VENV_DIR)
 
         if not os.path.exists(venv_path):
             raise ValueError(f"Virtual environment not found at {venv_path}")
 
-        return os.path.join(venv_path, "Scripts", "activate")
+        return os.path.join(venv_path, Paths.SCRIPTS_DIR, Paths.ACTIVATE_SCRIPT)
     
     def run_script(self, script_path: str, arguments: List[str] = None) -> bool:
         """
@@ -43,7 +44,7 @@ class ScriptRunner:
 
         # Determine if it's a batch file or Python script
         _, ext = os.path.splitext(script_path)
-        is_batch = ext.lower() == '.bat'
+        is_batch = ext.lower() == Paths.BAT_EXTENSION
 
         try:
             # Get script directory and name
@@ -58,16 +59,9 @@ class ScriptRunner:
                 self.logger.info(f"Running batch file: {script_path}")
 
                 if self.logger.is_detailed_logging_enabled():
-                    self.logger.debug("=== Batch File Execution Details ===")
                     self.logger.debug(f"Working directory: {script_dir}")
-                    self.logger.debug("Arguments (as stored):")
-                    if arguments:
-                        for i, arg in enumerate(arguments):
-                            self.logger.debug(f"  {i+1}. [{arg}]")
-                    else:
-                        self.logger.debug("  No arguments")
+                    self.logger.log_arguments(arguments, "Batch File Execution Details")
                     self.logger.debug(f"Full command: {' '.join(cmd)}")
-                    self.logger.debug("====================================")
                 else:
                     # Basic logging when detailed logging is disabled
                     self.logger.info(f"Arguments: {' '.join(arguments) if arguments else 'None'}")
@@ -89,16 +83,9 @@ class ScriptRunner:
                 self.logger.info(f"Running script with uv: {script_path}")
 
                 if self.logger.is_detailed_logging_enabled():
-                    self.logger.debug("=== uv Script Execution Details ===")
                     self.logger.debug(f"Working directory: {script_dir}")
-                    self.logger.debug("Arguments (as stored):")
-                    if arguments:
-                        for i, arg in enumerate(arguments):
-                            self.logger.debug(f"  {i+1}. [{arg}]")
-                    else:
-                        self.logger.debug("  No arguments")
+                    self.logger.log_arguments(arguments, "uv Script Execution Details")
                     self.logger.debug(f"Full command: {' '.join(python_cmd)}")
-                    self.logger.debug("====================================")
                 else:
                     # Basic logging when detailed logging is disabled
                     self.logger.info(f"Arguments: {' '.join(arguments) if arguments else 'None'}")
@@ -116,7 +103,7 @@ class ScriptRunner:
                 venv_activate = self._activate_venv(script_path)
 
                 # Get the Python executable from the virtual environment
-                venv_python = os.path.join(os.path.dirname(venv_activate), "python.exe")
+                venv_python = os.path.join(os.path.dirname(venv_activate), Paths.PYTHON_EXE)
 
                 # Build the command using venv's Python
                 python_cmd = [venv_python, script_name] + (arguments or [])
@@ -125,16 +112,9 @@ class ScriptRunner:
                 self.logger.info(f"Running script: {script_path}")
 
                 if self.logger.is_detailed_logging_enabled():
-                    self.logger.debug("=== Script Execution Details ===")
                     self.logger.debug(f"Working directory: {script_dir}")
-                    self.logger.debug("Arguments (as stored):")
-                    if arguments:
-                        for i, arg in enumerate(arguments):
-                            self.logger.debug(f"  {i+1}. [{arg}]")
-                    else:
-                        self.logger.debug("  No arguments")
+                    self.logger.log_arguments(arguments, "Script Execution Details")
                     self.logger.debug(f"Full command: {' '.join(python_cmd)}")
-                    self.logger.debug("============================")
                 else:
                     # Basic logging when detailed logging is disabled
                     self.logger.info(f"Arguments: {' '.join(arguments) if arguments else 'None'}")
