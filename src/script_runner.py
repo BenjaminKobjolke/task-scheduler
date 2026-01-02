@@ -1,11 +1,12 @@
 import os
 import subprocess
+import tomllib
 from typing import List, Optional
 from .logger import Logger
 from .constants import Paths
 
 class ScriptRunner:
-    """Handles the execution of Python scripts with their virtual environments."""
+    """Handles the execution of Python scripts, batch files, and uv CLI commands."""
     
     def __init__(self):
         """Initialize ScriptRunner with logger."""
@@ -139,4 +140,79 @@ class ScriptRunner:
 
         except Exception as e:
             self.logger.error(f"Error running script {script_path}: {str(e)}")
+            return False
+
+    def get_uv_commands(self, project_dir: str) -> List[str]:
+        """
+        Get available uv CLI commands from a project's pyproject.toml.
+
+        Args:
+            project_dir: Path to the uv project directory
+
+        Returns:
+            List of command names defined in [project.scripts]
+        """
+        pyproject_path = os.path.join(project_dir, Paths.PYPROJECT_TOML)
+
+        if not os.path.exists(pyproject_path):
+            return []
+
+        try:
+            with open(pyproject_path, "rb") as f:
+                data = tomllib.load(f)
+            return list(data.get("project", {}).get("scripts", {}).keys())
+        except Exception as e:
+            self.logger.error(f"Error reading pyproject.toml: {str(e)}")
+            return []
+
+    def run_uv_command(self, project_dir: str, command: str, arguments: List[str] = None) -> bool:
+        """
+        Run a uv CLI command (entry point) in a project directory.
+
+        Args:
+            project_dir: Path to the uv project directory
+            command: The uv command/entry point name
+            arguments: List of command line arguments for the command
+
+        Returns:
+            bool: True if command executed successfully, False otherwise
+        """
+        if not os.path.isdir(project_dir):
+            self.logger.error(f"Project directory not found: {project_dir}")
+            return False
+
+        if not self._is_uv_project(project_dir):
+            self.logger.error(f"Not a valid uv project: {project_dir}")
+            return False
+
+        try:
+            # Build the uv run command
+            cmd = ["uv", "run", command] + (arguments or [])
+
+            self.logger.info(f"Running uv command: {command} in {project_dir}")
+
+            if self.logger.is_detailed_logging_enabled():
+                self.logger.debug(f"Working directory: {project_dir}")
+                self.logger.log_arguments(arguments, "uv Command Execution Details")
+                self.logger.debug(f"Full command: {' '.join(cmd)}")
+            else:
+                self.logger.info(f"Arguments: {' '.join(arguments) if arguments else 'None'}")
+
+            process = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=project_dir
+            )
+
+            if process.stdout:
+                self.logger.info(f"Command output:\n{process.stdout}")
+            if process.stderr:
+                self.logger.info(f"Command stderr output:\n{process.stderr}")
+
+            return process.returncode == 0
+
+        except Exception as e:
+            self.logger.error(f"Error running uv command {command}: {str(e)}")
             return False

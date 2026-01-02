@@ -7,7 +7,7 @@ from .logger import Logger
 from .script_runner import ScriptRunner
 from .database import Database
 from .status_page import StatusPage
-from .constants import Paths, Defaults
+from .constants import Paths, Defaults, TaskTypes
 
 class TaskScheduler:
     """Manages scheduled tasks using APScheduler."""
@@ -35,9 +35,11 @@ class TaskScheduler:
                 task['name'],
                 task['script_path'],
                 task['interval'],
-                task['arguments']
+                task['arguments'],
+                task.get('task_type', TaskTypes.SCRIPT),
+                task.get('command')
             )
-        
+
         self.scheduler.start()
         self.logger.info(f"Scheduler started with {len(tasks)} tasks")
         
@@ -65,38 +67,63 @@ class TaskScheduler:
         next_jobs = sorted(jobs, key=lambda x: x.next_run_time) if jobs else []
         self.status_page.update(recent, next_jobs)
 
-    def _process_job(self, task_id: int, name: str, script_path: str, arguments: List[str]):
+    def _process_job(
+        self,
+        task_id: int,
+        name: str,
+        script_path: str,
+        arguments: List[str],
+        task_type: str = TaskTypes.SCRIPT,
+        command: Optional[str] = None
+    ):
         """
         Process a single job.
-        
+
         Args:
             task_id: ID of the task
             name: Name of the task
-            script_path: Path to the script to run
-            arguments: Arguments for the script
+            script_path: Path to the script (or project directory for uv_command)
+            arguments: Arguments for the script/command
+            task_type: Type of task ('script' or 'uv_command')
+            command: Command name for uv_command tasks
         """
-        success = self.script_runner.run_script(script_path, arguments)
-        if success:
-            self.logger.info(f"Successfully executed task '{name}': {script_path}")
+        if task_type == TaskTypes.UV_COMMAND and command:
+            success = self.script_runner.run_uv_command(script_path, command, arguments)
         else:
-            self.logger.error(f"Failed to execute task '{name}': {script_path}")
-        
+            success = self.script_runner.run_script(script_path, arguments)
+
+        if success:
+            self.logger.info(f"Successfully executed task '{name}'")
+        else:
+            self.logger.error(f"Failed to execute task '{name}'")
+
         # Record the execution
         self.db.add_task_execution(task_id, success)
-        
+
         # Update the status page
         self._update_status_page()
     
-    def _schedule_task(self, task_id: int, name: str, script_path: str, interval: int, arguments: Optional[List[str]] = None):
+    def _schedule_task(
+        self,
+        task_id: int,
+        name: str,
+        script_path: str,
+        interval: int,
+        arguments: Optional[List[str]] = None,
+        task_type: str = TaskTypes.SCRIPT,
+        command: Optional[str] = None
+    ):
         """
         Schedule a task in the APScheduler.
 
         Args:
             task_id: ID of the task
             name: Name of the task
-            script_path: Path to the Python script or batch file
+            script_path: Path to the Python script or batch file (or project dir for uv_command)
             interval: Interval in minutes
-            arguments: Arguments for the script
+            arguments: Arguments for the script/command
+            task_type: Type of task ('script' or 'uv_command')
+            command: Command name for uv_command tasks
         """
         # Create unique job ID using task ID
         job_id = self._get_job_id(task_id)
@@ -105,7 +132,7 @@ class TaskScheduler:
         self.scheduler.add_job(
             func=self._process_job,
             trigger=IntervalTrigger(minutes=interval),
-            args=[task_id, name, script_path, arguments or []],
+            args=[task_id, name, script_path, arguments or [], task_type, command],
             next_run_time=datetime.now(),  # Start immediately
             id=job_id,
             replace_existing=True,  # Replace if job exists
@@ -114,28 +141,44 @@ class TaskScheduler:
             coalesce=True  # If multiple runs were missed, only run once
         )
     
-    def add_task(self, name: str, script_path: str, interval: int, arguments: Optional[List[str]] = None):
+    def add_task(
+        self,
+        name: str,
+        script_path: str,
+        interval: int,
+        arguments: Optional[List[str]] = None,
+        task_type: str = TaskTypes.SCRIPT,
+        command: Optional[str] = None
+    ):
         """
         Add a new task to both database and scheduler.
 
         Args:
             name: Name of the task
-            script_path: Path to the Python script or batch file
+            script_path: Path to the Python script or batch file (or project dir for uv_command)
             interval: Interval in minutes
-            arguments: List of command line arguments for the script
+            arguments: List of command line arguments for the script/command
+            task_type: Type of task ('script' or 'uv_command')
+            command: Command name for uv_command tasks
         """
         try:
             # Add to database first and get the task ID
-            task_id = self.db.add_task(name, script_path, interval, arguments)
-            
+            task_id = self.db.add_task(name, script_path, interval, arguments, task_type, command)
+
             # Schedule the task with the ID
-            self._schedule_task(task_id, name, script_path, interval, arguments)
-            
-            self.logger.info(
-                f"Added task '{name}': {script_path} with interval {interval} minutes"
-                f"{' and arguments: ' + ' '.join(arguments) if arguments else ''}"
-            )
-            
+            self._schedule_task(task_id, name, script_path, interval, arguments, task_type, command)
+
+            if task_type == TaskTypes.UV_COMMAND:
+                self.logger.info(
+                    f"Added uv command task '{name}': {command} in {script_path} with interval {interval} minutes"
+                    f"{' and arguments: ' + ' '.join(arguments) if arguments else ''}"
+                )
+            else:
+                self.logger.info(
+                    f"Added task '{name}': {script_path} with interval {interval} minutes"
+                    f"{' and arguments: ' + ' '.join(arguments) if arguments else ''}"
+                )
+
         except Exception as e:
             self.logger.error(f"Error adding task '{name}' ({script_path}): {str(e)}")
             raise
@@ -176,25 +219,36 @@ class TaskScheduler:
             self.logger.error(f"Error removing task {task_id}: {str(e)}")
             raise
     
-    def edit_task(self, task_id: int, name: str, script_path: str, interval: int, arguments: Optional[List[str]] = None):
+    def edit_task(
+        self,
+        task_id: int,
+        name: str,
+        script_path: str,
+        interval: int,
+        arguments: Optional[List[str]] = None,
+        task_type: str = TaskTypes.SCRIPT,
+        command: Optional[str] = None
+    ):
         """
         Edit an existing task in both database and scheduler.
 
         Args:
             task_id: ID of the task to edit
             name: New name for the task
-            script_path: New path to the Python script or batch file
+            script_path: New path to the Python script or batch file (or project dir for uv_command)
             interval: New interval in minutes
             arguments: New list of command line arguments
+            task_type: Type of task ('script' or 'uv_command')
+            command: Command name for uv_command tasks
 
         Raises:
             ValueError: If task is not found or update fails
         """
         try:
             # Update in database first
-            if not self.db.edit_task(task_id, name, script_path, interval, arguments):
+            if not self.db.edit_task(task_id, name, script_path, interval, arguments, task_type, command):
                 raise ValueError(f"Task with ID {task_id} not found")
-            
+
             # Update in scheduler if running
             if self.scheduler.running:
                 # Remove old job
@@ -202,15 +256,15 @@ class TaskScheduler:
                     self.scheduler.remove_job(self._get_job_id(task_id))
                 except Exception as e:
                     self.logger.warning(f"Could not remove old job from scheduler: {str(e)}")
-                
+
                 # Schedule new job
-                self._schedule_task(task_id, name, script_path, interval, arguments)
-            
+                self._schedule_task(task_id, name, script_path, interval, arguments, task_type, command)
+
             self.logger.info(
                 f"Updated task '{name}' (ID: {task_id}): {script_path} with interval {interval} minutes"
                 f"{' and arguments: ' + ' '.join(arguments) if arguments else ''}"
             )
-            
+
         except Exception as e:
             self.logger.error(f"Error updating task {task_id}: {str(e)}")
             raise
@@ -251,7 +305,14 @@ class TaskScheduler:
                 raise ValueError(f"Task with ID {task_id} not found")
 
             # Run the task
-            self._process_job(task['id'], task['name'], task['script_path'], task['arguments'])
+            self._process_job(
+                task['id'],
+                task['name'],
+                task['script_path'],
+                task['arguments'],
+                task.get('task_type', TaskTypes.SCRIPT),
+                task.get('command')
+            )
 
         except Exception as e:
             self.logger.error(f"Error running task {task_id}: {str(e)}")

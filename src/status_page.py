@@ -3,6 +3,7 @@ import shutil
 from typing import Dict, List, Optional
 from datetime import datetime
 from .logger import Logger
+from .constants import TaskTypes
 
 class StatusPage:
     """Handles the generation and updating of the status web page."""
@@ -32,14 +33,24 @@ class StatusPage:
             os.path.join(dst_dir, "styles.css")
         )
     
-    def _generate_task_card(self, name: str, script_path: str, time: str, task_id: Optional[int] = None, arguments: Optional[List[str]] = None, success: Optional[bool] = None) -> str:
+    def _generate_task_card(
+        self,
+        name: str,
+        script_path: str,
+        time: str,
+        task_id: Optional[int] = None,
+        arguments: Optional[List[str]] = None,
+        success: Optional[bool] = None,
+        task_type: str = TaskTypes.SCRIPT,
+        command: Optional[str] = None
+    ) -> str:
         """Generate HTML for a task card."""
         if success is not None:
             status_class = "success" if success else "error"
             status_html = f'<span class="status {status_class}">{"Success" if success else "Failed"}</span>'
         else:
             status_html = ""
-        
+
         # Format arguments to be more readable
         args_html = ""
         if arguments:
@@ -58,7 +69,16 @@ class StatusPage:
             for arg_pair in args_list:
                 args_html += f'<div class="argument">{arg_pair}</div>'
             args_html += '</div>'
-        
+
+        # Format details based on task type
+        if task_type == TaskTypes.UV_COMMAND and command:
+            details_html = f"""
+                <div class="task-details">Command: {command}</div>
+                <div class="task-details">Project: {script_path}</div>
+            """
+        else:
+            details_html = f'<div class="task-details">{script_path}</div>'
+
         return f"""
             <div class="task-card">
                 <div class="task-header">
@@ -66,7 +86,7 @@ class StatusPage:
                     <div class="task-title">{name}</div>
                     {status_html}
                 </div>
-                <div class="task-details">{script_path}</div>
+                {details_html}
                 {args_html}
                 <div class="task-time">{time}</div>
             </div>
@@ -75,7 +95,7 @@ class StatusPage:
     def update(self, recent_executions: List[Dict], next_jobs: List[Dict]):
         """
         Update the status page with recent executions and next scheduled tasks.
-        
+
         Args:
             recent_executions: List of recent task executions
             next_jobs: List of next scheduled jobs
@@ -90,20 +110,27 @@ class StatusPage:
                         script_path=execution['script_path'],
                         time=execution['execution_time'],
                         task_id=execution['task_id'],
-                        success=execution['success']
+                        success=execution['success'],
+                        task_type=execution.get('task_type', TaskTypes.SCRIPT),
+                        command=execution.get('command')
                     )
                 )
 
             # Generate HTML for next tasks
+            # Job args: [task_id, name, script_path, arguments, task_type, command]
             next_html = []
             if next_jobs:
                 for job in next_jobs:
+                    task_type = job.args[4] if len(job.args) > 4 else TaskTypes.SCRIPT
+                    command = job.args[5] if len(job.args) > 5 else None
                     task_html = self._generate_task_card(
                         name=job.name,
                         script_path=job.args[2],
                         time=f"Next run: {job.next_run_time.strftime('%Y-%m-%d %H:%M:%S')}",
                         task_id=job.args[0],  # task_id is first argument
-                        arguments=job.args[3] if job.args[3] else None
+                        arguments=job.args[3] if job.args[3] else None,
+                        task_type=task_type,
+                        command=command
                     )
                     next_html.append(task_html)
                 next_html = '\n'.join(next_html)

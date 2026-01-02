@@ -14,16 +14,18 @@ from prompt_toolkit.filters import has_completions
 from src.scheduler import TaskScheduler
 from src.logger import Logger
 from src.config import Config
+from src.script_runner import ScriptRunner
+from src.constants import TaskTypes, Paths
 
 def get_task_input(existing_task: Dict[str, Any] = None) -> Dict[str, Any]:
     """
     Get task details interactively from user.
-    
+
     Args:
         existing_task: Optional dictionary containing current task values for editing
     """
     print("\nAdding new task interactively:")
-    
+
     # Setup key bindings for path input
     kb = KeyBindings()
 
@@ -33,13 +35,13 @@ def get_task_input(existing_task: Dict[str, Any] = None) -> Dict[str, Any]:
         if event.app.current_buffer.complete_state:
             # Get the current text
             current_text = event.app.current_buffer.text
-            
+
             # If it's a directory, append backslash and move cursor
             if os.path.isdir(current_text):
                 new_text = current_text.rstrip('\\') + '\\'
                 event.app.current_buffer.text = new_text
                 event.app.current_buffer.cursor_position = len(new_text)
-            
+
             # Clear completion state
             event.app.current_buffer.complete_state = None
         else:
@@ -53,65 +55,126 @@ def get_task_input(existing_task: Dict[str, Any] = None) -> Dict[str, Any]:
     )
     completer = FuzzyCompleter(path_completer)
     session = PromptSession()
-    
+
     # If editing, show current values
     if existing_task:
+        task_type = existing_task.get('task_type', TaskTypes.SCRIPT)
         print("\nEditing task (press Enter to keep current value):")
         print(f"Current values:")
         print(f"Name: {existing_task['name']}")
-        print(f"Script: {existing_task['script_path']}")
+        if task_type == TaskTypes.UV_COMMAND:
+            print(f"Type: uv command")
+            print(f"Project: {existing_task['script_path']}")
+            print(f"Command: {existing_task.get('command', 'N/A')}")
+        else:
+            print(f"Type: script")
+            print(f"Script: {existing_task['script_path']}")
         print(f"Interval: {existing_task['interval']} minute(s)")
         print(f"Arguments: {' '.join(existing_task['arguments']) if existing_task['arguments'] else 'None'}")
-    
+
+    # Initialize variables
+    task_type = TaskTypes.SCRIPT
+    command = None
+    script_runner = ScriptRunner()
+
     while True:
-        prompt_text = "\nScript path (Use Tab for suggestions)"
+        prompt_text = "\nScript path or uv project directory (Use Tab for suggestions)"
         if existing_task:
             prompt_text += f" [{existing_task['script_path']}]"
         prompt_text += ":"
         print(prompt_text)
-        
-        script_path = session.prompt(
+
+        path_input = session.prompt(
             "Path: ",
             completer=completer,
             key_bindings=kb,
             default=existing_task['script_path'] if existing_task else ""
         ).strip()
-        
+
         # Keep existing value if empty input
-        if existing_task and not script_path:
-            script_path = existing_task['script_path']
-        
-        if os.path.isfile(script_path):
+        if existing_task and not path_input:
+            path_input = existing_task['script_path']
+            task_type = existing_task.get('task_type', TaskTypes.SCRIPT)
+            command = existing_task.get('command')
             break
-        print("Error: Not a valid file. Please enter a valid path.")
-    
+
+        # Check if it's a uv project directory
+        if os.path.isdir(path_input):
+            pyproject_path = os.path.join(path_input, Paths.PYPROJECT_TOML)
+            uv_lock_path = os.path.join(path_input, Paths.UV_LOCK)
+
+            if os.path.exists(pyproject_path) and os.path.exists(uv_lock_path):
+                # It's a uv project - get available commands
+                commands = script_runner.get_uv_commands(path_input)
+
+                if commands:
+                    print(f"\nDetected uv project! Available commands:")
+                    for i, cmd in enumerate(commands, 1):
+                        print(f"  {i}. {cmd}")
+
+                    while True:
+                        cmd_input = input(f"\nSelect command [1-{len(commands)}]: ").strip()
+                        try:
+                            cmd_idx = int(cmd_input) - 1
+                            if 0 <= cmd_idx < len(commands):
+                                command = commands[cmd_idx]
+                                task_type = TaskTypes.UV_COMMAND
+                                break
+                            print(f"Error: Please enter a number between 1 and {len(commands)}")
+                        except ValueError:
+                            print("Error: Please enter a valid number.")
+
+                    break
+                else:
+                    print("Error: uv project found but no commands defined in pyproject.toml")
+                    continue
+            else:
+                print("Error: Directory is not a valid uv project (missing pyproject.toml or uv.lock)")
+                print("Please enter a script file path or a valid uv project directory.")
+                continue
+
+        # Check if it's a file
+        if os.path.isfile(path_input):
+            task_type = TaskTypes.SCRIPT
+            command = None
+            break
+
+        print("Error: Not a valid file or uv project directory. Please enter a valid path.")
+
+    script_path = path_input
+
     # Get task name
+    default_name = command if command else ""
     prompt_text = "\nTask name"
     if existing_task:
         prompt_text += f" [{existing_task['name']}]"
+    elif default_name:
+        prompt_text += f" [{default_name}]"
     prompt_text += ": "
-    
+
     name = input(prompt_text).strip()
     # Keep existing value if empty input
     if existing_task and not name:
         name = existing_task['name']
+    elif not name and default_name:
+        name = default_name
     while not name:
         print("Error: Name cannot be empty.")
         name = input(prompt_text).strip()
-    
+
     # Get interval with validation
     while True:
         prompt_text = "\nInterval in minutes"
         if existing_task:
             prompt_text += f" [{existing_task['interval']}]"
         prompt_text += ": "
-        
+
         interval_input = input(prompt_text).strip()
         # Keep existing value if empty input
         if existing_task and not interval_input:
             interval = existing_task['interval']
             break
-            
+
         try:
             interval = int(interval_input)
             if interval < 1:
@@ -120,18 +183,18 @@ def get_task_input(existing_task: Dict[str, Any] = None) -> Dict[str, Any]:
             break
         except ValueError:
             print("Error: Please enter a valid number.")
-    
+
     # Get arguments (optional) with path completion
     print("\nEnter arguments (press Enter twice to finish):")
     print("Example: --source \"path/to/source\" --target \"path/to/target\"")
     if existing_task and existing_task['arguments']:
         print(f"Current arguments: {' '.join(existing_task['arguments'])}")
-    
+
     args = None
     arg_lines = []
     while True:
         arg = session.prompt("> ", key_bindings=kb).strip()
-        
+
         if not arg:
             if not arg_lines and existing_task:  # No new arguments entered, keep existing
                 # Re-parse existing arguments to ensure proper format
@@ -141,12 +204,14 @@ def get_task_input(existing_task: Dict[str, Any] = None) -> Dict[str, Any]:
                 args = shlex.split(' '.join(arg_lines))
             break
         arg_lines.append(arg)
-    
+
     return {
         "script_path": script_path,
         "name": name,
         "interval": interval,
-        "arguments": args if args else None
+        "arguments": args if args else None,
+        "task_type": task_type,
+        "command": command
     }
 
 def parse_arguments() -> argparse.Namespace:
@@ -295,12 +360,24 @@ def format_task_list(tasks, show_next_run: bool = True):
 
     output = []
     for task in tasks:
-        lines = [
-            f"\n{task['id']}. {task['name']}",
-            f"   Script: {task['script_path']}",
-            f"   Interval: {task['interval']} minute(s)",
-            f"   Arguments: {' '.join(task['arguments']) if task['arguments'] else 'None'}"
-        ]
+        task_type = task.get('task_type', TaskTypes.SCRIPT)
+
+        if task_type == TaskTypes.UV_COMMAND:
+            lines = [
+                f"\n{task['id']}. {task['name']} [uv command]",
+                f"   Project: {task['script_path']}",
+                f"   Command: {task.get('command', 'N/A')}",
+                f"   Interval: {task['interval']} minute(s)",
+                f"   Arguments: {' '.join(task['arguments']) if task['arguments'] else 'None'}"
+            ]
+        else:
+            lines = [
+                f"\n{task['id']}. {task['name']}",
+                f"   Script: {task['script_path']}",
+                f"   Interval: {task['interval']} minute(s)",
+                f"   Arguments: {' '.join(task['arguments']) if task['arguments'] else 'None'}"
+            ]
+
         if show_next_run:
             next_run = task['next_run_time'].strftime('%Y-%m-%d %H:%M:%S') if task['next_run_time'] else 'Not scheduled'
             lines.append(f"   Next run: {next_run}")
@@ -364,18 +441,18 @@ if __name__ == "__main__":
             # Get task info before editing
             tasks = scheduler.list_tasks()
             task = next((t for t in tasks if t['id'] == args.edit), None)
-            
+
             if not task:
                 logger.error(f"No task found with ID {args.edit}")
                 sys.exit(1)
-            
+
             # Show current task info
             logger.info(f"\nEditing task:")
             logger.info(format_task_list([task], show_next_run=False))
-            
+
             # Get updated task details interactively
             task_details = get_task_input(task)
-            
+
             try:
                 # Update the task
                 scheduler.edit_task(
@@ -383,11 +460,18 @@ if __name__ == "__main__":
                     name=task_details["name"],
                     script_path=os.path.abspath(task_details["script_path"]),
                     interval=task_details["interval"],
-                    arguments=task_details["arguments"]
+                    arguments=task_details["arguments"],
+                    task_type=task_details.get("task_type", TaskTypes.SCRIPT),
+                    command=task_details.get("command")
                 )
                 logger.info("Task updated successfully:")
                 logger.info(f"Name: {task_details['name']}")
-                logger.info(f"Script: {task_details['script_path']}")
+                if task_details.get("task_type") == TaskTypes.UV_COMMAND:
+                    logger.info(f"Type: uv command")
+                    logger.info(f"Project: {task_details['script_path']}")
+                    logger.info(f"Command: {task_details.get('command')}")
+                else:
+                    logger.info(f"Script: {task_details['script_path']}")
                 logger.info(f"Interval: {task_details['interval']} minute(s)")
                 if task_details["arguments"]:
                     logger.info(f"Arguments: {' '.join(task_details['arguments'])}")
@@ -399,19 +483,26 @@ if __name__ == "__main__":
         elif args.add:
             # Get task details interactively
             task_details = get_task_input()
-            
+
             # Add the task
             scheduler.add_task(
                 name=task_details["name"],
                 script_path=os.path.abspath(task_details["script_path"]),
                 interval=task_details["interval"],
-                arguments=task_details["arguments"]
+                arguments=task_details["arguments"],
+                task_type=task_details.get("task_type", TaskTypes.SCRIPT),
+                command=task_details.get("command")
             )
-            
+
             # Show the added task and exit
             logger.info("Task added successfully:")
             logger.info(f"Name: {task_details['name']}")
-            logger.info(f"Script: {task_details['script_path']}")
+            if task_details.get("task_type") == TaskTypes.UV_COMMAND:
+                logger.info(f"Type: uv command")
+                logger.info(f"Project: {task_details['script_path']}")
+                logger.info(f"Command: {task_details.get('command')}")
+            else:
+                logger.info(f"Script: {task_details['script_path']}")
             logger.info(f"Interval: {task_details['interval']} minute(s)")
             if task_details["arguments"]:
                 logger.info(f"Arguments: {' '.join(task_details['arguments'])}")

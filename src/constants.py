@@ -23,6 +23,8 @@ class Database:
     COL_SCRIPT_PATH = "script_path"
     COL_ARGUMENTS = "arguments"
     COL_INTERVAL = "interval"
+    COL_TASK_TYPE = "task_type"
+    COL_COMMAND = "command"
     COL_TASK_ID = "task_id"
     COL_EXECUTION_TIME = "execution_time"
     COL_SUCCESS = "success"
@@ -35,6 +37,12 @@ class Config:
     KEY_DETAILED_ARGS = "detailed_args_logging"
     DEFAULT_LEVEL = "INFO"
     DEFAULT_DETAILED = "false"
+
+
+class TaskTypes:
+    """Task type constants."""
+    SCRIPT = "script"
+    UV_COMMAND = "uv_command"
 
 
 class Defaults:

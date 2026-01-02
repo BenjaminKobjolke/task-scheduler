@@ -98,3 +98,59 @@ class TestRunScript:
         result = runner.run_script(batch_path)
         # Test that it returns a boolean (may fail or succeed depending on env)
         assert isinstance(result, bool)
+
+
+class TestGetUvCommands:
+    """Tests for get_uv_commands method."""
+
+    def test_get_uv_commands_no_pyproject(self, runner, temp_dir):
+        result = runner.get_uv_commands(temp_dir)
+        assert result == []
+
+    def test_get_uv_commands_empty_scripts(self, runner, temp_dir):
+        # Create pyproject.toml without scripts section
+        pyproject_path = os.path.join(temp_dir, Paths.PYPROJECT_TOML)
+        with open(pyproject_path, "w") as f:
+            f.write("[project]\nname = 'test'\n")
+
+        result = runner.get_uv_commands(temp_dir)
+        assert result == []
+
+    def test_get_uv_commands_with_scripts(self, runner, temp_dir):
+        # Create pyproject.toml with scripts
+        pyproject_path = os.path.join(temp_dir, Paths.PYPROJECT_TOML)
+        with open(pyproject_path, "w") as f:
+            f.write("""[project]
+name = "test"
+
+[project.scripts]
+cmd1 = "test.main:main"
+cmd2 = "test.cli:run"
+""")
+
+        result = runner.get_uv_commands(temp_dir)
+        assert len(result) == 2
+        assert "cmd1" in result
+        assert "cmd2" in result
+
+
+class TestRunUvCommand:
+    """Tests for run_uv_command method."""
+
+    def test_run_uv_command_project_not_found(self, runner):
+        result = runner.run_uv_command("/nonexistent/path", "my-command")
+        assert result is False
+
+    def test_run_uv_command_not_uv_project(self, runner, temp_dir):
+        result = runner.run_uv_command(temp_dir, "my-command")
+        assert result is False
+
+    def test_run_uv_command_with_uv_project(self, runner, temp_dir):
+        # Create uv project markers
+        open(os.path.join(temp_dir, Paths.PYPROJECT_TOML), "w").close()
+        open(os.path.join(temp_dir, Paths.UV_LOCK), "w").close()
+
+        # This will fail because there's no actual command, but tests the code path
+        result = runner.run_uv_command(temp_dir, "nonexistent-command")
+        # Should return False (command doesn't exist) but not raise
+        assert isinstance(result, bool)

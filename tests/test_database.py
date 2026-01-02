@@ -3,6 +3,7 @@ import os
 import tempfile
 import pytest
 from src.database import Database
+from src.constants import TaskTypes
 
 
 @pytest.fixture
@@ -135,3 +136,70 @@ class TestDatabaseClearAll:
 
         tasks = temp_db.get_all_tasks()
         assert len(tasks) == 0
+
+
+class TestDatabaseUvCommandTasks:
+    """Tests for uv command task support."""
+
+    def test_add_uv_command_task(self, temp_db):
+        task_id = temp_db.add_task(
+            name="UV Task",
+            script_path="/path/to/project",
+            interval=5,
+            task_type=TaskTypes.UV_COMMAND,
+            command="my-command"
+        )
+        assert task_id > 0
+
+    def test_get_uv_command_task(self, temp_db):
+        temp_db.add_task(
+            name="UV Task",
+            script_path="/path/to/project",
+            interval=5,
+            task_type=TaskTypes.UV_COMMAND,
+            command="my-command"
+        )
+
+        tasks = temp_db.get_all_tasks()
+        assert len(tasks) == 1
+        assert tasks[0]["task_type"] == TaskTypes.UV_COMMAND
+        assert tasks[0]["command"] == "my-command"
+
+    def test_edit_uv_command_task(self, temp_db):
+        task_id = temp_db.add_task(
+            name="UV Task",
+            script_path="/path/to/project",
+            interval=5,
+            task_type=TaskTypes.UV_COMMAND,
+            command="old-command"
+        )
+
+        result = temp_db.edit_task(
+            task_id, "UV Task", "/path/to/project", 5,
+            task_type=TaskTypes.UV_COMMAND,
+            command="new-command"
+        )
+
+        assert result is True
+        tasks = temp_db.get_all_tasks()
+        assert tasks[0]["command"] == "new-command"
+
+    def test_legacy_tasks_default_to_script(self, temp_db):
+        # Simulate legacy task (task_type defaults to 'script')
+        task_id = temp_db.add_task("Legacy", "/path/script.py", 5)
+
+        tasks = temp_db.get_all_tasks()
+        assert tasks[0]["task_type"] == TaskTypes.SCRIPT
+        assert tasks[0]["command"] is None
+
+    def test_execution_includes_task_type(self, temp_db):
+        task_id = temp_db.add_task(
+            "UV Task", "/path/to/project", 5,
+            task_type=TaskTypes.UV_COMMAND,
+            command="my-command"
+        )
+        temp_db.add_task_execution(task_id, True)
+
+        executions = temp_db.get_recent_executions(10)
+        assert executions[0]["task_type"] == TaskTypes.UV_COMMAND
+        assert executions[0]["command"] == "my-command"
