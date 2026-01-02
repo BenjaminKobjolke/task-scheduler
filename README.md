@@ -7,7 +7,7 @@ Task Scheduler for Python Scripts and Batch Files is a utility that allows you t
 - Schedule Python scripts and batch files to run at specified intervals
 - Give descriptive names to scheduled tasks
 - Edit existing tasks with updated parameters
-- Automatic virtual environment activation for Python scripts
+- Automatic virtual environment activation for Python scripts (venv and uv projects)
 - Batch files run directly from their own directory
 - Persistent storage of tasks in SQLite database
 - Configurable logging system with detailed debugging options
@@ -17,7 +17,9 @@ Task Scheduler for Python Scripts and Batch Files is a utility that allows you t
 
 - Python 3.6 or higher
 - Windows operating system
-- Each **Python script** to be scheduled must have its own virtual environment in a `venv` subfolder
+- Each **Python script** must have one of:
+  - A `venv` subfolder (traditional virtual environment), OR
+  - A `pyproject.toml` + `uv.lock` (uv-managed project, requires `uv` installed)
 - Batch files (.bat) can be scheduled without any additional requirements
 
 ## Installation
@@ -174,7 +176,11 @@ This will:
 
 ### Important Notes
 
-1. **Python scripts:** Each Python script must have its own virtual environment in a `venv` subfolder in its directory. The scheduler will automatically activate the appropriate virtual environment before running each script.
+1. **Python scripts:** Each Python script must have either:
+   - A `venv` subfolder (uses `venv/Scripts/python.exe` directly), OR
+   - A `pyproject.toml` + `uv.lock` file (uses `uv run python script.py`)
+
+   The scheduler auto-detects the environment type and activates it appropriately.
 2. **Batch files:** Batch files (.bat) are executed directly from their own directory. No virtual environment is required.
 3. Tasks persist between scheduler restarts
 4. The scheduler executes scripts in their respective directories
@@ -243,7 +249,8 @@ To stop the scheduler:
 
 ## Error Handling
 
-- If a Python script's virtual environment is not found, an error will be logged
+- If a Python script has neither a `venv` folder nor uv project files (`pyproject.toml` + `uv.lock`), an error will be logged
+- If `uv` is not installed but an uv project is detected, the execution will fail with an error
 - If a script or batch file fails to execute, it will be logged and the scheduler will continue with the next task
 - All errors are logged with full stack traces for debugging
 

@@ -10,14 +10,20 @@ class ScriptRunner:
         """Initialize ScriptRunner with logger."""
         self.logger = Logger("ScriptRunner")
     
+    def _is_uv_project(self, script_dir: str) -> bool:
+        """Check if the script directory is a uv-managed project."""
+        pyproject_path = os.path.join(script_dir, "pyproject.toml")
+        uv_lock_path = os.path.join(script_dir, "uv.lock")
+        return os.path.exists(pyproject_path) and os.path.exists(uv_lock_path)
+
     def _activate_venv(self, script_path: str) -> str:
         """Get the activation command for the script's virtual environment."""
         script_dir = os.path.dirname(script_path)
         venv_path = os.path.join(script_dir, "venv")
-        
+
         if not os.path.exists(venv_path):
             raise ValueError(f"Virtual environment not found at {venv_path}")
-        
+
         return os.path.join(venv_path, "Scripts", "activate")
     
     def run_script(self, script_path: str, arguments: List[str] = None) -> bool:
@@ -75,8 +81,38 @@ class ScriptRunner:
                     cwd=script_dir,
                     shell=True
                 )
+            elif self._is_uv_project(script_dir):
+                # For uv-managed projects, use uv run
+                python_cmd = ["uv", "run", "python", script_name] + (arguments or [])
+
+                # Log execution details based on configuration
+                self.logger.info(f"Running script with uv: {script_path}")
+
+                if self.logger.is_detailed_logging_enabled():
+                    self.logger.debug("=== uv Script Execution Details ===")
+                    self.logger.debug(f"Working directory: {script_dir}")
+                    self.logger.debug("Arguments (as stored):")
+                    if arguments:
+                        for i, arg in enumerate(arguments):
+                            self.logger.debug(f"  {i+1}. [{arg}]")
+                    else:
+                        self.logger.debug("  No arguments")
+                    self.logger.debug(f"Full command: {' '.join(python_cmd)}")
+                    self.logger.debug("====================================")
+                else:
+                    # Basic logging when detailed logging is disabled
+                    self.logger.info(f"Arguments: {' '.join(arguments) if arguments else 'None'}")
+
+                # Run the script using uv
+                process = subprocess.run(
+                    python_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    cwd=script_dir
+                )
             else:
-                # For Python scripts, use virtual environment
+                # For Python scripts with traditional venv
                 venv_activate = self._activate_venv(script_path)
 
                 # Get the Python executable from the virtual environment

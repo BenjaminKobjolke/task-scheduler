@@ -32,14 +32,16 @@ python main.py --script "path.py" --name "name" --interval 5 -- --arg1 value
 - `main.py` - Entry point, CLI argument parsing, signal handling
 - `src/scheduler.py` - TaskScheduler class wrapping APScheduler's BackgroundScheduler
 - `src/database.py` - SQLite persistence for tasks and execution history
-- `src/script_runner.py` - Executes Python scripts (with venv activation) and batch files
+- `src/script_runner.py` - Executes Python scripts (with venv/uv support) and batch files
 - `src/config.py` - Config file handling (config.ini)
 - `src/logger.py` - Logging to console and files (logs/scheduler_YYYYMMDD.log)
 - `src/status_page.py` - Generates HTML status page
 
 ## Key Implementation Details
 
-- Python scripts must have their own `venv/` subdirectory - ScriptRunner activates it automatically
+- Python scripts support two environment types (auto-detected):
+  - **uv projects**: Detected by presence of `pyproject.toml` + `uv.lock`, runs via `uv run python script.py`
+  - **venv projects**: Must have `venv/` subdirectory, uses `venv/Scripts/python.exe` directly
 - Batch files run directly from their directory without venv
 - Tasks persist in `data/tasks.sqlite`
 - APScheduler jobs use `misfire_grace_time=60` and `coalesce=True` to handle delayed executions
