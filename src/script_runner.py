@@ -18,6 +18,12 @@ class ScriptRunner:
         uv_lock_path = os.path.join(script_dir, Paths.UV_LOCK)
         return os.path.exists(pyproject_path) and os.path.exists(uv_lock_path)
 
+    def _get_clean_env_for_uv(self) -> dict:
+        """Get environment without VIRTUAL_ENV for uv execution."""
+        env = os.environ.copy()
+        env.pop('VIRTUAL_ENV', None)
+        return env
+
     def _activate_venv(self, script_path: str) -> str:
         """Get the activation command for the script's virtual environment."""
         script_dir = os.path.dirname(script_path)
@@ -97,7 +103,8 @@ class ScriptRunner:
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
-                    cwd=script_dir
+                    cwd=script_dir,
+                    env=self._get_clean_env_for_uv()
                 )
             else:
                 # For Python scripts with traditional venv
@@ -203,7 +210,8 @@ class ScriptRunner:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                cwd=project_dir
+                cwd=project_dir,
+                env=self._get_clean_env_for_uv()
             )
 
             if process.stdout:
