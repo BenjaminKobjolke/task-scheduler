@@ -12,3 +12,4 @@ __pycache__
 /TaskScheduler.spec
 nul
 /.claude
+/config.ini
