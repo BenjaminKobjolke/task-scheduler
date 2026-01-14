@@ -60,12 +60,15 @@ class TaskScheduler:
         return f"job_{task_id}"
 
     def _update_status_page(self):
-        """Update the index.html page with current task information."""
+        """Update the status page and sync to FTP if enabled."""
         recent = self.db.get_recent_executions(Defaults.HISTORY_LIMIT)
         jobs = self.scheduler.get_jobs()
         # Sort jobs by next run time
         next_jobs = sorted(jobs, key=lambda x: x.next_run_time) if jobs else []
         self.status_page.update(recent, next_jobs)
+
+        # Sync to FTP if enabled (errors are logged but don't crash scheduler)
+        self.status_page.sync_to_ftp()
 
     def _process_job(
         self,

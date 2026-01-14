@@ -16,6 +16,7 @@ from src.logger import Logger
 from src.config import Config
 from src.script_runner import ScriptRunner
 from src.constants import TaskTypes, Paths
+from src.status_page import StatusPage
 
 def get_task_input(existing_task: Dict[str, Any] = None) -> Dict[str, Any]:
     """
@@ -323,6 +324,12 @@ Note:
         metavar="ID",
         help="Run a specific task by its database ID"
     )
+
+    parser.add_argument(
+        "--ftp-sync",
+        action="store_true",
+        help="Manually trigger FTP sync of the status page"
+    )
     
     # Collect remaining arguments after --
     parser.add_argument(
@@ -556,9 +563,25 @@ if __name__ == "__main__":
                 logger.error(f"Error running task {task['name']} (ID: {task['id']}): {str(e)}")
                 sys.exit(1)
             sys.exit(0)
-        
+
+        elif args.ftp_sync:
+            # Manually trigger FTP sync
+            status_page = StatusPage()
+            logger.info(f"Starting FTP sync from {status_page.get_output_dir()}")
+
+            if not config.is_ftp_enabled():
+                logger.warning("FTP sync is disabled in config. Enable it first in config.ini [FTP] section.")
+                sys.exit(1)
+
+            if status_page.sync_to_ftp():
+                logger.info("FTP sync completed successfully")
+            else:
+                logger.error("FTP sync failed")
+                sys.exit(1)
+            sys.exit(0)
+
         # If no specific action was requested, run the scheduler
-        if not (args.script or args.list or args.history or args.delete or args.run_id):
+        if not (args.script or args.list or args.history or args.delete or args.run_id or args.ftp_sync):
             # Register signal handlers for graceful shutdown
             signal.signal(signal.SIGINT, signal_handler)
             signal.signal(signal.SIGTERM, signal_handler)

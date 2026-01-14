@@ -32,11 +32,44 @@ class Database:
 
 class Config:
     """Configuration section and key constants."""
+    # Logging section
     SECTION_LOGGING = "Logging"
     KEY_LEVEL = "level"
     KEY_DETAILED_ARGS = "detailed_args_logging"
     DEFAULT_LEVEL = "INFO"
     DEFAULT_DETAILED = "false"
+
+    # StatusPage section
+    SECTION_STATUS_PAGE = "StatusPage"
+    KEY_OUTPUT_TYPE = "output_type"
+    KEY_OUTPUT_PATH = "output_path"
+    KEY_PHP_PASSWORD = "php_password"
+    KEY_PHP_LOGIN_LIBRARY_PATH = "php_login_library_path"
+    DEFAULT_OUTPUT_TYPE = "html"
+    DEFAULT_OUTPUT_PATH = "web"
+    DEFAULT_PHP_PASSWORD = "changeme"
+    DEFAULT_PHP_LOGIN_LIBRARY_PATH = ""
+
+    # FTP section
+    SECTION_FTP = "FTP"
+    KEY_FTP_ENABLED = "enabled"
+    KEY_FTP_HOST = "host"
+    KEY_FTP_PORT = "port"
+    KEY_FTP_USERNAME = "username"
+    KEY_FTP_PASSWORD = "password"
+    KEY_FTP_REMOTE_PATH = "remote_path"
+    KEY_FTP_PASSIVE_MODE = "passive_mode"
+    KEY_FTP_TIMEOUT = "timeout"
+    KEY_FTP_SYNC_INTERVAL = "sync_interval"
+    DEFAULT_FTP_ENABLED = "false"
+    DEFAULT_FTP_HOST = ""
+    DEFAULT_FTP_PORT = "21"
+    DEFAULT_FTP_USERNAME = ""
+    DEFAULT_FTP_PASSWORD = ""
+    DEFAULT_FTP_REMOTE_PATH = "/"
+    DEFAULT_FTP_PASSIVE_MODE = "true"
+    DEFAULT_FTP_TIMEOUT = "30"
+    DEFAULT_FTP_SYNC_INTERVAL = "5"
 
 
 class TaskTypes:

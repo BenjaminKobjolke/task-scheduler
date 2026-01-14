@@ -1,6 +1,6 @@
 import os
 import configparser
-from typing import Optional
+from typing import Optional, Dict
 from .constants import Config as ConfigConstants
 
 
@@ -40,6 +40,25 @@ class Config:
         self.config[ConfigConstants.SECTION_LOGGING] = {
             ConfigConstants.KEY_LEVEL: ConfigConstants.DEFAULT_LEVEL,
             ConfigConstants.KEY_DETAILED_ARGS: ConfigConstants.DEFAULT_DETAILED
+        }
+
+        self.config[ConfigConstants.SECTION_STATUS_PAGE] = {
+            ConfigConstants.KEY_OUTPUT_TYPE: ConfigConstants.DEFAULT_OUTPUT_TYPE,
+            ConfigConstants.KEY_OUTPUT_PATH: ConfigConstants.DEFAULT_OUTPUT_PATH,
+            ConfigConstants.KEY_PHP_PASSWORD: ConfigConstants.DEFAULT_PHP_PASSWORD,
+            ConfigConstants.KEY_PHP_LOGIN_LIBRARY_PATH: ConfigConstants.DEFAULT_PHP_LOGIN_LIBRARY_PATH
+        }
+
+        self.config[ConfigConstants.SECTION_FTP] = {
+            ConfigConstants.KEY_FTP_ENABLED: ConfigConstants.DEFAULT_FTP_ENABLED,
+            ConfigConstants.KEY_FTP_HOST: ConfigConstants.DEFAULT_FTP_HOST,
+            ConfigConstants.KEY_FTP_PORT: ConfigConstants.DEFAULT_FTP_PORT,
+            ConfigConstants.KEY_FTP_USERNAME: ConfigConstants.DEFAULT_FTP_USERNAME,
+            ConfigConstants.KEY_FTP_PASSWORD: ConfigConstants.DEFAULT_FTP_PASSWORD,
+            ConfigConstants.KEY_FTP_REMOTE_PATH: ConfigConstants.DEFAULT_FTP_REMOTE_PATH,
+            ConfigConstants.KEY_FTP_PASSIVE_MODE: ConfigConstants.DEFAULT_FTP_PASSIVE_MODE,
+            ConfigConstants.KEY_FTP_TIMEOUT: ConfigConstants.DEFAULT_FTP_TIMEOUT,
+            ConfigConstants.KEY_FTP_SYNC_INTERVAL: ConfigConstants.DEFAULT_FTP_SYNC_INTERVAL
         }
 
         with open(self.config_path, 'w') as configfile:
@@ -90,3 +109,146 @@ class Config:
         """Save current configuration to file."""
         with open(self.config_path, 'w') as configfile:
             self.config.write(configfile)
+
+    # StatusPage configuration methods
+    def get_output_type(self) -> str:
+        """Get the status page output type (html or php)."""
+        return self.config.get(
+            ConfigConstants.SECTION_STATUS_PAGE,
+            ConfigConstants.KEY_OUTPUT_TYPE,
+            fallback=ConfigConstants.DEFAULT_OUTPUT_TYPE
+        )
+
+    def set_output_type(self, output_type: str):
+        """Set the status page output type."""
+        if output_type not in ['html', 'php']:
+            raise ValueError("Invalid output type. Must be 'html' or 'php'")
+        self._ensure_section(ConfigConstants.SECTION_STATUS_PAGE)
+        self.config[ConfigConstants.SECTION_STATUS_PAGE][ConfigConstants.KEY_OUTPUT_TYPE] = output_type
+        self._save_config()
+
+    def get_output_path(self) -> str:
+        """Get the status page output path."""
+        return self.config.get(
+            ConfigConstants.SECTION_STATUS_PAGE,
+            ConfigConstants.KEY_OUTPUT_PATH,
+            fallback=ConfigConstants.DEFAULT_OUTPUT_PATH
+        )
+
+    def set_output_path(self, path: str):
+        """Set the status page output path."""
+        self._ensure_section(ConfigConstants.SECTION_STATUS_PAGE)
+        self.config[ConfigConstants.SECTION_STATUS_PAGE][ConfigConstants.KEY_OUTPUT_PATH] = path
+        self._save_config()
+
+    def get_php_password(self) -> str:
+        """Get the PHP login password."""
+        return self.config.get(
+            ConfigConstants.SECTION_STATUS_PAGE,
+            ConfigConstants.KEY_PHP_PASSWORD,
+            fallback=ConfigConstants.DEFAULT_PHP_PASSWORD
+        )
+
+    def set_php_password(self, password: str):
+        """Set the PHP login password."""
+        self._ensure_section(ConfigConstants.SECTION_STATUS_PAGE)
+        self.config[ConfigConstants.SECTION_STATUS_PAGE][ConfigConstants.KEY_PHP_PASSWORD] = password
+        self._save_config()
+
+    def get_php_login_library_path(self) -> str:
+        """Get the path to php-simple-login library."""
+        return self.config.get(
+            ConfigConstants.SECTION_STATUS_PAGE,
+            ConfigConstants.KEY_PHP_LOGIN_LIBRARY_PATH,
+            fallback=ConfigConstants.DEFAULT_PHP_LOGIN_LIBRARY_PATH
+        )
+
+    def set_php_login_library_path(self, path: str):
+        """Set the path to php-simple-login library."""
+        self._ensure_section(ConfigConstants.SECTION_STATUS_PAGE)
+        self.config[ConfigConstants.SECTION_STATUS_PAGE][ConfigConstants.KEY_PHP_LOGIN_LIBRARY_PATH] = path
+        self._save_config()
+
+    # FTP configuration methods
+    def is_ftp_enabled(self) -> bool:
+        """Check if FTP sync is enabled."""
+        return self.config.getboolean(
+            ConfigConstants.SECTION_FTP,
+            ConfigConstants.KEY_FTP_ENABLED,
+            fallback=False
+        )
+
+    def get_ftp_settings(self) -> Dict:
+        """Get all FTP settings as a dictionary."""
+        return {
+            'enabled': self.is_ftp_enabled(),
+            'host': self.config.get(
+                ConfigConstants.SECTION_FTP,
+                ConfigConstants.KEY_FTP_HOST,
+                fallback=ConfigConstants.DEFAULT_FTP_HOST
+            ),
+            'port': self.config.getint(
+                ConfigConstants.SECTION_FTP,
+                ConfigConstants.KEY_FTP_PORT,
+                fallback=int(ConfigConstants.DEFAULT_FTP_PORT)
+            ),
+            'username': self.config.get(
+                ConfigConstants.SECTION_FTP,
+                ConfigConstants.KEY_FTP_USERNAME,
+                fallback=ConfigConstants.DEFAULT_FTP_USERNAME
+            ),
+            'password': self.config.get(
+                ConfigConstants.SECTION_FTP,
+                ConfigConstants.KEY_FTP_PASSWORD,
+                fallback=ConfigConstants.DEFAULT_FTP_PASSWORD
+            ),
+            'remote_path': self.config.get(
+                ConfigConstants.SECTION_FTP,
+                ConfigConstants.KEY_FTP_REMOTE_PATH,
+                fallback=ConfigConstants.DEFAULT_FTP_REMOTE_PATH
+            ),
+            'passive_mode': self.config.getboolean(
+                ConfigConstants.SECTION_FTP,
+                ConfigConstants.KEY_FTP_PASSIVE_MODE,
+                fallback=True
+            ),
+            'timeout': self.config.getint(
+                ConfigConstants.SECTION_FTP,
+                ConfigConstants.KEY_FTP_TIMEOUT,
+                fallback=int(ConfigConstants.DEFAULT_FTP_TIMEOUT)
+            )
+        }
+
+    def set_ftp_settings(self, settings: Dict):
+        """Set FTP settings from a dictionary."""
+        self._ensure_section(ConfigConstants.SECTION_FTP)
+        if 'enabled' in settings:
+            self.config[ConfigConstants.SECTION_FTP][ConfigConstants.KEY_FTP_ENABLED] = str(settings['enabled']).lower()
+        if 'host' in settings:
+            self.config[ConfigConstants.SECTION_FTP][ConfigConstants.KEY_FTP_HOST] = settings['host']
+        if 'port' in settings:
+            self.config[ConfigConstants.SECTION_FTP][ConfigConstants.KEY_FTP_PORT] = str(settings['port'])
+        if 'username' in settings:
+            self.config[ConfigConstants.SECTION_FTP][ConfigConstants.KEY_FTP_USERNAME] = settings['username']
+        if 'password' in settings:
+            self.config[ConfigConstants.SECTION_FTP][ConfigConstants.KEY_FTP_PASSWORD] = settings['password']
+        if 'remote_path' in settings:
+            self.config[ConfigConstants.SECTION_FTP][ConfigConstants.KEY_FTP_REMOTE_PATH] = settings['remote_path']
+        if 'passive_mode' in settings:
+            self.config[ConfigConstants.SECTION_FTP][ConfigConstants.KEY_FTP_PASSIVE_MODE] = str(settings['passive_mode']).lower()
+        if 'timeout' in settings:
+            self.config[ConfigConstants.SECTION_FTP][ConfigConstants.KEY_FTP_TIMEOUT] = str(settings['timeout'])
+        self._save_config()
+
+    def get_ftp_sync_interval(self) -> int:
+        """Get minimum minutes between FTP syncs (0 = sync every time)."""
+        return self.config.getint(
+            ConfigConstants.SECTION_FTP,
+            ConfigConstants.KEY_FTP_SYNC_INTERVAL,
+            fallback=int(ConfigConstants.DEFAULT_FTP_SYNC_INTERVAL)
+        )
+
+    def _ensure_section(self, section: str):
+        """Ensure a configuration section exists."""
+        if section not in self.config:
+            self.config[section] = {}
