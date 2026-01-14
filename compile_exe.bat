@@ -1,1 +1,3 @@
-call pyinstaller --name TaskScheduler --onefile main.py 
+@echo off
+cd /d "%~dp0"
+uv run pyinstaller --name TaskScheduler --onefile main.py

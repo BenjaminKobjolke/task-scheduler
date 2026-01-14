@@ -1,1 +1,3 @@
-%~dp0\venv\Scripts\activate.bat
+@echo off
+cd /d "%~dp0"
+uv run python

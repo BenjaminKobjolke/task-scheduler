@@ -1,4 +1,3 @@
 @echo off
 cd /d "%~dp0"
-call venv\Scripts\activate.bat
-python main.py --delete %1
+uv run python main.py --delete %1
