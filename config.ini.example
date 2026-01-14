@@ -1,0 +1,35 @@
+[Logging]
+# Logging level: DEBUG, INFO, WARNING, ERROR
+level = INFO
+# Enable detailed argument logging for debugging
+detailed_args_logging = false
+
+[StatusPage]
+# Output type: html or php (php adds authentication)
+output_type = html
+# Output path (relative to project root or absolute path)
+output_path = web
+# Password for PHP login (only used when output_type = php)
+php_password = changeme
+# Path to php-simple-login library (only used when output_type = php)
+php_login_library_path = D:\GIT\BenjaminKobjolke\php-simple-login
+
+[FTP]
+# Enable automatic FTP sync after status page updates
+enabled = false
+# FTP server hostname
+host = ftp.example.com
+# FTP server port
+port = 21
+# FTP username
+username = your_username
+# FTP password
+password = your_password
+# Remote path on FTP server
+remote_path = /public_html/status
+# Use passive mode for FTP connection
+passive_mode = true
+# Connection timeout in seconds
+timeout = 30
+# Minimum minutes between FTP syncs (0 = sync every time)
+sync_interval = 5
