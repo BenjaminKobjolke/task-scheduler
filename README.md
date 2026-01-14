@@ -12,11 +12,15 @@ Task Scheduler for Python Scripts and Batch Files is a utility that allows you t
 - Persistent storage of tasks in SQLite database
 - Configurable logging system with detailed debugging options
 - Graceful shutdown handling
+- **Status page generation** (HTML or PHP with authentication)
+- **FTP upload** with configurable sync interval
+- Configurable output path for status page
 
 ## Requirements
 
-- Python 3.6 or higher
+- Python 3.10 or higher
 - Windows operating system
+- [uv](https://docs.astral.sh/uv/) package manager
 - Each **Python script** must have one of:
   - A `venv` subfolder (traditional virtual environment), OR
   - A `pyproject.toml` + `uv.lock` (uv-managed project, requires `uv` installed)
@@ -25,9 +29,14 @@ Task Scheduler for Python Scripts and Batch Files is a utility that allows you t
 ## Installation
 
 1. Clone this repository
-2. Run the installation script:
+2. Install [uv](https://docs.astral.sh/uv/getting-started/installation/) if not already installed
+3. Run the installation script:
    ```
    install.bat
+   ```
+   Or manually:
+   ```
+   uv sync
    ```
 
 ## Usage
@@ -240,6 +249,66 @@ Logs are stored in the `logs` directory with the following format:
 - Contains execution details, script output, and any errors
 - Log level and detail settings affect what information is included
 
+## Status Page Configuration
+
+The scheduler generates a status page showing recent executions and upcoming tasks.
+
+### Config File (config.ini)
+
+```ini
+[StatusPage]
+# Output type: html or php (php adds password authentication)
+output_type = html
+
+# Output path (relative to project root or absolute path)
+output_path = web
+
+# Password for PHP login (only used when output_type = php)
+php_password = changeme
+
+# Path to php-simple-login library (only used when output_type = php)
+php_login_library_path = D:\GIT\BenjaminKobjolke\php-simple-login
+```
+
+### Output Types
+
+- **html**: Simple HTML page (default)
+- **php**: HTML wrapped with PHP authentication using [php-simple-login](https://github.com/BenjaminKobjolke/php-simple-login)
+
+## FTP Upload Configuration
+
+Automatically upload the status page to an FTP server.
+
+### Config File (config.ini)
+
+```ini
+[FTP]
+# Enable automatic FTP sync after status page updates
+enabled = false
+
+# FTP server settings
+host = ftp.example.com
+port = 21
+username = your_username
+password = your_password
+remote_path = /public_html/status
+
+# Connection settings
+passive_mode = true
+timeout = 30
+
+# Minimum minutes between FTP syncs (0 = sync every time)
+sync_interval = 5
+```
+
+### Manual FTP Sync
+
+Trigger FTP sync manually:
+
+```bash
+python main.py --ftp-sync
+```
+
 ## Shutdown
 
 To stop the scheduler:
@@ -257,21 +326,28 @@ To stop the scheduler:
 ## Project Structure
 
 ```
-tasc-scheduler/
-├── venv/                    # Project's virtual environment
+task-scheduler/
+├── .venv/                   # Project's virtual environment (uv managed)
 ├── src/
 │   ├── __init__.py
 │   ├── scheduler.py         # Core scheduling logic
 │   ├── script_runner.py     # Script/batch file execution handling
-│   ├── database.py         # Task persistence
-│   ├── config.py           # Configuration handling
-│   └── logger.py           # Logging functionality
+│   ├── database.py          # Task persistence
+│   ├── config.py            # Configuration handling
+│   ├── constants.py         # Application constants
+│   ├── logger.py            # Logging functionality
+│   ├── status_page.py       # Status page generation (HTML/PHP)
+│   ├── php_login.py         # PHP authentication handling
+│   └── ftp_syncer.py        # FTP upload functionality
+├── sources/web/templates/   # Status page templates
 ├── data/                    # Database directory
-│   └── tasks.sqlite        # SQLite database for tasks
+│   └── tasks.sqlite         # SQLite database for tasks
 ├── logs/                    # Log files directory
+├── web/                     # Generated status page output
 ├── main.py                  # Entry point
-├── config.ini              # Configuration file
-├── requirements.txt         # Project dependencies
-├── install.bat             # Installation script
-└── README.md               # This file
+├── config.ini               # Configuration file
+├── config.ini.example       # Example configuration
+├── pyproject.toml           # Project dependencies (uv)
+├── install.bat              # Installation script
+└── README.md                # This file
 ```
