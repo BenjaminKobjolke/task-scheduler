@@ -112,22 +112,38 @@ def get_task_input(existing_task: Dict[str, Any] = None) -> Dict[str, Any]:
                     print(f"\nDetected uv project! Available commands:")
                     for i, cmd in enumerate(commands, 1):
                         print(f"  {i}. {cmd}")
+                    print(f"  {len(commands) + 1}. [Custom command]")
 
                     while True:
-                        cmd_input = input(f"\nSelect command [1-{len(commands)}]: ").strip()
+                        cmd_input = input(f"\nSelect command [1-{len(commands) + 1}]: ").strip()
                         try:
                             cmd_idx = int(cmd_input) - 1
                             if 0 <= cmd_idx < len(commands):
                                 command = commands[cmd_idx]
                                 task_type = TaskTypes.UV_COMMAND
                                 break
-                            print(f"Error: Please enter a number between 1 and {len(commands)}")
+                            elif cmd_idx == len(commands):
+                                # Custom command selected
+                                custom_cmd = input("Enter custom command (e.g., python -m module_name): ").strip()
+                                if custom_cmd:
+                                    command = custom_cmd
+                                    task_type = TaskTypes.UV_COMMAND
+                                    break
+                                print("Error: Command cannot be empty.")
+                            else:
+                                print(f"Error: Please enter a number between 1 and {len(commands) + 1}")
                         except ValueError:
                             print("Error: Please enter a valid number.")
 
                     break
                 else:
-                    print("Error: uv project found but no commands defined in pyproject.toml")
+                    print(f"\nDetected uv project! No predefined commands found.")
+                    custom_cmd = input("Enter custom command (e.g., python -m module_name): ").strip()
+                    if custom_cmd:
+                        command = custom_cmd
+                        task_type = TaskTypes.UV_COMMAND
+                        break
+                    print("Error: Command cannot be empty.")
                     continue
             else:
                 print("Error: Directory is not a valid uv project (missing pyproject.toml or uv.lock)")

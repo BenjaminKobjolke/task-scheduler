@@ -8,6 +8,7 @@ Task Scheduler for Python Scripts and Batch Files is a utility that allows you t
 - Give descriptive names to scheduled tasks
 - Edit existing tasks with updated parameters
 - Automatic virtual environment activation for Python scripts (venv and uv projects)
+- **Custom uv commands** (e.g., `python -m module_name`) for uv projects
 - Batch files run directly from their own directory
 - Persistent storage of tasks in SQLite database
 - Configurable logging system with detailed debugging options
@@ -55,10 +56,31 @@ python main.py --add
 
 This will prompt you for:
 
-- Script path (with validation)
+- Script path or uv project directory (with validation)
+- For uv projects: command selection (predefined or custom)
 - Task name
 - Interval in minutes
 - Arguments (optional, press Enter twice to finish)
+
+**uv Project Commands:**
+
+When you enter a uv project directory, you can either:
+1. Select a predefined command from `[project.scripts]` in `pyproject.toml`
+2. Enter a custom command (e.g., `python -m module_name`)
+
+Example with predefined commands:
+```
+Detected uv project! Available commands:
+  1. my-command
+  2. [Custom command]
+Select command [1-2]:
+```
+
+Example without predefined commands:
+```
+Detected uv project! No predefined commands found.
+Enter custom command (e.g., python -m module_name): python -m mypackage.main
+```
 
 #### 2. Command Line Mode
 
@@ -187,9 +209,11 @@ This will:
 
 1. **Python scripts:** Each Python script must have either:
    - A `venv` subfolder (uses `venv/Scripts/python.exe` directly), OR
-   - A `pyproject.toml` + `uv.lock` file (uses `uv run python script.py`)
+   - A `pyproject.toml` + `uv.lock` file (uses `uv run <command>`)
 
    The scheduler auto-detects the environment type and activates it appropriately.
+
+   For uv projects, you can run predefined commands from `[project.scripts]` or custom commands like `python -m module_name`.
 2. **Batch files:** Batch files (.bat) are executed directly from their own directory. No virtual environment is required.
 3. Tasks persist between scheduler restarts
 4. The scheduler executes scripts in their respective directories

@@ -1,4 +1,5 @@
 import os
+import shlex
 import subprocess
 import tomllib
 from typing import List, Optional
@@ -194,7 +195,9 @@ class ScriptRunner:
 
         try:
             # Build the uv run command
-            cmd = ["uv", "run", command] + (arguments or [])
+            # Use shlex.split to properly handle multi-word commands like "python -m module"
+            cmd_parts = shlex.split(command)
+            cmd = ["uv", "run"] + cmd_parts + (arguments or [])
 
             self.logger.info(f"Running uv command: {command} in {project_dir}")
 
