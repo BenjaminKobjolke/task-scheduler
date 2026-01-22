@@ -2,7 +2,7 @@ from typing import Dict, List, Optional
 import os
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from datetime import datetime
+from datetime import datetime, timedelta
 from .logger import Logger
 from .script_runner import ScriptRunner
 from .database import Database
@@ -119,6 +119,9 @@ class TaskScheduler:
         """
         Schedule a task in the APScheduler.
 
+        Calculates next_run_time based on last execution to ensure proper scheduling
+        for long-interval tasks. If a task is overdue, it runs immediately (catch-up).
+
         Args:
             task_id: ID of the task
             name: Name of the task
@@ -131,16 +134,40 @@ class TaskScheduler:
         # Create unique job ID using task ID
         job_id = self._get_job_id(task_id)
 
+        # Get last execution time to calculate proper next_run_time
+        last_executions = self.db.get_last_execution_per_task()
+
+        if task_id in last_executions:
+            last_run = datetime.strptime(
+                last_executions[task_id]['execution_time'],
+                '%Y-%m-%d %H:%M:%S'
+            )
+            next_run = last_run + timedelta(minutes=interval)
+
+            # If overdue, run immediately (catch-up)
+            if next_run < datetime.now():
+                self.logger.info(
+                    f"Task '{name}' (ID: {task_id}) is overdue, scheduling immediate catch-up"
+                )
+                next_run = datetime.now()
+        else:
+            # New task with no execution history, run immediately
+            next_run = datetime.now()
+
+        # Scale misfire_grace_time based on interval
+        # Minimum 60s, maximum 10% of interval (capped at 1 hour)
+        grace_time = max(60, min(interval * 60 * 0.1, 3600))
+
         # Add the job to the scheduler
         self.scheduler.add_job(
             func=self._process_job,
             trigger=IntervalTrigger(minutes=interval),
             args=[task_id, name, script_path, arguments or [], task_type, command],
-            next_run_time=datetime.now(),  # Start immediately
+            next_run_time=next_run,
             id=job_id,
             replace_existing=True,  # Replace if job exists
             name=name,  # Store task name
-            misfire_grace_time=Defaults.MISFIRE_GRACE_TIME,
+            misfire_grace_time=int(grace_time),
             coalesce=True  # If multiple runs were missed, only run once
         )
     
@@ -274,13 +301,14 @@ class TaskScheduler:
     
     def list_tasks(self) -> List[Dict]:
         """
-        Get a list of all tasks with their next run times.
-        
+        Get a list of all tasks with their next run times and last execution info.
+
         Returns:
             List of task dictionaries with additional scheduler information
         """
         tasks = self.db.get_all_tasks()
         scheduler_jobs = {job.id: job for job in self.scheduler.get_jobs()}
+        last_executions = self.db.get_last_execution_per_task()
 
         for task in tasks:
             job_id = self._get_job_id(task['id'])
@@ -288,7 +316,15 @@ class TaskScheduler:
                 task['next_run_time'] = scheduler_jobs[job_id].next_run_time
             else:
                 task['next_run_time'] = None
-        
+
+            # Add last execution info
+            if task['id'] in last_executions:
+                task['last_run_time'] = last_executions[task['id']]['execution_time']
+                task['last_run_success'] = last_executions[task['id']]['success']
+            else:
+                task['last_run_time'] = None
+                task['last_run_success'] = None
+
         return tasks
 
     def run_task(self, task_id: int):

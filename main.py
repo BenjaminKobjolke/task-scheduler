@@ -401,6 +401,14 @@ def format_task_list(tasks, show_next_run: bool = True):
                 f"   Arguments: {' '.join(task['arguments']) if task['arguments'] else 'None'}"
             ]
 
+        # Add last run info
+        last_run_time = task.get('last_run_time')
+        if last_run_time:
+            success_str = "success" if task.get('last_run_success') else "failed"
+            lines.append(f"   Last run: {last_run_time} ({success_str})")
+        else:
+            lines.append(f"   Last run: Never")
+
         if show_next_run:
             next_run = task['next_run_time'].strftime('%Y-%m-%d %H:%M:%S') if task['next_run_time'] else 'Not scheduled'
             lines.append(f"   Next run: {next_run}")

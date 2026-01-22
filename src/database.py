@@ -200,7 +200,34 @@ class Database:
 
                 executions.append(execution)
             return executions
-    
+
+    def get_last_execution_per_task(self) -> Dict[int, Dict]:
+        """
+        Get the most recent execution for each task.
+
+        Returns:
+            Dict mapping task_id -> {execution_time, success}
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.execute("""
+                SELECT h.task_id, h.execution_time, h.success
+                FROM task_history h
+                INNER JOIN (
+                    SELECT task_id, MAX(execution_time) as max_time
+                    FROM task_history
+                    GROUP BY task_id
+                ) latest ON h.task_id = latest.task_id AND h.execution_time = latest.max_time
+            """)
+
+            result = {}
+            for row in cursor:
+                result[row['task_id']] = {
+                    'execution_time': row['execution_time'],
+                    'success': bool(row['success'])
+                }
+            return result
+
     def edit_task(
         self,
         task_id: int,
