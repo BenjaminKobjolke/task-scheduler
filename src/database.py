@@ -2,13 +2,12 @@ import json
 import os
 import sqlite3
 from typing import List, Optional, Dict
-from datetime import datetime
 from .logger import Logger
-from .constants import Paths, Database as DbConstants, Defaults, TaskTypes
+from .constants import Paths, Database as DbConstants, TaskTypes
 
 class Database:
     """Handle SQLite database operations for task storage."""
-    
+
     def __init__(self, db_path: str = None):
         """Initialize database connection and create tables if needed."""
         self.logger = Logger("Database")
@@ -21,7 +20,7 @@ class Database:
             db_path = os.path.join(data_dir, "tasks.sqlite")
         self.db_path = db_path
         self._create_tables()
-    
+
     def _create_tables(self):
         """Create the necessary database tables if they don't exist."""
         with sqlite3.connect(self.db_path) as conn:
@@ -52,6 +51,7 @@ class Database:
             # Migration: Add columns if they don't exist (for existing databases)
             self._migrate_add_column(conn, DbConstants.TABLE_TASKS, DbConstants.COL_TASK_TYPE, "TEXT DEFAULT 'script'")
             self._migrate_add_column(conn, DbConstants.TABLE_TASKS, DbConstants.COL_COMMAND, "TEXT")
+            self._migrate_add_column(conn, DbConstants.TABLE_TASKS, DbConstants.COL_START_TIME, "TEXT")
 
     def _migrate_add_column(self, conn, table: str, column: str, definition: str):
         """Add a column to a table if it doesn't exist."""
@@ -60,7 +60,7 @@ class Database:
         if column not in columns:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
             self.logger.info(f"Migrated database: added column '{column}' to table '{table}'")
-    
+
     def add_task(
         self,
         name: str,
@@ -68,7 +68,8 @@ class Database:
         interval: int,
         arguments: Optional[List[str]] = None,
         task_type: str = TaskTypes.SCRIPT,
-        command: Optional[str] = None
+        command: Optional[str] = None,
+        start_time: Optional[str] = None
     ) -> int:
         """
         Add a new task to the database.
@@ -80,6 +81,7 @@ class Database:
             arguments: Optional list of command line arguments
             task_type: Type of task ('script' or 'uv_command')
             command: Command name for uv_command tasks
+            start_time: Optional start time for aligned scheduling (HH:MM format)
 
         Returns:
             int: ID of the newly added task
@@ -94,11 +96,11 @@ class Database:
                 self.logger.debug(f"JSON stored in database: {json_args}")
 
             cursor = conn.execute(
-                "INSERT INTO tasks (name, script_path, arguments, interval, task_type, command) VALUES (?, ?, ?, ?, ?, ?)",
-                (name, script_path, json_args, interval, task_type, command)
+                "INSERT INTO tasks (name, script_path, arguments, interval, task_type, command, start_time) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (name, script_path, json_args, interval, task_type, command, start_time)
             )
             return cursor.lastrowid
-    
+
     def get_all_tasks(self) -> List[Dict]:
         """
         Get all tasks from the database.
@@ -126,21 +128,21 @@ class Database:
 
                 tasks.append(task)
             return tasks
-    
+
     def remove_task(self, task_id: int):
         """
         Remove a task from the database.
-        
+
         Args:
             task_id: ID of the task to remove
         """
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
-    
+
     def add_task_execution(self, task_id: int, success: bool):
         """
         Record a task execution in the history.
-        
+
         Args:
             task_id: ID of the executed task
             success: Whether the execution was successful
@@ -150,14 +152,14 @@ class Database:
                 "INSERT INTO task_history (task_id, execution_time, success) VALUES (?, datetime('now', 'localtime'), ?)",
                 (task_id, success)
             )
-    
+
     def get_recent_executions(self, limit: int = 10) -> List[Dict]:
         """
         Get the most recent task executions.
-        
+
         Args:
             limit: Maximum number of executions to return
-            
+
         Returns:
             List of execution records with task details
         """
@@ -236,7 +238,8 @@ class Database:
         interval: int,
         arguments: Optional[List[str]] = None,
         task_type: str = TaskTypes.SCRIPT,
-        command: Optional[str] = None
+        command: Optional[str] = None,
+        start_time: Optional[str] = None
     ) -> bool:
         """
         Edit an existing task in the database.
@@ -249,6 +252,7 @@ class Database:
             arguments: New list of command line arguments
             task_type: Type of task ('script' or 'uv_command')
             command: Command name for uv_command tasks
+            start_time: Optional start time for aligned scheduling (HH:MM format)
 
         Returns:
             bool: True if task was found and updated, False otherwise
@@ -265,13 +269,13 @@ class Database:
             cursor = conn.execute(
                 """
                 UPDATE tasks
-                SET name = ?, script_path = ?, arguments = ?, interval = ?, task_type = ?, command = ?
+                SET name = ?, script_path = ?, arguments = ?, interval = ?, task_type = ?, command = ?, start_time = ?
                 WHERE id = ?
                 """,
-                (name, script_path, json_args, interval, task_type, command, task_id)
+                (name, script_path, json_args, interval, task_type, command, start_time, task_id)
             )
             return cursor.rowcount > 0
-            
+
     def clear_all_tasks(self):
         """Remove all tasks and their history from the database."""
         with sqlite3.connect(self.db_path) as conn:

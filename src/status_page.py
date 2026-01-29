@@ -75,7 +75,9 @@ class StatusPage:
         arguments: Optional[List[str]] = None,
         success: Optional[bool] = None,
         task_type: str = TaskTypes.SCRIPT,
-        command: Optional[str] = None
+        command: Optional[str] = None,
+        interval: Optional[int] = None,
+        start_time: Optional[str] = None
     ) -> str:
         """Generate HTML for a task card."""
         if success is not None:
@@ -112,6 +114,14 @@ class StatusPage:
         else:
             details_html = f'<div class="task-details">{script_path}</div>'
 
+        # Format schedule info if interval is provided
+        schedule_html = ""
+        if interval is not None:
+            if start_time:
+                schedule_html = f'<div class="task-schedule">Every {interval} min from {start_time}</div>'
+            else:
+                schedule_html = f'<div class="task-schedule">Every {interval} min</div>'
+
         return f"""
             <div class="task-card">
                 <div class="task-header">
@@ -120,18 +130,20 @@ class StatusPage:
                     {status_html}
                 </div>
                 {details_html}
+                {schedule_html}
                 {args_html}
                 <div class="task-time">{time}</div>
             </div>
         """
 
-    def update(self, recent_executions: List[Dict], next_jobs: List[Dict]):
+    def update(self, recent_executions: List[Dict], next_jobs: List[Dict], tasks: Optional[List[Dict]] = None):
         """
         Update the status page with recent executions and next scheduled tasks.
 
         Args:
             recent_executions: List of recent task executions
             next_jobs: List of next scheduled jobs
+            tasks: Optional list of all tasks (for interval/start_time info)
         """
         try:
             # Refresh output paths in case config changed
@@ -139,6 +151,12 @@ class StatusPage:
 
             # Ensure output directory exists and is set up
             self._setup_output_directory()
+
+            # Build a lookup for task details (interval, start_time)
+            task_lookup = {}
+            if tasks:
+                for task in tasks:
+                    task_lookup[task['id']] = task
 
             # Generate HTML for recent tasks
             recent_html = []
@@ -160,16 +178,27 @@ class StatusPage:
             next_html = []
             if next_jobs:
                 for job in next_jobs:
+                    task_id = job.args[0]
                     task_type = job.args[4] if len(job.args) > 4 else TaskTypes.SCRIPT
                     command = job.args[5] if len(job.args) > 5 else None
+
+                    # Get interval and start_time from task lookup
+                    interval = None
+                    start_time = None
+                    if task_id in task_lookup:
+                        interval = task_lookup[task_id].get('interval')
+                        start_time = task_lookup[task_id].get('start_time')
+
                     task_html = self._generate_task_card(
                         name=job.name,
                         script_path=job.args[2],
                         time=f"Next run: {job.next_run_time.strftime('%Y-%m-%d %H:%M:%S')}",
-                        task_id=job.args[0],  # task_id is first argument
+                        task_id=task_id,
                         arguments=job.args[3] if job.args[3] else None,
                         task_type=task_type,
-                        command=command
+                        command=command,
+                        interval=interval,
+                        start_time=start_time
                     )
                     next_html.append(task_html)
                 next_html = '\n'.join(next_html)

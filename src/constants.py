@@ -28,6 +28,7 @@ class Database:
     COL_TASK_ID = "task_id"
     COL_EXECUTION_TIME = "execution_time"
     COL_SUCCESS = "success"
+    COL_START_TIME = "start_time"
 
 
 class Config:
@@ -83,3 +84,4 @@ class Defaults:
     HISTORY_LIMIT = 10
     MISFIRE_GRACE_TIME = 60
     MIN_INTERVAL = 1
+    RELOAD_INTERVAL = 60  # seconds between database checks for hot-reload
