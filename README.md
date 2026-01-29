@@ -17,6 +17,7 @@ Task Scheduler for Python Scripts and Batch Files is a utility that allows you t
 - **Status page generation** (HTML or PHP with authentication)
 - **FTP upload** with configurable sync interval
 - Configurable output path for status page
+- **Hot-reload**: Automatically detects task changes while running (no restart needed)
 
 ## Requirements
 
@@ -280,6 +281,28 @@ This will:
 1. Load all tasks from the database
 2. Display the list of configured tasks
 3. Start executing them at their specified intervals
+
+#### Hot-Reload
+
+The scheduler automatically detects database changes every 60 seconds. This means you can:
+
+- Add new tasks while the scheduler is running
+- Modify task settings (interval, start_time, etc.)
+- Delete tasks
+
+Changes are applied automatically without needing to restart the scheduler.
+
+**Example workflow:**
+```bash
+# Terminal 1: Start the scheduler
+python main.py
+
+# Terminal 2: Modify a task while scheduler is running
+python main.py --set-interval 5 30
+
+# The scheduler will detect and apply the change within 60 seconds
+# Log output: "Hot-reload: Updated task 'Task Name' (ID: 5)"
+```
 
 ### Important Notes
 
