@@ -5,6 +5,7 @@ Task Scheduler for Python Scripts and Batch Files is a utility that allows you t
 ## Features
 
 - Schedule Python scripts and batch files to run at specified intervals
+- **Optional start time** for aligned scheduling (e.g., run every 2 hours starting at 09:00)
 - Give descriptive names to scheduled tasks
 - Edit existing tasks with updated parameters
 - Automatic virtual environment activation for Python scripts (venv and uv projects)
@@ -60,6 +61,7 @@ This will prompt you for:
 - For uv projects: command selection (predefined or custom)
 - Task name
 - Interval in minutes
+- Start time (optional, HH:MM format for aligned scheduling)
 - Arguments (optional, press Enter twice to finish)
 
 **uv Project Commands:**
@@ -95,6 +97,10 @@ python main.py --script "path/to/script.py" --name "task description" --interval
 - `--script`: Path to the Python script or batch file to schedule (absolute path or relative to current directory)
 - `--name`: Descriptive name for the task (e.g., "convert audio notes to text")
 - `--interval`: Interval in minutes between script executions
+- `--start-time`: Optional start time for aligned scheduling (HH:MM format)
+- `--set-start-time ID TIME`: Set or clear start time for an existing task (use `none` to clear)
+- `--set-interval ID MINUTES`: Set interval for an existing task
+- `--run_id ID`: Run a specific task immediately by its ID
 - `--`: Separator after which all arguments are passed to the script
 - Arguments after `--` are passed directly to the script
 
@@ -112,12 +118,30 @@ python main.py --script "D:\GIT\BenjaminKobjolke\ai-file-renamer\main.py" --name
 
 # Batch file with arguments
 python main.py --script "cleanup.bat" --name "cleanup temp files" --interval 30 -- --force --verbose
+
+# Task with aligned scheduling (runs at 09:00, 11:00, 13:00, etc.)
+python main.py --script "backup.py" --name "scheduled backup" --interval 120 --start-time 09:00
 ```
 
 Note: When using arguments with spaces or special characters, make sure to:
 
 1. Use `--` to separate scheduler arguments from script arguments
 2. Quote values that contain spaces or special characters
+
+### Quick Commands (Batch Files)
+
+For convenience, batch files are provided for common operations:
+
+| Batch File | Description |
+|------------|-------------|
+| `taskscheduler_run.bat` | Start the scheduler |
+| `taskscheduler_list.bat` | List all tasks |
+| `taskscheduler_add.bat` | Add a new task (interactive) |
+| `taskscheduler_run_with_id.bat ID` | Run a specific task by ID |
+| `taskscheduler_remove_with_id.bat ID` | Delete a task by ID |
+| `taskscheduler_set_interval.bat ID MINUTES` | Set task interval |
+| `taskscheduler_set_start_time.bat ID TIME` | Set task start time |
+| `taskscheduler_history.bat` | Show execution history |
 
 ### Managing Tasks
 
@@ -135,6 +159,7 @@ This will display each task's:
 - Name
 - Script path
 - Interval
+- Start time (if set)
 - Arguments
 - Next scheduled run time
 
@@ -156,6 +181,17 @@ This will display:
 - Task name
 - Success/failure status
 
+#### Running a Single Task
+
+To run a specific task immediately without starting the scheduler:
+
+```bash
+python main.py --run_id 5
+
+# Or using batch file
+taskscheduler_run_with_id.bat 5
+```
+
 #### Editing a Task
 
 To edit an existing task:
@@ -175,6 +211,46 @@ For example:
 
 ```bash
 python main.py --edit 1
+```
+
+#### Setting Start Time
+
+The start time feature allows you to align task executions to specific time slots. When you set a start time, the task will run at that time and then repeat at the specified interval.
+
+**Example:** With `interval=120` (2 hours) and `start_time=09:00`, the task runs at:
+- 09:00, 11:00, 13:00, 15:00, 17:00, etc.
+
+**Quick command to set start time:**
+
+```bash
+# Set task 5 to run starting at 09:00
+python main.py --set-start-time 5 09:00
+
+# Clear start time (use interval-only behavior)
+python main.py --set-start-time 5 none
+```
+
+**Batch file for quick access:**
+
+```bash
+# Set start time using batch file
+taskscheduler_set_start_time.bat 5 09:00
+```
+
+**Without start time:** Tasks run immediately when added and then repeat at the interval.
+
+**With start time:** Tasks align to the start_time grid based on the interval.
+
+#### Setting Interval
+
+Quickly change the interval of an existing task:
+
+```bash
+# Set task 5 to run every 60 minutes
+python main.py --set-interval 5 60
+
+# Using batch file
+taskscheduler_set_interval.bat 5 60
 ```
 
 #### Deleting a Task
@@ -373,5 +449,13 @@ task-scheduler/
 ├── config.ini.example       # Example configuration
 ├── pyproject.toml           # Project dependencies (uv)
 ├── install.bat              # Installation script
+├── taskscheduler_run.bat    # Start the scheduler
+├── taskscheduler_list.bat   # List all tasks
+├── taskscheduler_add.bat    # Add task (interactive)
+├── taskscheduler_run_with_id.bat     # Run specific task
+├── taskscheduler_remove_with_id.bat  # Delete task
+├── taskscheduler_set_interval.bat    # Set task interval
+├── taskscheduler_set_start_time.bat  # Set task start time
+├── taskscheduler_history.bat         # Show execution history
 └── README.md                # This file
 ```
