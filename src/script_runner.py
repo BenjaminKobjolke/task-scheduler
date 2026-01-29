@@ -2,17 +2,17 @@ import os
 import shlex
 import subprocess
 import tomllib
-from typing import List, Optional
+from typing import List
 from .logger import Logger
 from .constants import Paths
 
 class ScriptRunner:
     """Handles the execution of Python scripts, batch files, and uv CLI commands."""
-    
+
     def __init__(self):
         """Initialize ScriptRunner with logger."""
         self.logger = Logger("ScriptRunner")
-    
+
     def _is_uv_project(self, script_dir: str) -> bool:
         """Check if the script directory is a uv-managed project."""
         pyproject_path = os.path.join(script_dir, Paths.PYPROJECT_TOML)
@@ -34,7 +34,7 @@ class ScriptRunner:
             raise ValueError(f"Virtual environment not found at {venv_path}")
 
         return os.path.join(venv_path, Paths.SCRIPTS_DIR, Paths.ACTIVATE_SCRIPT)
-    
+
     def run_script(self, script_path: str, arguments: List[str] = None) -> bool:
         """
         Run a Python script with its virtual environment or a batch file.

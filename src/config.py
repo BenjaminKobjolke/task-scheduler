@@ -1,40 +1,40 @@
 import os
 import configparser
-from typing import Optional, Dict
+from typing import Dict
 from .constants import Config as ConfigConstants
 
 
 class Config:
     """Handle configuration settings for the task scheduler."""
-    
+
     _instance = None
-    
+
     def __new__(cls):
         """Ensure singleton pattern for configuration."""
         if cls._instance is None:
             cls._instance = super(Config, cls).__new__(cls)
             cls._instance._initialized = False
         return cls._instance
-    
+
     def __init__(self):
         """Initialize configuration if not already initialized."""
         if self._initialized:
             return
-            
+
         self.config = configparser.ConfigParser()
         self.config_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             'config.ini'
         )
-        
+
         # Load or create default configuration
         if os.path.exists(self.config_path):
             self.config.read(self.config_path)
         else:
             self._create_default_config()
-        
+
         self._initialized = True
-    
+
     def _create_default_config(self):
         """Create default configuration file."""
         self.config[ConfigConstants.SECTION_LOGGING] = {
@@ -71,7 +71,7 @@ class Config:
             ConfigConstants.KEY_LEVEL,
             fallback=ConfigConstants.DEFAULT_LEVEL
         )
-    
+
     def set_logging_level(self, level: str):
         """
         Set the logging level.
@@ -104,7 +104,7 @@ class Config:
             str(enabled).lower()
         )
         self._save_config()
-    
+
     def _save_config(self):
         """Save current configuration to file."""
         with open(self.config_path, 'w') as configfile:

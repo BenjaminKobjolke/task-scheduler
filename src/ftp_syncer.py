@@ -1,7 +1,5 @@
 """FTP synchronization for status page uploads."""
 
-from pathlib import Path
-from typing import Dict
 
 from ftpsync.ftp_target import FTPTarget
 from ftpsync.synchronizers import UploadSynchronizer

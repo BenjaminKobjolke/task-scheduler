@@ -186,7 +186,7 @@ class TestDatabaseUvCommandTasks:
 
     def test_legacy_tasks_default_to_script(self, temp_db):
         # Simulate legacy task (task_type defaults to 'script')
-        task_id = temp_db.add_task("Legacy", "/path/script.py", 5)
+        _task_id = temp_db.add_task("Legacy", "/path/script.py", 5)
 
         tasks = temp_db.get_all_tasks()
         assert tasks[0]["task_type"] == TaskTypes.SCRIPT

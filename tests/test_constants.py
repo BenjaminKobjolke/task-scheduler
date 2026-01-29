@@ -1,5 +1,4 @@
 """Tests for constants module."""
-import pytest
 from src.constants import Paths, Database, Config, Defaults
 
 
