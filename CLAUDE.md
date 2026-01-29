@@ -46,3 +46,19 @@ python main.py --script "path.py" --name "name" --interval 5 -- --arg1 value
 - Tasks persist in `data/tasks.sqlite`
 - APScheduler jobs use `misfire_grace_time=60` and `coalesce=True` to handle delayed executions
 - Timestamps stored in local time using SQLite's `datetime('now', 'localtime')`
+
+## Code Analysis
+
+After implementing new features or making significant changes, run the code analysis:
+
+```bash
+powershell -Command "cd 'D:\GIT\BenjaminKobjolke\task-scheduler'; cmd /c '.\tools\analyze_code.bat'"
+```
+
+To auto-fix issues that Ruff can fix:
+
+```bash
+powershell -Command "cd 'D:\GIT\BenjaminKobjolke\task-scheduler'; cmd /c '.\tools\fix_ruff_issues.bat'"
+```
+
+Fix any reported issues before committing.
