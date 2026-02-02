@@ -6,6 +6,10 @@ from typing import List
 from .logger import Logger
 from .constants import Paths
 
+# Default timeout for script execution (30 minutes)
+DEFAULT_TIMEOUT = 1800
+
+
 class ScriptRunner:
     """Handles the execution of Python scripts, batch files, and uv CLI commands."""
 
@@ -75,14 +79,19 @@ class ScriptRunner:
                     self.logger.info(f"Arguments: {' '.join(arguments) if arguments else 'None'}")
 
                 # Run the batch file in its directory
-                process = subprocess.run(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    cwd=script_dir,
-                    shell=True
-                )
+                try:
+                    process = subprocess.run(
+                        cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        cwd=script_dir,
+                        shell=True,
+                        timeout=DEFAULT_TIMEOUT
+                    )
+                except subprocess.TimeoutExpired:
+                    self.logger.error(f"Batch file timed out after {DEFAULT_TIMEOUT}s: {script_path}")
+                    return False
             elif self._is_uv_project(script_dir):
                 # For uv-managed projects, use uv run
                 python_cmd = ["uv", "run", "python", script_name] + (arguments or [])
@@ -99,14 +108,19 @@ class ScriptRunner:
                     self.logger.info(f"Arguments: {' '.join(arguments) if arguments else 'None'}")
 
                 # Run the script using uv
-                process = subprocess.run(
-                    python_cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    cwd=script_dir,
-                    env=self._get_clean_env_for_uv()
-                )
+                try:
+                    process = subprocess.run(
+                        python_cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        cwd=script_dir,
+                        env=self._get_clean_env_for_uv(),
+                        timeout=DEFAULT_TIMEOUT
+                    )
+                except subprocess.TimeoutExpired:
+                    self.logger.error(f"Script timed out after {DEFAULT_TIMEOUT}s: {script_path}")
+                    return False
             else:
                 # For Python scripts with traditional venv
                 venv_activate = self._activate_venv(script_path)
@@ -129,13 +143,18 @@ class ScriptRunner:
                     self.logger.info(f"Arguments: {' '.join(arguments) if arguments else 'None'}")
 
                 # Run the script in the correct directory
-                process = subprocess.run(
-                    python_cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    cwd=script_dir
-                )
+                try:
+                    process = subprocess.run(
+                        python_cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        cwd=script_dir,
+                        timeout=DEFAULT_TIMEOUT
+                    )
+                except subprocess.TimeoutExpired:
+                    self.logger.error(f"Script timed out after {DEFAULT_TIMEOUT}s: {script_path}")
+                    return False
 
             if process.stdout:
                 self.logger.info(f"Script output:\n{process.stdout}")
@@ -208,14 +227,19 @@ class ScriptRunner:
             else:
                 self.logger.info(f"Arguments: {' '.join(arguments) if arguments else 'None'}")
 
-            process = subprocess.run(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                cwd=project_dir,
-                env=self._get_clean_env_for_uv()
-            )
+            try:
+                process = subprocess.run(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    cwd=project_dir,
+                    env=self._get_clean_env_for_uv(),
+                    timeout=DEFAULT_TIMEOUT
+                )
+            except subprocess.TimeoutExpired:
+                self.logger.error(f"Command timed out after {DEFAULT_TIMEOUT}s: {command}")
+                return False
 
             if process.stdout:
                 self.logger.info(f"Command output:\n{process.stdout}")
