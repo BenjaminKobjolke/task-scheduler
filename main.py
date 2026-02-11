@@ -1,262 +1,28 @@
 #!/usr/bin/env python3
 import argparse
-import os
-import shlex
 import signal
 import sys
 import time
-from datetime import datetime
-from typing import Dict, Any
-from prompt_toolkit import PromptSession
-from prompt_toolkit.completion import PathCompleter, FuzzyCompleter
-from prompt_toolkit.key_binding import KeyBindings
+
 from src.scheduler import TaskScheduler
 from src.logger import Logger
 from src.config import Config
-from src.script_runner import ScriptRunner
-from src.constants import TaskTypes, Paths
-from src.status_page import StatusPage
+from src.formatters import format_task_list
+from src.commands import (
+    handle_list,
+    handle_history,
+    handle_delete,
+    handle_set_start_time,
+    handle_set_interval,
+    handle_set_arguments,
+    handle_copy_task,
+    handle_edit,
+    handle_add,
+    handle_script,
+    handle_run_id,
+    handle_ftp_sync,
+)
 
-def get_task_input(existing_task: Dict[str, Any] = None) -> Dict[str, Any]:
-    """
-    Get task details interactively from user.
-
-    Args:
-        existing_task: Optional dictionary containing current task values for editing
-    """
-    print("\nAdding new task interactively:")
-
-    # Setup key bindings for path input
-    kb = KeyBindings()
-
-    @kb.add('enter')
-    def _(event):
-        # If completion menu is showing
-        if event.app.current_buffer.complete_state:
-            # Get the current text
-            current_text = event.app.current_buffer.text
-
-            # If it's a directory, append backslash and move cursor
-            if os.path.isdir(current_text):
-                new_text = current_text.rstrip('\\') + '\\'
-                event.app.current_buffer.text = new_text
-                event.app.current_buffer.cursor_position = len(new_text)
-
-            # Clear completion state
-            event.app.current_buffer.complete_state = None
-        else:
-            # No suggestions shown, complete the input
-            event.app.current_buffer.validate_and_handle()
-
-    # Get script path with validation and tab completion
-    path_completer = PathCompleter(
-        get_paths=lambda: ['.'],
-        expanduser=True
-    )
-    completer = FuzzyCompleter(path_completer)
-    session = PromptSession()
-
-    # If editing, show current values
-    if existing_task:
-        task_type = existing_task.get('task_type', TaskTypes.SCRIPT)
-        print("\nEditing task (press Enter to keep current value):")
-        print("Current values:")
-        print(f"Name: {existing_task['name']}")
-        if task_type == TaskTypes.UV_COMMAND:
-            print("Type: uv command")
-            print(f"Project: {existing_task['script_path']}")
-            print(f"Command: {existing_task.get('command', 'N/A')}")
-        else:
-            print("Type: script")
-            print(f"Script: {existing_task['script_path']}")
-        print(f"Interval: {existing_task['interval']} minute(s)")
-        if existing_task.get('start_time'):
-            print(f"Start time: {existing_task['start_time']}")
-        print(f"Arguments: {' '.join(existing_task['arguments']) if existing_task['arguments'] else 'None'}")
-
-    # Initialize variables
-    task_type = TaskTypes.SCRIPT
-    command = None
-    script_runner = ScriptRunner()
-
-    while True:
-        prompt_text = "\nScript path or uv project directory (Use Tab for suggestions)"
-        if existing_task:
-            prompt_text += f" [{existing_task['script_path']}]"
-        prompt_text += ":"
-        print(prompt_text)
-
-        path_input = session.prompt(
-            "Path: ",
-            completer=completer,
-            key_bindings=kb,
-            default=existing_task['script_path'] if existing_task else ""
-        ).strip()
-
-        # Keep existing value if empty input
-        if existing_task and not path_input:
-            path_input = existing_task['script_path']
-            task_type = existing_task.get('task_type', TaskTypes.SCRIPT)
-            command = existing_task.get('command')
-            break
-
-        # Check if it's a uv project directory
-        if os.path.isdir(path_input):
-            pyproject_path = os.path.join(path_input, Paths.PYPROJECT_TOML)
-            uv_lock_path = os.path.join(path_input, Paths.UV_LOCK)
-
-            if os.path.exists(pyproject_path) and os.path.exists(uv_lock_path):
-                # It's a uv project - get available commands
-                commands = script_runner.get_uv_commands(path_input)
-
-                if commands:
-                    print("\nDetected uv project! Available commands:")
-                    for i, cmd in enumerate(commands, 1):
-                        print(f"  {i}. {cmd}")
-                    print(f"  {len(commands) + 1}. [Custom command]")
-
-                    while True:
-                        cmd_input = input(f"\nSelect command [1-{len(commands) + 1}]: ").strip()
-                        try:
-                            cmd_idx = int(cmd_input) - 1
-                            if 0 <= cmd_idx < len(commands):
-                                command = commands[cmd_idx]
-                                task_type = TaskTypes.UV_COMMAND
-                                break
-                            elif cmd_idx == len(commands):
-                                # Custom command selected
-                                custom_cmd = input("Enter custom command (e.g., python -m module_name): ").strip()
-                                if custom_cmd:
-                                    command = custom_cmd
-                                    task_type = TaskTypes.UV_COMMAND
-                                    break
-                                print("Error: Command cannot be empty.")
-                            else:
-                                print(f"Error: Please enter a number between 1 and {len(commands) + 1}")
-                        except ValueError:
-                            print("Error: Please enter a valid number.")
-
-                    break
-                else:
-                    print("\nDetected uv project! No predefined commands found.")
-                    custom_cmd = input("Enter custom command (e.g., python -m module_name): ").strip()
-                    if custom_cmd:
-                        command = custom_cmd
-                        task_type = TaskTypes.UV_COMMAND
-                        break
-                    print("Error: Command cannot be empty.")
-                    continue
-            else:
-                print("Error: Directory is not a valid uv project (missing pyproject.toml or uv.lock)")
-                print("Please enter a script file path or a valid uv project directory.")
-                continue
-
-        # Check if it's a file
-        if os.path.isfile(path_input):
-            task_type = TaskTypes.SCRIPT
-            command = None
-            break
-
-        print("Error: Not a valid file or uv project directory. Please enter a valid path.")
-
-    script_path = path_input
-
-    # Get task name
-    default_name = command if command else ""
-    prompt_text = "\nTask name"
-    if existing_task:
-        prompt_text += f" [{existing_task['name']}]"
-    elif default_name:
-        prompt_text += f" [{default_name}]"
-    prompt_text += ": "
-
-    name = input(prompt_text).strip()
-    # Keep existing value if empty input
-    if existing_task and not name:
-        name = existing_task['name']
-    elif not name and default_name:
-        name = default_name
-    while not name:
-        print("Error: Name cannot be empty.")
-        name = input(prompt_text).strip()
-
-    # Get interval with validation
-    while True:
-        prompt_text = "\nInterval in minutes"
-        if existing_task:
-            prompt_text += f" [{existing_task['interval']}]"
-        prompt_text += ": "
-
-        interval_input = input(prompt_text).strip()
-        # Keep existing value if empty input
-        if existing_task and not interval_input:
-            interval = existing_task['interval']
-            break
-
-        try:
-            interval = int(interval_input)
-            if interval < 1:
-                print("Error: Interval must be at least 1 minute.")
-                continue
-            break
-        except ValueError:
-            print("Error: Please enter a valid number.")
-
-    # Get start time (optional)
-    start_time = None
-    while True:
-        prompt_text = "\nStart time (optional, HH:MM format for aligned scheduling)"
-        if existing_task and existing_task.get('start_time'):
-            prompt_text += f" [{existing_task['start_time']}]"
-        prompt_text += ": "
-
-        start_time_input = input(prompt_text).strip()
-        # Keep existing value if empty input
-        if existing_task and not start_time_input:
-            start_time = existing_task.get('start_time')
-            break
-        elif not start_time_input:
-            start_time = None
-            break
-
-        # Validate format
-        try:
-            datetime.strptime(start_time_input, "%H:%M")
-            start_time = start_time_input
-            break
-        except ValueError:
-            print("Error: Please enter time in HH:MM format (e.g., 09:00).")
-
-    # Get arguments (optional) with path completion
-    print("\nEnter arguments (press Enter twice to finish):")
-    print("Example: --source \"path/to/source\" --target \"path/to/target\"")
-    if existing_task and existing_task['arguments']:
-        print(f"Current arguments: {' '.join(existing_task['arguments'])}")
-
-    args = None
-    arg_lines = []
-    while True:
-        arg = session.prompt("> ", key_bindings=kb).strip()
-
-        if not arg:
-            if not arg_lines and existing_task:  # No new arguments entered, keep existing
-                # Re-parse existing arguments to ensure proper format
-                args = shlex.split(' '.join(existing_task['arguments']))
-            elif arg_lines:
-                # Parse all entered arguments properly
-                args = shlex.split(' '.join(arg_lines))
-            break
-        arg_lines.append(arg)
-
-    return {
-        "script_path": script_path,
-        "name": name,
-        "interval": interval,
-        "arguments": args if args else None,
-        "task_type": task_type,
-        "command": command,
-        "start_time": start_time
-    }
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
@@ -421,68 +187,13 @@ Note:
 
     return parser.parse_args()
 
+
 def signal_handler(signum, frame):
     """Handle shutdown signals."""
     logger.info("Shutdown signal received")
     scheduler.shutdown()
     sys.exit(0)
 
-def format_execution_history(executions):
-    """Format execution history for display."""
-    if not executions:
-        return "No execution history found."
-
-    output = []
-    for i, execution in enumerate(executions, 1):
-        status = "Success" if execution['success'] else "Failed"
-        status_symbol = "+" if execution['success'] else "-"
-        output.append(
-            f"{i}. {execution['execution_time']} - {execution['name']} - [{status_symbol}] {status}"
-        )
-    return '\n'.join(output)
-
-def format_task_list(tasks, show_next_run: bool = True):
-    """Format task list for display."""
-    if not tasks:
-        return "No tasks scheduled."
-
-    output = []
-    for task in tasks:
-        task_type = task.get('task_type', TaskTypes.SCRIPT)
-
-        start_time = task.get('start_time')
-        if task_type == TaskTypes.UV_COMMAND:
-            lines = [
-                f"\n{task['id']}. {task['name']} [uv command]",
-                f"   Project: {task['script_path']}",
-                f"   Command: {task.get('command', 'N/A')}",
-                f"   Interval: {task['interval']} minute(s)",
-            ]
-        else:
-            lines = [
-                f"\n{task['id']}. {task['name']}",
-                f"   Script: {task['script_path']}",
-                f"   Interval: {task['interval']} minute(s)",
-            ]
-
-        if start_time:
-            lines.append(f"   Start time: {start_time}")
-
-        lines.append(f"   Arguments: {' '.join(task['arguments']) if task['arguments'] else 'None'}")
-
-        # Add last run info
-        last_run_time = task.get('last_run_time')
-        if last_run_time:
-            success_str = "success" if task.get('last_run_success') else "failed"
-            lines.append(f"   Last run: {last_run_time} ({success_str})")
-        else:
-            lines.append("   Last run: Never")
-
-        if show_next_run:
-            next_run = task['next_run_time'].strftime('%Y-%m-%d %H:%M:%S') if task['next_run_time'] else 'Not scheduled'
-            lines.append(f"   Next run: {next_run}")
-        output.extend(lines)
-    return '\n'.join(output)
 
 if __name__ == "__main__":
     try:
@@ -501,412 +212,72 @@ if __name__ == "__main__":
         scheduler = TaskScheduler()
 
         if args.list is not None:
-            # Just list tasks and exit
-            tasks = scheduler.list_tasks()
-            if args.list:
-                filter_term = args.list.lower()
-                tasks = [t for t in tasks if filter_term in t['name'].lower()]
-            logger.info("Scheduled tasks:" + format_task_list(tasks, show_next_run=False))
+            handle_list(scheduler, logger, args.list)
             sys.exit(0)
 
         elif args.history is not None:
-            # Show execution history and exit
-            executions = scheduler.db.get_recent_executions(args.history)
-            logger.info("Recent task executions:\n" + format_execution_history(executions))
+            handle_history(scheduler, logger, args.history)
             sys.exit(0)
 
         elif args.delete is not None:
-            # Get task info before deletion
-            tasks = scheduler.list_tasks()
-            task = next((t for t in tasks if t['id'] == args.delete), None)
-
-            if not task:
-                logger.error(f"No task found with ID {args.delete}")
-                sys.exit(1)
-
-            # Show task info and ask for confirmation
-            logger.info("\nTask to delete:")
-            logger.info(format_task_list([task], show_next_run=False))
-
-            confirmation = input("\nAre you sure you want to delete this task? (y/N): ")
-            if confirmation.lower() == 'y':
-                try:
-                    scheduler.remove_task(args.delete)
-                    logger.info("Task deleted successfully")
-                except ValueError as e:
-                    logger.error(str(e))
-                    sys.exit(1)
-            else:
-                logger.info("Deletion cancelled")
+            handle_delete(scheduler, logger, args.delete)
             sys.exit(0)
 
         elif args.set_start_time:
-            # Quick edit start time for a task
             task_id_str, time_value = args.set_start_time
-            try:
-                task_id = int(task_id_str)
-            except ValueError:
-                logger.error(f"Invalid task ID: {task_id_str}")
-                sys.exit(1)
-
-            # Get the task
-            tasks = scheduler.list_tasks()
-            task = next((t for t in tasks if t['id'] == task_id), None)
-
-            if not task:
-                logger.error(f"No task found with ID {task_id}")
-                sys.exit(1)
-
-            # Validate time value
-            if time_value.lower() == 'none':
-                new_start_time = None
-            else:
-                try:
-                    datetime.strptime(time_value, "%H:%M")
-                    new_start_time = time_value
-                except ValueError:
-                    logger.error(f"Invalid time format: {time_value}. Use HH:MM format or 'none' to clear.")
-                    sys.exit(1)
-
-            # Update the task with only start_time changed
-            try:
-                scheduler.edit_task(
-                    task_id=task_id,
-                    name=task['name'],
-                    script_path=task['script_path'],
-                    interval=task['interval'],
-                    arguments=task['arguments'],
-                    task_type=task.get('task_type', TaskTypes.SCRIPT),
-                    command=task.get('command'),
-                    start_time=new_start_time
-                )
-                if new_start_time:
-                    logger.info(f"Task '{task['name']}' (ID: {task_id}) start time set to {new_start_time}")
-                else:
-                    logger.info(f"Task '{task['name']}' (ID: {task_id}) start time cleared")
-            except ValueError as e:
-                logger.error(str(e))
-                sys.exit(1)
+            handle_set_start_time(scheduler, logger, task_id_str, time_value)
             sys.exit(0)
 
         elif args.set_interval:
-            # Quick edit interval for a task
             task_id_str, interval_str = args.set_interval
-            try:
-                task_id = int(task_id_str)
-            except ValueError:
-                logger.error(f"Invalid task ID: {task_id_str}")
-                sys.exit(1)
-
-            try:
-                new_interval = int(interval_str)
-                if new_interval < 1:
-                    logger.error("Interval must be at least 1 minute")
-                    sys.exit(1)
-            except ValueError:
-                logger.error(f"Invalid interval: {interval_str}. Must be a positive integer.")
-                sys.exit(1)
-
-            # Get the task
-            tasks = scheduler.list_tasks()
-            task = next((t for t in tasks if t['id'] == task_id), None)
-
-            if not task:
-                logger.error(f"No task found with ID {task_id}")
-                sys.exit(1)
-
-            # Update the task with only interval changed
-            try:
-                scheduler.edit_task(
-                    task_id=task_id,
-                    name=task['name'],
-                    script_path=task['script_path'],
-                    interval=new_interval,
-                    arguments=task['arguments'],
-                    task_type=task.get('task_type', TaskTypes.SCRIPT),
-                    command=task.get('command'),
-                    start_time=task.get('start_time')
-                )
-                logger.info(f"Task '{task['name']}' (ID: {task_id}) interval set to {new_interval} minute(s)")
-            except ValueError as e:
-                logger.error(str(e))
-                sys.exit(1)
+            handle_set_interval(scheduler, logger, task_id_str, interval_str)
             sys.exit(0)
 
         elif args.set_arguments is not None:
-            # Interactive edit arguments for a task
-            task_id = args.set_arguments
-
-            # Get the task
-            tasks = scheduler.list_tasks()
-            task = next((t for t in tasks if t['id'] == task_id), None)
-
-            if not task:
-                logger.error(f"No task found with ID {task_id}")
-                sys.exit(1)
-
-            # Show current arguments
-            print(f"\nTask: {task['name']} (ID: {task_id})")
-            print(f"Current arguments: {' '.join(task['arguments']) if task['arguments'] else 'None'}")
-            print("\nEnter new arguments (press Enter to keep current, type 'none' to clear):")
-            print("Example: --source \"path/to/source\" --target \"path/to/target\"")
-
-            # Setup key bindings and prompt session (same as get_task_input)
-            kb = KeyBindings()
-
-            @kb.add('enter')
-            def _(event):
-                if event.app.current_buffer.complete_state:
-                    current_text = event.app.current_buffer.text
-                    if os.path.isdir(current_text):
-                        new_text = current_text.rstrip('\\') + '\\'
-                        event.app.current_buffer.text = new_text
-                        event.app.current_buffer.cursor_position = len(new_text)
-                    event.app.current_buffer.complete_state = None
-                else:
-                    event.app.current_buffer.validate_and_handle()
-
-            session = PromptSession()
-            new_arguments = None
-            arg_lines = []
-            while True:
-                arg = session.prompt("> ", key_bindings=kb).strip()
-                if not arg:
-                    if not arg_lines and task['arguments']:
-                        # No input, keep existing
-                        new_arguments = task['arguments']
-                    elif arg_lines:
-                        full_input = ' '.join(arg_lines)
-                        if full_input.lower() == 'none':
-                            new_arguments = None
-                        else:
-                            new_arguments = shlex.split(full_input)
-                    break
-                arg_lines.append(arg)
-
-            # Update the task with only arguments changed
-            try:
-                scheduler.edit_task(
-                    task_id=task_id,
-                    name=task['name'],
-                    script_path=task['script_path'],
-                    interval=task['interval'],
-                    arguments=new_arguments,
-                    task_type=task.get('task_type', TaskTypes.SCRIPT),
-                    command=task.get('command'),
-                    start_time=task.get('start_time')
-                )
-                if new_arguments:
-                    logger.info(f"Task '{task['name']}' (ID: {task_id}) arguments set to: {' '.join(new_arguments)}")
-                else:
-                    logger.info(f"Task '{task['name']}' (ID: {task_id}) arguments cleared")
-            except ValueError as e:
-                logger.error(str(e))
-                sys.exit(1)
+            handle_set_arguments(scheduler, logger, args.set_arguments)
             sys.exit(0)
 
         elif args.copy_task is not None:
-            # Copy an existing task
-            tasks = scheduler.list_tasks()
-            task = next((t for t in tasks if t['id'] == args.copy_task), None)
-
-            if not task:
-                logger.error(f"No task found with ID {args.copy_task}")
-                sys.exit(1)
-
-            # Add a new task with the same properties
-            try:
-                new_task_id = scheduler.add_task(
-                    name=task['name'] + " (copy)",
-                    script_path=task['script_path'],
-                    interval=task['interval'],
-                    arguments=task['arguments'] if task['arguments'] else None,
-                    task_type=task.get('task_type', TaskTypes.SCRIPT),
-                    command=task.get('command'),
-                    start_time=task.get('start_time')
-                )
-                logger.info(f"Task '{task['name']}' (ID: {task['id']}) copied successfully as new task (ID: {new_task_id})")
-            except Exception as e:
-                logger.error(f"Failed to copy task: {str(e)}")
-                sys.exit(1)
+            handle_copy_task(scheduler, logger, args.copy_task)
             sys.exit(0)
 
         elif args.edit is not None:
-            # Get task info before editing
-            tasks = scheduler.list_tasks()
-            task = next((t for t in tasks if t['id'] == args.edit), None)
-
-            if not task:
-                logger.error(f"No task found with ID {args.edit}")
-                sys.exit(1)
-
-            # Show current task info
-            logger.info("\nEditing task:")
-            logger.info(format_task_list([task], show_next_run=False))
-
-            # Get updated task details interactively
-            task_details = get_task_input(task)
-
-            try:
-                # Update the task
-                scheduler.edit_task(
-                    task_id=args.edit,
-                    name=task_details["name"],
-                    script_path=os.path.abspath(task_details["script_path"]),
-                    interval=task_details["interval"],
-                    arguments=task_details["arguments"],
-                    task_type=task_details.get("task_type", TaskTypes.SCRIPT),
-                    command=task_details.get("command"),
-                    start_time=task_details.get("start_time")
-                )
-                logger.info("Task updated successfully:")
-                logger.info(f"Name: {task_details['name']}")
-                if task_details.get("task_type") == TaskTypes.UV_COMMAND:
-                    logger.info("Type: uv command")
-                    logger.info(f"Project: {task_details['script_path']}")
-                    logger.info(f"Command: {task_details.get('command')}")
-                else:
-                    logger.info(f"Script: {task_details['script_path']}")
-                logger.info(f"Interval: {task_details['interval']} minute(s)")
-                if task_details.get("start_time"):
-                    logger.info(f"Start time: {task_details['start_time']}")
-                if task_details["arguments"]:
-                    logger.info(f"Arguments: {' '.join(task_details['arguments'])}")
-            except ValueError as e:
-                logger.error(str(e))
-                sys.exit(1)
+            handle_edit(scheduler, logger, args.edit)
             sys.exit(0)
 
         elif args.add:
-            # Get task details interactively
-            task_details = get_task_input()
-
-            # Add the task
-            scheduler.add_task(
-                name=task_details["name"],
-                script_path=os.path.abspath(task_details["script_path"]),
-                interval=task_details["interval"],
-                arguments=task_details["arguments"],
-                task_type=task_details.get("task_type", TaskTypes.SCRIPT),
-                command=task_details.get("command"),
-                start_time=task_details.get("start_time")
-            )
-
-            # Show the added task and exit
-            logger.info("Task added successfully:")
-            logger.info(f"Name: {task_details['name']}")
-            if task_details.get("task_type") == TaskTypes.UV_COMMAND:
-                logger.info("Type: uv command")
-                logger.info(f"Project: {task_details['script_path']}")
-                logger.info(f"Command: {task_details.get('command')}")
-            else:
-                logger.info(f"Script: {task_details['script_path']}")
-            logger.info(f"Interval: {task_details['interval']} minute(s)")
-            if task_details.get("start_time"):
-                logger.info(f"Start time: {task_details['start_time']}")
-            if task_details["arguments"]:
-                logger.info(f"Arguments: {' '.join(task_details['arguments'])}")
+            handle_add(scheduler, logger)
             sys.exit(0)
 
         elif args.script:
-            # Adding a new task via command line
-            if not args.name:
-                logger.error("--name is required when adding a new task")
-                sys.exit(1)
-
-            if not args.interval:
-                logger.error("--interval is required when adding a new task")
-                sys.exit(1)
-
-            if args.interval < 1:
-                logger.error("Interval must be at least 1 minute")
-                sys.exit(1)
-
-            # Validate start_time format if provided
-            start_time = None
-            if args.start_time:
-                try:
-                    datetime.strptime(args.start_time, "%H:%M")
-                    start_time = args.start_time
-                except ValueError:
-                    logger.error(f"Invalid start time format: {args.start_time}. Use HH:MM format (e.g., 09:00).")
-                    sys.exit(1)
-
-            # Convert relative script path to absolute
-            script_path = os.path.abspath(args.script)
-
-            # Remove the -- separator if present and get remaining args
-            script_args = args.script_args[1:] if args.script_args and args.script_args[0] == '--' else args.script_args
-
-            # Add the task
-            scheduler.add_task(args.name, script_path, args.interval, script_args, start_time=start_time)
-
-            # Show the added task and exit
-            logger.info("Task added successfully:")
-            logger.info(f"Name: {args.name}")
-            logger.info(f"Script: {script_path}")
-            logger.info(f"Interval: {args.interval} minute(s)")
-            if start_time:
-                logger.info(f"Start time: {start_time}")
-            if script_args:
-                logger.info(f"Arguments: {' '.join(script_args)}")
+            handle_script(scheduler, logger, args)
             sys.exit(0)
 
         elif args.run_id:
-            # Run a specific task by its ID
-            tasks = scheduler.list_tasks()
-            task = next((t for t in tasks if t['id'] == args.run_id), None)
-
-            if not task:
-                logger.error(f"No task found with ID {args.run_id}")
-                sys.exit(1)
-
-            logger.info(f"Running task {task['name']} (ID: {task['id']})")
-            try:
-                scheduler.run_task(task['id'])
-            except Exception as e:
-                logger.error(f"Error running task {task['name']} (ID: {task['id']}): {str(e)}")
-                sys.exit(1)
+            handle_run_id(scheduler, logger, args.run_id)
             sys.exit(0)
 
         elif args.ftp_sync:
-            # Manually trigger FTP sync
-            status_page = StatusPage()
-            logger.info(f"Starting FTP sync from {status_page.get_output_dir()}")
-
-            if not config.is_ftp_enabled():
-                logger.warning("FTP sync is disabled in config. Enable it first in config.ini [FTP] section.")
-                sys.exit(1)
-
-            if status_page.sync_to_ftp():
-                logger.info("FTP sync completed successfully")
-            else:
-                logger.error("FTP sync failed")
-                sys.exit(1)
+            handle_ftp_sync(logger, config)
             sys.exit(0)
 
         # If no specific action was requested, run the scheduler
-        if not (args.script or args.list or args.history or args.delete or args.run_id or args.ftp_sync or args.set_start_time or args.set_interval or args.set_arguments or args.copy_task):
-            # Register signal handlers for graceful shutdown
-            signal.signal(signal.SIGINT, signal_handler)
-            signal.signal(signal.SIGTERM, signal_handler)
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
 
-            # Start the scheduler
-            scheduler.start()
+        scheduler.start()
 
-            # Display current tasks
-            tasks = scheduler.list_tasks()
-            logger.info("Current tasks:" + format_task_list(tasks, show_next_run=True))
-            logger.info("\nPress Ctrl+C to exit")
+        tasks = scheduler.list_tasks()
+        logger.info("Current tasks:" + format_task_list(tasks, show_next_run=True))
+        logger.info("\nPress Ctrl+C to exit")
 
-            # Keep the main thread alive with a more graceful sleep
-            try:
-                while True:
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                logger.info("Keyboard interrupt received")
-                scheduler.shutdown()
-                sys.exit(0)
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            logger.info("Keyboard interrupt received")
+            scheduler.shutdown()
+            sys.exit(0)
 
     except Exception as e:
         logger.error(f"Error: {str(e)}")
