@@ -348,9 +348,26 @@ Note:
     )
 
     parser.add_argument(
+        "--set-arguments",
+        type=int,
+        metavar="ID",
+        help="Set arguments for a task interactively"
+    )
+
+    parser.add_argument(
+        "--copy-task",
+        type=int,
+        metavar="ID",
+        help="Copy a task by its ID (creates a duplicate with ' (copy)' suffix)"
+    )
+
+    parser.add_argument(
         "--list",
-        action="store_true",
-        help="List all scheduled tasks and exit"
+        nargs='?',
+        const='',
+        default=None,
+        metavar="FILTER",
+        help="List scheduled tasks and exit (optional name filter)"
     )
 
     parser.add_argument(
@@ -483,9 +500,12 @@ if __name__ == "__main__":
         logger = Logger("Main")
         scheduler = TaskScheduler()
 
-        if args.list:
+        if args.list is not None:
             # Just list tasks and exit
             tasks = scheduler.list_tasks()
+            if args.list:
+                filter_term = args.list.lower()
+                tasks = [t for t in tasks if filter_term in t['name'].lower()]
             logger.info("Scheduled tasks:" + format_task_list(tasks, show_next_run=False))
             sys.exit(0)
 
@@ -610,6 +630,104 @@ if __name__ == "__main__":
                 logger.info(f"Task '{task['name']}' (ID: {task_id}) interval set to {new_interval} minute(s)")
             except ValueError as e:
                 logger.error(str(e))
+                sys.exit(1)
+            sys.exit(0)
+
+        elif args.set_arguments is not None:
+            # Interactive edit arguments for a task
+            task_id = args.set_arguments
+
+            # Get the task
+            tasks = scheduler.list_tasks()
+            task = next((t for t in tasks if t['id'] == task_id), None)
+
+            if not task:
+                logger.error(f"No task found with ID {task_id}")
+                sys.exit(1)
+
+            # Show current arguments
+            print(f"\nTask: {task['name']} (ID: {task_id})")
+            print(f"Current arguments: {' '.join(task['arguments']) if task['arguments'] else 'None'}")
+            print("\nEnter new arguments (press Enter to keep current, type 'none' to clear):")
+            print("Example: --source \"path/to/source\" --target \"path/to/target\"")
+
+            # Setup key bindings and prompt session (same as get_task_input)
+            kb = KeyBindings()
+
+            @kb.add('enter')
+            def _(event):
+                if event.app.current_buffer.complete_state:
+                    current_text = event.app.current_buffer.text
+                    if os.path.isdir(current_text):
+                        new_text = current_text.rstrip('\\') + '\\'
+                        event.app.current_buffer.text = new_text
+                        event.app.current_buffer.cursor_position = len(new_text)
+                    event.app.current_buffer.complete_state = None
+                else:
+                    event.app.current_buffer.validate_and_handle()
+
+            session = PromptSession()
+            new_arguments = None
+            arg_lines = []
+            while True:
+                arg = session.prompt("> ", key_bindings=kb).strip()
+                if not arg:
+                    if not arg_lines and task['arguments']:
+                        # No input, keep existing
+                        new_arguments = task['arguments']
+                    elif arg_lines:
+                        full_input = ' '.join(arg_lines)
+                        if full_input.lower() == 'none':
+                            new_arguments = None
+                        else:
+                            new_arguments = shlex.split(full_input)
+                    break
+                arg_lines.append(arg)
+
+            # Update the task with only arguments changed
+            try:
+                scheduler.edit_task(
+                    task_id=task_id,
+                    name=task['name'],
+                    script_path=task['script_path'],
+                    interval=task['interval'],
+                    arguments=new_arguments,
+                    task_type=task.get('task_type', TaskTypes.SCRIPT),
+                    command=task.get('command'),
+                    start_time=task.get('start_time')
+                )
+                if new_arguments:
+                    logger.info(f"Task '{task['name']}' (ID: {task_id}) arguments set to: {' '.join(new_arguments)}")
+                else:
+                    logger.info(f"Task '{task['name']}' (ID: {task_id}) arguments cleared")
+            except ValueError as e:
+                logger.error(str(e))
+                sys.exit(1)
+            sys.exit(0)
+
+        elif args.copy_task is not None:
+            # Copy an existing task
+            tasks = scheduler.list_tasks()
+            task = next((t for t in tasks if t['id'] == args.copy_task), None)
+
+            if not task:
+                logger.error(f"No task found with ID {args.copy_task}")
+                sys.exit(1)
+
+            # Add a new task with the same properties
+            try:
+                new_task_id = scheduler.add_task(
+                    name=task['name'] + " (copy)",
+                    script_path=task['script_path'],
+                    interval=task['interval'],
+                    arguments=task['arguments'] if task['arguments'] else None,
+                    task_type=task.get('task_type', TaskTypes.SCRIPT),
+                    command=task.get('command'),
+                    start_time=task.get('start_time')
+                )
+                logger.info(f"Task '{task['name']}' (ID: {task['id']}) copied successfully as new task (ID: {new_task_id})")
+            except Exception as e:
+                logger.error(f"Failed to copy task: {str(e)}")
                 sys.exit(1)
             sys.exit(0)
 
@@ -768,7 +886,7 @@ if __name__ == "__main__":
             sys.exit(0)
 
         # If no specific action was requested, run the scheduler
-        if not (args.script or args.list or args.history or args.delete or args.run_id or args.ftp_sync or args.set_start_time or args.set_interval):
+        if not (args.script or args.list or args.history or args.delete or args.run_id or args.ftp_sync or args.set_start_time or args.set_interval or args.set_arguments or args.copy_task):
             # Register signal handlers for graceful shutdown
             signal.signal(signal.SIGINT, signal_handler)
             signal.signal(signal.SIGTERM, signal_handler)
