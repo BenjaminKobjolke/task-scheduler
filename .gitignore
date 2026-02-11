@@ -13,3 +13,4 @@ __pycache__
 nul
 /.claude
 /config.ini
+/code_analysis_results
