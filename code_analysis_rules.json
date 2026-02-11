@@ -3,7 +3,16 @@
   "max_lines_per_file": {
     "enabled": true,
     "warning": 300,
-    "error": 500
+    "error": 500,
+    "exclude_patterns": ["venv/**", "__pycache__/**", ".git/**", "_old_venv/**", ".venv/**"],
+    "exceptions": [
+      {
+        "file": "src/scheduler.py",
+        "warning": 500,
+        "error": 700,
+        "reason": "Core TaskScheduler class - single cohesive class with tightly coupled scheduling, hot-reload, and task management methods"
+      }
+    ]
   },
   "pmd_duplicates": {
     "enabled": true,
