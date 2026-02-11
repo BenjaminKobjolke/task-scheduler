@@ -340,6 +340,8 @@ class TaskScheduler:
                     f"{' and arguments: ' + ' '.join(arguments) if arguments else ''}"
                 )
 
+            return task_id
+
         except Exception as e:
             self.logger.error(f"Error adding task '{name}' ({script_path}): {str(e)}")
             raise
