@@ -18,6 +18,7 @@ Task Scheduler for Python Scripts and Batch Files is a utility that allows you t
 - **FTP upload** with configurable sync interval
 - Configurable output path for status page
 - **Hot-reload**: Automatically detects task changes while running (no restart needed)
+- **Bot integration**: Remotely manage tasks via Telegram or XMPP messenger
 
 ## Requirements
 
@@ -43,6 +44,12 @@ Task Scheduler for Python Scripts and Batch Files is a utility that allows you t
    ```
 
 ## Usage
+
+To see all available commands and options:
+
+```bash
+python main.py --help
+```
 
 ### Adding a New Task
 
@@ -460,6 +467,68 @@ Trigger FTP sync manually:
 python main.py --ftp-sync
 ```
 
+## Bot Integration
+
+Manage tasks remotely via Telegram or XMPP messenger. Configure one bot type in `config.ini` and send commands from your phone or desktop.
+
+### Setup
+
+Install the bot library you want to use:
+
+```bash
+# For Telegram
+tools\install_telegram_bot.bat
+
+# For XMPP
+tools\install_xmpp_bot.bat
+```
+
+### Configuration
+
+Add a `[Bot]` section to `config.ini`:
+
+**Telegram:**
+```ini
+[Bot]
+type = telegram
+bot_token = your_token_here
+channel_id = @your_channel
+allowed_user_ids = 123456,789012
+allow_add = true
+allow_edit = true
+allow_delete = true
+```
+
+**XMPP:**
+```ini
+[Bot]
+type = xmpp
+jid = bot@xmpp.domain.tld
+password = secret
+default_receiver = user@xmpp.domain.tld
+allowed_jids = admin@xmpp.domain.tld
+allow_add = true
+allow_edit = true
+allow_delete = true
+```
+
+Set `type = none` to disable bot integration.
+
+### Bot Commands
+
+| Command | Description |
+|---------|-------------|
+| `/help` | Show available commands |
+| `/list [filter]` | List tasks (optional name filter) |
+| `/run <id>` | Execute a task and report result |
+| `/history [n]` | Show last N executions (default 10) |
+| `/add` | Add a new task (conversational wizard) |
+| `/edit <id>` | Edit a task (conversational wizard) |
+| `/delete <id>` | Delete a task (with confirmation) |
+| `/cancel` | Cancel current operation |
+
+The `/add`, `/edit`, and `/delete` commands can be individually disabled via `allow_add`, `allow_edit`, and `allow_delete` in the config. Destructive operations (`/delete`) require confirmation before executing.
+
 ## Shutdown
 
 To stop the scheduler:
@@ -490,7 +559,13 @@ task-scheduler/
 │   ├── logger.py            # Logging functionality
 │   ├── status_page.py       # Status page generation (HTML/PHP)
 │   ├── php_login.py         # PHP authentication handling
-│   └── ftp_syncer.py        # FTP upload functionality
+│   ├── ftp_syncer.py        # FTP upload functionality
+│   └── bot/                 # Bot integration package
+│       ├── adapters/        # Telegram and XMPP adapter implementations
+│       ├── bot_manager.py   # Bot lifecycle manager
+│       ├── command_processor.py  # Command handling logic
+│       ├── conversation.py  # Wizard and confirmation state machines
+│       └── formatters.py    # Compact chat output formatting
 ├── sources/web/templates/   # Status page templates
 ├── data/                    # Database directory
 │   └── tasks.sqlite         # SQLite database for tasks
