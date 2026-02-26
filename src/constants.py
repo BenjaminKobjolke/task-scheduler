@@ -93,13 +93,13 @@ class Bot:
     KEY_ALLOW_ADD = "allow_add"
     KEY_ALLOW_EDIT = "allow_edit"
     KEY_ALLOW_DELETE = "allow_delete"
-    DEFAULT_TYPE = "none"
-    DEFAULT_ALLOW_ADD = "true"
-    DEFAULT_ALLOW_EDIT = "true"
-    DEFAULT_ALLOW_DELETE = "true"
     TYPE_NONE = "none"
     TYPE_TELEGRAM = "telegram"
     TYPE_XMPP = "xmpp"
+    DEFAULT_TYPE = TYPE_NONE
+    DEFAULT_ALLOW_ADD = "true"
+    DEFAULT_ALLOW_EDIT = "true"
+    DEFAULT_ALLOW_DELETE = "true"
 
 
 class Defaults:

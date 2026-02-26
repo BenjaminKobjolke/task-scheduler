@@ -1,5 +1,8 @@
 """Data transfer objects for bot integration."""
 from dataclasses import dataclass
+from typing import Literal
+
+BotType = Literal["none", "telegram", "xmpp"]
 
 
 @dataclass(frozen=True)
@@ -18,7 +21,7 @@ class BotResponse:
 @dataclass(frozen=True)
 class BotConfig:
     """Bot configuration settings."""
-    bot_type: str
+    bot_type: BotType
     allow_add: bool
     allow_edit: bool
     allow_delete: bool

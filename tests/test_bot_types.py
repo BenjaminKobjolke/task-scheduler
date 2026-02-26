@@ -82,9 +82,10 @@ class TestBotConfig:
             cfg.bot_type = "xmpp"  # type: ignore[misc]
 
     def test_bot_config_fields(self) -> None:
+        from src.bot.types import BotType
         fields = {f.name: f.type for f in dataclasses.fields(BotConfig)}
         assert fields == {
-            "bot_type": str,
+            "bot_type": BotType,
             "allow_add": bool,
             "allow_edit": bool,
             "allow_delete": bool,
