@@ -79,6 +79,29 @@ class TaskTypes:
     UV_COMMAND = "uv_command"
 
 
+class Bot:
+    """Bot configuration constants."""
+    SECTION = "Bot"
+    KEY_TYPE = "type"
+    KEY_BOT_TOKEN = "bot_token"
+    KEY_CHANNEL_ID = "channel_id"
+    KEY_ALLOWED_USER_IDS = "allowed_user_ids"
+    KEY_JID = "jid"
+    KEY_PASSWORD = "password"
+    KEY_DEFAULT_RECEIVER = "default_receiver"
+    KEY_ALLOWED_JIDS = "allowed_jids"
+    KEY_ALLOW_ADD = "allow_add"
+    KEY_ALLOW_EDIT = "allow_edit"
+    KEY_ALLOW_DELETE = "allow_delete"
+    DEFAULT_TYPE = "none"
+    DEFAULT_ALLOW_ADD = "true"
+    DEFAULT_ALLOW_EDIT = "true"
+    DEFAULT_ALLOW_DELETE = "true"
+    TYPE_NONE = "none"
+    TYPE_TELEGRAM = "telegram"
+    TYPE_XMPP = "xmpp"
+
+
 class Defaults:
     """Default values used throughout the application."""
     HISTORY_LIMIT = 10

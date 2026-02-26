@@ -1,7 +1,9 @@
 import os
 import configparser
 from typing import Dict
+from .constants import Bot as BotConstants
 from .constants import Config as ConfigConstants
+from .bot.types import BotConfig
 
 
 class Config:
@@ -59,6 +61,13 @@ class Config:
             ConfigConstants.KEY_FTP_PASSIVE_MODE: ConfigConstants.DEFAULT_FTP_PASSIVE_MODE,
             ConfigConstants.KEY_FTP_TIMEOUT: ConfigConstants.DEFAULT_FTP_TIMEOUT,
             ConfigConstants.KEY_FTP_SYNC_INTERVAL: ConfigConstants.DEFAULT_FTP_SYNC_INTERVAL
+        }
+
+        self.config[BotConstants.SECTION] = {
+            BotConstants.KEY_TYPE: BotConstants.DEFAULT_TYPE,
+            BotConstants.KEY_ALLOW_ADD: BotConstants.DEFAULT_ALLOW_ADD,
+            BotConstants.KEY_ALLOW_EDIT: BotConstants.DEFAULT_ALLOW_EDIT,
+            BotConstants.KEY_ALLOW_DELETE: BotConstants.DEFAULT_ALLOW_DELETE,
         }
 
         with open(self.config_path, 'w') as configfile:
@@ -246,6 +255,49 @@ class Config:
             ConfigConstants.SECTION_FTP,
             ConfigConstants.KEY_FTP_SYNC_INTERVAL,
             fallback=int(ConfigConstants.DEFAULT_FTP_SYNC_INTERVAL)
+        )
+
+    # Bot configuration methods
+    def get_bot_type(self) -> str:
+        """Get the configured bot type (none, telegram, or xmpp)."""
+        return self.config.get(
+            BotConstants.SECTION,
+            BotConstants.KEY_TYPE,
+            fallback=BotConstants.DEFAULT_TYPE
+        )
+
+    def get_bot_setting(self, key: str, fallback: str = "") -> str:
+        """Get a bot-specific setting value.
+
+        Args:
+            key: The configuration key to retrieve.
+            fallback: Value to return if the key is not found.
+        """
+        return self.config.get(
+            BotConstants.SECTION,
+            key,
+            fallback=fallback
+        )
+
+    def is_bot_command_allowed(self, command: str) -> bool:
+        """Check if a bot command is allowed.
+
+        Args:
+            command: The command key to check (e.g., allow_add, allow_edit, allow_delete).
+        """
+        return self.config.getboolean(
+            BotConstants.SECTION,
+            command,
+            fallback=False
+        )
+
+    def get_bot_config(self) -> BotConfig:
+        """Get bot configuration as a BotConfig DTO."""
+        return BotConfig(
+            bot_type=self.get_bot_type(),
+            allow_add=self.is_bot_command_allowed(BotConstants.KEY_ALLOW_ADD),
+            allow_edit=self.is_bot_command_allowed(BotConstants.KEY_ALLOW_EDIT),
+            allow_delete=self.is_bot_command_allowed(BotConstants.KEY_ALLOW_DELETE),
         )
 
     def _ensure_section(self, section: str):
