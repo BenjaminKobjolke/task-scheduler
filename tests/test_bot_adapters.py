@@ -365,7 +365,6 @@ class TestXmppAdapter:
         """initialize() should start event loop, configure, and start XMPP bot."""
         mock_bot_instance = MagicMock()
         mock_bot_instance.initialize = AsyncMock()
-        mock_bot_instance.start_receiving = AsyncMock()
         mock_bot_cls = MagicMock()
         mock_bot_cls.get_instance.return_value = mock_bot_instance
         mock_settings_cls = MagicMock()
@@ -410,7 +409,6 @@ class TestXmppAdapter:
             mock_bot_instance.add_message_handler.assert_called_once_with(
                 "task_scheduler", adapter._handle_message
             )
-            mock_bot_instance.start_receiving.assert_awaited_once()
 
             # Cleanup
             adapter.shutdown()
@@ -419,7 +417,6 @@ class TestXmppAdapter:
         """When allowed_jids is empty, pass empty frozenset."""
         mock_bot_instance = MagicMock()
         mock_bot_instance.initialize = AsyncMock()
-        mock_bot_instance.start_receiving = AsyncMock()
         mock_bot_cls = MagicMock()
         mock_bot_cls.get_instance.return_value = mock_bot_instance
         mock_settings_cls = MagicMock()

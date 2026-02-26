@@ -86,7 +86,6 @@ class XmppAdapter(BotAdapter):
         )
         await bot.initialize(settings=settings)
         bot.add_message_handler("task_scheduler", self._handle_message)
-        await bot.start_receiving()
 
     async def _handle_message(
         self, sender: str, message: str, stanza: object
