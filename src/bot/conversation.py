@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from .constants import Messages
+from .constants import CONFIRMED_SENTINEL, Messages
 from .formatters import format_add_summary, format_edit_changes
 from .types import BotResponse
 
@@ -154,7 +154,7 @@ class DeleteConfirmation:
         the actual deletion. Returns cancel message otherwise.
         """
         if user_input.strip().lower() == "yes":
-            return None, BotResponse(text="")
+            return None, BotResponse(text=CONFIRMED_SENTINEL)
         return None, BotResponse(text=Messages.DELETE_CANCELLED)
 
 
@@ -168,6 +168,15 @@ _UV_PREFIX = "uv:"
 def _is_skip(text: str) -> bool:
     """Return True if the user wants to skip a field."""
     return text.lower() in ("skip", "none", "")
+
+
+def _is_valid_time(text: str) -> bool:
+    """Return True if *text* is a valid HH:MM time string."""
+    match = re.match(r"^(\d{2}):(\d{2})$", text)
+    if not match:
+        return False
+    hours, minutes = int(match.group(1)), int(match.group(2))
+    return 0 <= hours <= 23 and 0 <= minutes <= 59
 
 
 def _add_step_script_path(
@@ -221,7 +230,7 @@ def _add_step_start_time(
     if _is_skip(text):
         state.data["start_time"] = None
     else:
-        if not re.match(r"^\d{2}:\d{2}$", text):
+        if not _is_valid_time(text):
             return state, BotResponse(text=Messages.WIZARD_INVALID_TIME)
         state.data["start_time"] = text
     state.step = 5
@@ -244,7 +253,7 @@ def _add_step_confirm(
     state: ConversationState, text: str
 ) -> tuple[Optional[ConversationState], BotResponse]:
     if text.lower() == "yes":
-        return None, BotResponse(text="")
+        return None, BotResponse(text=CONFIRMED_SENTINEL)
     return None, BotResponse(text=Messages.OPERATION_CANCELLED)
 
 
@@ -331,7 +340,7 @@ def _edit_step_start_time(
     elif text.lower() in ("none", ""):
         state.data["changes"]["start_time"] = None
     else:
-        if not re.match(r"^\d{2}:\d{2}$", text):
+        if not _is_valid_time(text):
             return state, BotResponse(text=Messages.WIZARD_INVALID_TIME)
         state.data["changes"]["start_time"] = text
 
@@ -368,5 +377,5 @@ def _edit_step_confirm(
     state: ConversationState, text: str
 ) -> tuple[Optional[ConversationState], BotResponse]:
     if text.lower() == "yes":
-        return None, BotResponse(text="")
+        return None, BotResponse(text=CONFIRMED_SENTINEL)
     return None, BotResponse(text=Messages.OPERATION_CANCELLED)

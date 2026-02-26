@@ -662,16 +662,17 @@ class TestConversationExpiry:
     def test_expired_conversation_is_cleaned_up(
         self, processor: CommandProcessor, scheduler_mock: MagicMock
     ) -> None:
-        """An expired conversation is cleaned up, so next command is treated fresh."""
+        """An expired conversation notifies user and clears state."""
         # Start an add wizard
         processor.process(BotMessage(user_id="user1", text="/add"))
 
         # Manually expire the conversation
         processor._conversations["user1"].expires_at = time.time() - 1
 
-        # Next message should NOT continue the wizard
+        # Next message should report expiry and clear conversation
         response = processor.process(BotMessage(user_id="user1", text="backup.py"))
-        assert response.text == Messages.UNKNOWN_COMMAND
+        assert response.text == Messages.CONVERSATION_EXPIRED
+        assert "user1" not in processor._conversations
 
     def test_non_expired_conversation_continues(
         self, processor: CommandProcessor, scheduler_mock: MagicMock

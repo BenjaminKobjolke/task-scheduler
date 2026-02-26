@@ -1,5 +1,10 @@
 """Constants for bot integration."""
 
+# Sentinel value indicating "confirmed, execute the action".
+# Used by conversation wizards when the user says "yes" - the caller
+# checks for this to know it should perform the actual operation.
+CONFIRMED_SENTINEL = ""
+
 
 class Commands:
     """Bot command constants."""

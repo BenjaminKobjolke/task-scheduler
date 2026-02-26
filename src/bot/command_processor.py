@@ -1,8 +1,8 @@
 """Bot command processor - handles all bot commands."""
-from typing import Dict
+from typing import Callable, Dict
 
 from .types import BotMessage, BotResponse, BotConfig
-from .constants import Commands, Messages
+from .constants import CONFIRMED_SENTINEL, Commands, Messages
 from .formatters import (
     format_task_list_compact,
     format_execution_history_compact,
@@ -25,7 +25,7 @@ class CommandProcessor:
         self._bot_config = bot_config
         self._conversations: Dict[str, ConversationState] = {}
         self._logger = Logger("CommandProcessor")
-        self._command_map: Dict[str, object] = {
+        self._command_map: Dict[str, Callable[[str, str], BotResponse]] = {
             Commands.LIST: self._cmd_list,
             Commands.RUN: self._cmd_run,
             Commands.HISTORY: self._cmd_history,
@@ -41,7 +41,9 @@ class CommandProcessor:
         user_id = message.user_id
 
         # Clean up expired conversations
-        self._cleanup_expired(user_id)
+        expired = self._cleanup_expired(user_id)
+        if expired:
+            return BotResponse(text=Messages.CONVERSATION_EXPIRED)
 
         # Check for active conversation first
         if user_id in self._conversations:
@@ -74,10 +76,12 @@ class CommandProcessor:
             return self._bot_config.allow_delete
         return True  # All other commands always allowed
 
-    def _cleanup_expired(self, user_id: str) -> None:
-        """Remove expired conversation for a user."""
+    def _cleanup_expired(self, user_id: str) -> bool:
+        """Remove expired conversation for a user. Returns True if one was removed."""
         if user_id in self._conversations and self._conversations[user_id].is_expired():
             del self._conversations[user_id]
+            return True
+        return False
 
     def _continue_conversation(self, user_id: str, text: str) -> BotResponse:
         """Continue an active conversation (wizard or confirmation)."""
@@ -87,7 +91,7 @@ class CommandProcessor:
             new_state, response = AddWizard.advance(state, text)
             if new_state is None:
                 del self._conversations[user_id]
-                if response.text == "":
+                if response.text == CONFIRMED_SENTINEL:
                     # Wizard completed with "yes" - create the task
                     return self._execute_add(state.data)
                 return response
@@ -98,7 +102,7 @@ class CommandProcessor:
             new_state, response = EditWizard.advance(state, text)
             if new_state is None:
                 del self._conversations[user_id]
-                if response.text == "":
+                if response.text == CONFIRMED_SENTINEL:
                     # Wizard completed with "yes" - apply edit
                     return self._execute_edit(state.data)
                 return response
@@ -108,7 +112,7 @@ class CommandProcessor:
         elif state.kind == "confirm_delete":
             new_state, response = DeleteConfirmation.handle_response(state, text)
             del self._conversations[user_id]
-            if response.text == "":
+            if response.text == CONFIRMED_SENTINEL:
                 # Confirmed - execute delete
                 return self._execute_delete(
                     state.data["task_id"], state.data["task_name"]

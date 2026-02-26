@@ -56,7 +56,8 @@ class BotManager:
         try:
             if self._processor and self._adapter:
                 response = self._processor.process(message)
-                self._adapter.reply(message.user_id, response.text)
+                if response.text:
+                    self._adapter.reply(message.user_id, response.text)
         except Exception as e:
             self._logger.error(f"Error processing bot message: {e}")
 

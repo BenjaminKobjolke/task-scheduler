@@ -1,7 +1,7 @@
 """Tests for bot conversation state machines."""
 import time
 
-from src.bot.constants import Messages
+from src.bot.constants import CONFIRMED_SENTINEL, Messages
 from src.bot.conversation import (
     CONVERSATION_TIMEOUT,
     AddWizard,
@@ -188,6 +188,27 @@ class TestAddWizardScriptFlow:
         assert new_state.step == 4
         assert response.text == Messages.WIZARD_INVALID_TIME
 
+    def test_step4_invalid_time_out_of_range_hours(self) -> None:
+        state = _build_add_state_at_step4()
+        new_state, response = AddWizard.advance(state, "25:00")
+        assert new_state is not None
+        assert new_state.step == 4
+        assert response.text == Messages.WIZARD_INVALID_TIME
+
+    def test_step4_invalid_time_out_of_range_minutes(self) -> None:
+        state = _build_add_state_at_step4()
+        new_state, response = AddWizard.advance(state, "12:60")
+        assert new_state is not None
+        assert new_state.step == 4
+        assert response.text == Messages.WIZARD_INVALID_TIME
+
+    def test_step4_invalid_time_99_99(self) -> None:
+        state = _build_add_state_at_step4()
+        new_state, response = AddWizard.advance(state, "99:99")
+        assert new_state is not None
+        assert new_state.step == 4
+        assert response.text == Messages.WIZARD_INVALID_TIME
+
     def test_step5_arguments(self) -> None:
         state = _build_add_state_at_step5()
         new_state, response = AddWizard.advance(state, "--verbose --dry-run")
@@ -218,7 +239,7 @@ class TestAddWizardScriptFlow:
         state = _build_add_state_at_step6()
         new_state, response = AddWizard.advance(state, "yes")
         assert new_state is None
-        assert response.text == ""
+        assert response.text == CONFIRMED_SENTINEL
 
     def test_step6_confirm_no_cancels(self) -> None:
         state = _build_add_state_at_step6()
@@ -256,7 +277,7 @@ class TestAddWizardScriptFlow:
         # Confirm
         result_state, response = AddWizard.advance(state, "yes")
         assert result_state is None
-        assert response.text == ""
+        assert response.text == CONFIRMED_SENTINEL
 
 
 class TestAddWizardUvCommandFlow:
@@ -312,7 +333,7 @@ class TestAddWizardUvCommandFlow:
 
         result_state, response = AddWizard.advance(state, "yes")
         assert result_state is None
-        assert response.text == ""
+        assert response.text == CONFIRMED_SENTINEL
 
     def test_uv_prefix_strips_whitespace(self) -> None:
         state, _ = AddWizard.start()
@@ -508,6 +529,13 @@ class TestEditWizardScriptFlow:
         assert new_state.step == 4
         assert response.text == Messages.WIZARD_INVALID_TIME
 
+    def test_step4_invalid_time_out_of_range(self) -> None:
+        state = _build_edit_state_at_step4()
+        new_state, response = EditWizard.advance(state, "25:00")
+        assert new_state is not None
+        assert new_state.step == 4
+        assert response.text == Messages.WIZARD_INVALID_TIME
+
     def test_step5_change_arguments(self) -> None:
         state = _build_edit_state_at_step5()
         new_state, response = EditWizard.advance(state, "--new-arg")
@@ -531,7 +559,7 @@ class TestEditWizardScriptFlow:
         state = _build_edit_state_at_step6()
         new_state, response = EditWizard.advance(state, "yes")
         assert new_state is None
-        assert response.text == ""
+        assert response.text == CONFIRMED_SENTINEL
 
     def test_step6_confirm_no_cancels(self) -> None:
         state = _build_edit_state_at_step6()
@@ -579,7 +607,7 @@ class TestEditWizardScriptFlow:
         # Confirm
         result_state, result_response = EditWizard.advance(state, "yes")
         assert result_state is None
-        assert result_response.text == ""
+        assert result_response.text == CONFIRMED_SENTINEL
 
 
 class TestEditWizardUvCommandFlow:
@@ -703,7 +731,7 @@ class TestDeleteConfirmationHandleResponse:
         state, _ = DeleteConfirmation.start(task_id=5, task_name="Backup")
         new_state, response = DeleteConfirmation.handle_response(state, "yes")
         assert new_state is None
-        assert response.text == ""
+        assert response.text == CONFIRMED_SENTINEL
 
     def test_confirm_no_cancels(self) -> None:
         state, _ = DeleteConfirmation.start(task_id=5, task_name="Backup")
@@ -721,13 +749,13 @@ class TestDeleteConfirmationHandleResponse:
         state, _ = DeleteConfirmation.start(task_id=5, task_name="Backup")
         new_state, response = DeleteConfirmation.handle_response(state, "Yes")
         assert new_state is None
-        assert response.text == ""
+        assert response.text == CONFIRMED_SENTINEL
 
     def test_confirm_with_whitespace(self) -> None:
         state, _ = DeleteConfirmation.start(task_id=5, task_name="Backup")
         new_state, response = DeleteConfirmation.handle_response(state, "  yes  ")
         assert new_state is None
-        assert response.text == ""
+        assert response.text == CONFIRMED_SENTINEL
 
     def test_empty_input_cancels(self) -> None:
         state, _ = DeleteConfirmation.start(task_id=5, task_name="Backup")
