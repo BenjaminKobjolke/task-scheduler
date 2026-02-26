@@ -3,7 +3,6 @@ import configparser
 from typing import Dict
 from .constants import Bot as BotConstants
 from .constants import Config as ConfigConstants
-from .bot.types import BotConfig
 
 
 class Config:
@@ -291,8 +290,9 @@ class Config:
             fallback=False
         )
 
-    def get_bot_config(self) -> BotConfig:
+    def get_bot_config(self) -> "BotConfig":
         """Get bot configuration as a BotConfig DTO."""
+        from .bot.types import BotConfig
         return BotConfig(
             bot_type=self.get_bot_type(),
             allow_add=self.is_bot_command_allowed(BotConstants.KEY_ALLOW_ADD),
