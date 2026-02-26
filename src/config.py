@@ -1,6 +1,11 @@
+from __future__ import annotations
+
 import os
 import configparser
-from typing import Dict
+from typing import TYPE_CHECKING, Dict
+
+if TYPE_CHECKING:
+    from .bot.types import BotConfig
 from .constants import Bot as BotConstants
 from .constants import Config as ConfigConstants
 
