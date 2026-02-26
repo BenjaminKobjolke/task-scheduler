@@ -8,6 +8,7 @@ from src.scheduler import TaskScheduler
 from src.logger import Logger
 from src.config import Config
 from src.formatters import format_task_list
+from src.bot import BotManager
 from src.commands import (
     handle_list,
     handle_history,
@@ -202,6 +203,7 @@ Note:
 def signal_handler(signum, frame):
     """Handle shutdown signals."""
     logger.info("Shutdown signal received")
+    bot_manager.shutdown()
     scheduler.shutdown()
     sys.exit(0)
 
@@ -277,10 +279,17 @@ if __name__ == "__main__":
             sys.exit(0)
 
         # If no specific action was requested, run the scheduler
+        bot_manager = BotManager(scheduler, config)
+
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
 
         scheduler.start()
+
+        # Initialize bot if configured
+        bot_started = bot_manager.start()
+        if bot_started:
+            logger.info("Bot integration started")
 
         tasks = scheduler.list_tasks()
         logger.info("Current tasks:" + format_task_list(tasks, show_next_run=True))
@@ -291,6 +300,7 @@ if __name__ == "__main__":
                 time.sleep(1)
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received")
+            bot_manager.shutdown()
             scheduler.shutdown()
             sys.exit(0)
 
