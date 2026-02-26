@@ -196,7 +196,7 @@ class TaskScheduler:
         arguments: List[str],
         task_type: str = TaskTypes.SCRIPT,
         command: Optional[str] = None
-    ):
+    ) -> bool:
         """
         Process a single job.
 
@@ -207,6 +207,9 @@ class TaskScheduler:
             arguments: Arguments for the script/command
             task_type: Type of task ('script' or 'uv_command')
             command: Command name for uv_command tasks
+
+        Returns:
+            bool: True if execution succeeded, False otherwise
         """
         if task_type == TaskTypes.UV_COMMAND and command:
             success = self.script_runner.run_uv_command(script_path, command, arguments)
@@ -223,6 +226,8 @@ class TaskScheduler:
 
         # Update the status page
         self._update_status_page()
+
+        return success
 
     def _schedule_task(
         self,
@@ -463,12 +468,18 @@ class TaskScheduler:
 
         return tasks
 
-    def run_task(self, task_id: int):
+    def run_task(self, task_id: int) -> bool:
         """
         Run a specific task by its ID.
 
         Args:
             task_id: ID of the task to run
+
+        Returns:
+            bool: True if execution succeeded, False otherwise
+
+        Raises:
+            ValueError: If task with given ID is not found
         """
         try:
             # Get task details from the database
@@ -479,8 +490,8 @@ class TaskScheduler:
                 self.logger.error(f"Task with ID {task_id} not found")
                 raise ValueError(f"Task with ID {task_id} not found")
 
-            # Run the task
-            self._process_job(
+            # Run the task and return result
+            return self._process_job(
                 task['id'],
                 task['name'],
                 task['script_path'],
