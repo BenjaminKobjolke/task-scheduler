@@ -1,6 +1,5 @@
 """FTP synchronization for status page uploads."""
 
-
 from ftpsync.ftp_target import FTPTarget
 from ftpsync.synchronizers import UploadSynchronizer
 from ftpsync.targets import FsTarget
@@ -29,26 +28,28 @@ class FtpSyncer:
         """
         settings = self.config.get_ftp_settings()
 
-        if not settings['enabled']:
+        if not settings["enabled"]:
             self.logger.debug("FTP sync is disabled")
             return False
 
-        if not settings['host']:
+        if not settings["host"]:
             self.logger.warning("FTP host not configured")
             return False
 
         try:
-            self.logger.info(f"Starting FTP sync to {settings['host']}:{settings['remote_path']}")
+            self.logger.info(
+                f"Starting FTP sync to {settings['host']}:{settings['remote_path']}"
+            )
 
             local = FsTarget(str(local_path))
 
             remote = FTPTarget(
-                path=settings['remote_path'],
-                host=settings['host'],
-                port=settings['port'],
-                username=settings['username'],
-                password=settings['password'],
-                timeout=settings['timeout'],
+                path=settings["remote_path"],
+                host=settings["host"],
+                port=settings["port"],
+                username=settings["username"],
+                password=settings["password"],
+                timeout=settings["timeout"],
                 extra_opts={"create_folder": True},
             )
 

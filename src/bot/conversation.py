@@ -1,30 +1,18 @@
 """Conversation state machines for bot wizards and confirmations."""
 
-import re
 import shlex
-import time
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Optional
 
-from .constants import CONFIRMED_SENTINEL, Messages
+from bot_commander import (
+    BotResponse,
+    CONFIRMED_SENTINEL,
+    ConversationState,
+    is_skip,
+    is_valid_time,
+)
+
+from .constants import Messages
 from .formatters import format_add_summary, format_edit_changes
-from .types import BotResponse
-
-CONVERSATION_TIMEOUT = 300  # 5 minutes
-
-
-@dataclass
-class ConversationState:
-    """Per-user conversation state."""
-
-    kind: str  # "add_wizard", "edit_wizard", "confirm_delete"
-    step: int = 0
-    data: dict[str, Any] = field(default_factory=dict)
-    expires_at: float = field(default_factory=lambda: time.time() + CONVERSATION_TIMEOUT)
-
-    def is_expired(self) -> bool:
-        """Check whether this conversation has timed out."""
-        return time.time() > self.expires_at
 
 
 class AddWizard:
@@ -89,7 +77,7 @@ class EditWizard:
     """
 
     @staticmethod
-    def start(task: dict[str, Any]) -> tuple[ConversationState, BotResponse]:
+    def start(task: dict) -> tuple[ConversationState, BotResponse]:
         """Start the edit wizard for *task*. Returns initial state and prompt."""
         from .formatters import format_task_detail
 
@@ -165,20 +153,6 @@ class DeleteConfirmation:
 _UV_PREFIX = "uv:"
 
 
-def _is_skip(text: str) -> bool:
-    """Return True if the user wants to skip a field."""
-    return text.lower() in ("skip", "none", "")
-
-
-def _is_valid_time(text: str) -> bool:
-    """Return True if *text* is a valid HH:MM time string."""
-    match = re.match(r"^(\d{2}):(\d{2})$", text)
-    if not match:
-        return False
-    hours, minutes = int(match.group(1)), int(match.group(2))
-    return 0 <= hours <= 23 and 0 <= minutes <= 59
-
-
 def _add_step_script_path(
     state: ConversationState, text: str
 ) -> tuple[ConversationState, BotResponse]:
@@ -227,10 +201,10 @@ def _add_step_interval(
 def _add_step_start_time(
     state: ConversationState, text: str
 ) -> tuple[ConversationState, BotResponse]:
-    if _is_skip(text):
+    if is_skip(text):
         state.data["start_time"] = None
     else:
-        if not _is_valid_time(text):
+        if not is_valid_time(text):
             return state, BotResponse(text=Messages.WIZARD_INVALID_TIME)
         state.data["start_time"] = text
     state.step = 5
@@ -240,7 +214,7 @@ def _add_step_start_time(
 def _add_step_arguments(
     state: ConversationState, text: str
 ) -> tuple[ConversationState, BotResponse]:
-    if _is_skip(text):
+    if is_skip(text):
         state.data["arguments"] = None
     else:
         state.data["arguments"] = shlex.split(text)
@@ -266,7 +240,7 @@ def _edit_step_script_path(
     state: ConversationState, text: str
 ) -> tuple[ConversationState, BotResponse]:
     original = state.data["original"]
-    if not _is_skip(text):
+    if not is_skip(text):
         state.data["changes"]["script_path"] = text
 
     task_type = original.get("task_type", "script")
@@ -277,28 +251,24 @@ def _edit_step_script_path(
         )
 
     state.step = 2
-    return state, BotResponse(
-        text=Messages.WIZARD_EDIT_NAME.format(original["name"])
-    )
+    return state, BotResponse(text=Messages.WIZARD_EDIT_NAME.format(original["name"]))
 
 
 def _edit_step_command(
     state: ConversationState, text: str
 ) -> tuple[ConversationState, BotResponse]:
     original = state.data["original"]
-    if not _is_skip(text):
+    if not is_skip(text):
         state.data["changes"]["command"] = text
     state.step = 2
-    return state, BotResponse(
-        text=Messages.WIZARD_EDIT_NAME.format(original["name"])
-    )
+    return state, BotResponse(text=Messages.WIZARD_EDIT_NAME.format(original["name"]))
 
 
 def _edit_step_name(
     state: ConversationState, text: str
 ) -> tuple[ConversationState, BotResponse]:
     original = state.data["original"]
-    if not _is_skip(text):
+    if not is_skip(text):
         state.data["changes"]["name"] = text
     state.step = 3
     return state, BotResponse(
@@ -310,7 +280,7 @@ def _edit_step_interval(
     state: ConversationState, text: str
 ) -> tuple[ConversationState, BotResponse]:
     original = state.data["original"]
-    if _is_skip(text):
+    if is_skip(text):
         state.step = 4
         return state, BotResponse(
             text=Messages.WIZARD_EDIT_START_TIME.format(original.get("start_time", ""))
@@ -323,9 +293,7 @@ def _edit_step_interval(
         state.data["changes"]["interval"] = interval
         state.step = 4
         return state, BotResponse(
-            text=Messages.WIZARD_EDIT_START_TIME.format(
-                original.get("start_time", "")
-            )
+            text=Messages.WIZARD_EDIT_START_TIME.format(original.get("start_time", ""))
         )
     except ValueError:
         return state, BotResponse(text=Messages.WIZARD_INVALID_INTERVAL)
@@ -340,16 +308,14 @@ def _edit_step_start_time(
     elif text.lower() in ("none", ""):
         state.data["changes"]["start_time"] = None
     else:
-        if not _is_valid_time(text):
+        if not is_valid_time(text):
             return state, BotResponse(text=Messages.WIZARD_INVALID_TIME)
         state.data["changes"]["start_time"] = text
 
     state.step = 5
     args = original.get("arguments", [])
     args_display = " ".join(args) if args else ""
-    return state, BotResponse(
-        text=Messages.WIZARD_EDIT_ARGUMENTS.format(args_display)
-    )
+    return state, BotResponse(text=Messages.WIZARD_EDIT_ARGUMENTS.format(args_display))
 
 
 def _edit_step_arguments(

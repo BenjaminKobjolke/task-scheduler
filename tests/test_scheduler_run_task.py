@@ -1,4 +1,5 @@
 """Tests for TaskScheduler.run_task() return value."""
+
 from unittest.mock import MagicMock, patch
 import pytest
 from src.scheduler import TaskScheduler

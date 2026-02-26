@@ -10,12 +10,12 @@ def format_execution_history(executions: List[Dict]) -> str:
 
     output = []
     for i, execution in enumerate(executions, 1):
-        status = "Success" if execution['success'] else "Failed"
-        status_symbol = "+" if execution['success'] else "-"
+        status = "Success" if execution["success"] else "Failed"
+        status_symbol = "+" if execution["success"] else "-"
         output.append(
             f"{i}. {execution['execution_time']} - {execution['name']} - [{status_symbol}] {status}"
         )
-    return '\n'.join(output)
+    return "\n".join(output)
 
 
 def format_task_list(tasks: List[Dict], show_next_run: bool = True) -> str:
@@ -25,9 +25,9 @@ def format_task_list(tasks: List[Dict], show_next_run: bool = True) -> str:
 
     output = []
     for task in tasks:
-        task_type = task.get('task_type', TaskTypes.SCRIPT)
+        task_type = task.get("task_type", TaskTypes.SCRIPT)
 
-        start_time = task.get('start_time')
+        start_time = task.get("start_time")
         if task_type == TaskTypes.UV_COMMAND:
             lines = [
                 f"\n{task['id']}. {task['name']} [uv command]",
@@ -45,18 +45,24 @@ def format_task_list(tasks: List[Dict], show_next_run: bool = True) -> str:
         if start_time:
             lines.append(f"   Start time: {start_time}")
 
-        lines.append(f"   Arguments: {' '.join(task['arguments']) if task['arguments'] else 'None'}")
+        lines.append(
+            f"   Arguments: {' '.join(task['arguments']) if task['arguments'] else 'None'}"
+        )
 
         # Add last run info
-        last_run_time = task.get('last_run_time')
+        last_run_time = task.get("last_run_time")
         if last_run_time:
-            success_str = "success" if task.get('last_run_success') else "failed"
+            success_str = "success" if task.get("last_run_success") else "failed"
             lines.append(f"   Last run: {last_run_time} ({success_str})")
         else:
             lines.append("   Last run: Never")
 
         if show_next_run:
-            next_run = task['next_run_time'].strftime('%Y-%m-%d %H:%M:%S') if task['next_run_time'] else 'Not scheduled'
+            next_run = (
+                task["next_run_time"].strftime("%Y-%m-%d %H:%M:%S")
+                if task["next_run_time"]
+                else "Not scheduled"
+            )
             lines.append(f"   Next run: {next_run}")
         output.extend(lines)
-    return '\n'.join(output)
+    return "\n".join(output)

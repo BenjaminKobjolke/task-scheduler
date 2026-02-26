@@ -1,4 +1,5 @@
 """Tests for config module."""
+
 import os
 import tempfile
 import configparser

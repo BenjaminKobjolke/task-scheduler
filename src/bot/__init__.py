@@ -1,4 +1,5 @@
 """Bot integration package for task-scheduler."""
-from .bot_manager import BotManager
 
-__all__ = ["BotManager"]
+from .command_processor import TaskCommandProcessor
+
+__all__ = ["TaskCommandProcessor"]

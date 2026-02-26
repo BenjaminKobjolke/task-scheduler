@@ -3,6 +3,7 @@
 
 class Paths:
     """File and directory path constants."""
+
     VENV_DIR = "venv"
     SCRIPTS_DIR = "Scripts"
     ACTIVATE_SCRIPT = "activate"
@@ -16,6 +17,7 @@ class Paths:
 
 class Database:
     """Database table and column name constants."""
+
     TABLE_TASKS = "tasks"
     TABLE_HISTORY = "task_history"
     COL_ID = "id"
@@ -33,6 +35,7 @@ class Database:
 
 class Config:
     """Configuration section and key constants."""
+
     # Logging section
     SECTION_LOGGING = "Logging"
     KEY_LEVEL = "level"
@@ -75,21 +78,16 @@ class Config:
 
 class TaskTypes:
     """Task type constants."""
+
     SCRIPT = "script"
     UV_COMMAND = "uv_command"
 
 
 class Bot:
     """Bot configuration constants."""
+
     SECTION = "Bot"
     KEY_TYPE = "type"
-    KEY_BOT_TOKEN = "bot_token"
-    KEY_CHANNEL_ID = "channel_id"
-    KEY_ALLOWED_USER_IDS = "allowed_user_ids"
-    KEY_JID = "jid"
-    KEY_PASSWORD = "password"
-    KEY_DEFAULT_RECEIVER = "default_receiver"
-    KEY_ALLOWED_JIDS = "allowed_jids"
     KEY_ALLOW_ADD = "allow_add"
     KEY_ALLOW_EDIT = "allow_edit"
     KEY_ALLOW_DELETE = "allow_delete"
@@ -104,6 +102,7 @@ class Bot:
 
 class Defaults:
     """Default values used throughout the application."""
+
     HISTORY_LIMIT = 10
     MISFIRE_GRACE_TIME = 60
     MIN_INTERVAL = 1

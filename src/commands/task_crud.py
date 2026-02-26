@@ -46,7 +46,7 @@ def handle_add(scheduler: TaskScheduler, logger: Logger) -> None:
 def handle_edit(scheduler: TaskScheduler, logger: Logger, task_id: int) -> None:
     """Edit a task interactively."""
     tasks = scheduler.list_tasks()
-    task = next((t for t in tasks if t['id'] == task_id), None)
+    task = next((t for t in tasks if t["id"] == task_id), None)
 
     if not task:
         logger.error(f"No task found with ID {task_id}")
@@ -78,7 +78,7 @@ def handle_edit(scheduler: TaskScheduler, logger: Logger, task_id: int) -> None:
 def handle_delete(scheduler: TaskScheduler, logger: Logger, task_id: int) -> None:
     """Delete a task by ID after confirmation."""
     tasks = scheduler.list_tasks()
-    task = next((t for t in tasks if t['id'] == task_id), None)
+    task = next((t for t in tasks if t["id"] == task_id), None)
 
     if not task:
         logger.error(f"No task found with ID {task_id}")
@@ -88,7 +88,7 @@ def handle_delete(scheduler: TaskScheduler, logger: Logger, task_id: int) -> Non
     logger.info(format_task_list([task], show_next_run=False))
 
     confirmation = input("\nAre you sure you want to delete this task? (y/N): ")
-    if confirmation.lower() == 'y':
+    if confirmation.lower() == "y":
         try:
             scheduler.remove_task(task_id)
             logger.info("Task deleted successfully")
@@ -117,16 +117,25 @@ def handle_script(scheduler: TaskScheduler, logger: Logger, args) -> None:
     if args.start_time:
         try:
             from datetime import datetime
+
             datetime.strptime(args.start_time, "%H:%M")
             start_time = args.start_time
         except ValueError:
-            logger.error(f"Invalid start time format: {args.start_time}. Use HH:MM format (e.g., 09:00).")
+            logger.error(
+                f"Invalid start time format: {args.start_time}. Use HH:MM format (e.g., 09:00)."
+            )
             sys.exit(1)
 
     script_path = os.path.abspath(args.script)
-    script_args = args.script_args[1:] if args.script_args and args.script_args[0] == '--' else args.script_args
+    script_args = (
+        args.script_args[1:]
+        if args.script_args and args.script_args[0] == "--"
+        else args.script_args
+    )
 
-    scheduler.add_task(args.name, script_path, args.interval, script_args, start_time=start_time)
+    scheduler.add_task(
+        args.name, script_path, args.interval, script_args, start_time=start_time
+    )
 
     logger.info("Task added successfully:")
     logger.info(f"Name: {args.name}")
@@ -141,7 +150,7 @@ def handle_script(scheduler: TaskScheduler, logger: Logger, args) -> None:
 def handle_copy_task(scheduler: TaskScheduler, logger: Logger, task_id: int) -> None:
     """Copy an existing task."""
     tasks = scheduler.list_tasks()
-    task = next((t for t in tasks if t['id'] == task_id), None)
+    task = next((t for t in tasks if t["id"] == task_id), None)
 
     if not task:
         logger.error(f"No task found with ID {task_id}")
@@ -149,21 +158,25 @@ def handle_copy_task(scheduler: TaskScheduler, logger: Logger, task_id: int) -> 
 
     try:
         new_task_id = scheduler.add_task(
-            name=task['name'] + " (copy)",
-            script_path=task['script_path'],
-            interval=task['interval'],
-            arguments=task['arguments'] if task['arguments'] else None,
-            task_type=task.get('task_type', TaskTypes.SCRIPT),
-            command=task.get('command'),
-            start_time=task.get('start_time'),
+            name=task["name"] + " (copy)",
+            script_path=task["script_path"],
+            interval=task["interval"],
+            arguments=task["arguments"] if task["arguments"] else None,
+            task_type=task.get("task_type", TaskTypes.SCRIPT),
+            command=task.get("command"),
+            start_time=task.get("start_time"),
         )
-        logger.info(f"Task '{task['name']}' (ID: {task['id']}) copied successfully as new task (ID: {new_task_id})")
+        logger.info(
+            f"Task '{task['name']}' (ID: {task['id']}) copied successfully as new task (ID: {new_task_id})"
+        )
     except Exception as e:
         logger.error(f"Failed to copy task: {str(e)}")
         sys.exit(1)
 
 
-def handle_uv_command(scheduler: TaskScheduler, logger: Logger, args: Namespace) -> None:
+def handle_uv_command(
+    scheduler: TaskScheduler, logger: Logger, args: Namespace
+) -> None:
     """Add a new uv command task via CLI arguments."""
     if not args.name:
         logger.error("--name is required when adding a new task")
@@ -184,24 +197,35 @@ def handle_uv_command(scheduler: TaskScheduler, logger: Logger, args: Namespace)
         sys.exit(1)
 
     if not os.path.isfile(os.path.join(project_dir, Paths.PYPROJECT_TOML)):
-        logger.error(f"Not a valid uv project: missing {Paths.PYPROJECT_TOML} in {project_dir}")
+        logger.error(
+            f"Not a valid uv project: missing {Paths.PYPROJECT_TOML} in {project_dir}"
+        )
         sys.exit(1)
 
     if not os.path.isfile(os.path.join(project_dir, Paths.UV_LOCK)):
-        logger.error(f"Not a valid uv project: missing {Paths.UV_LOCK} in {project_dir}")
+        logger.error(
+            f"Not a valid uv project: missing {Paths.UV_LOCK} in {project_dir}"
+        )
         sys.exit(1)
 
     start_time = None
     if args.start_time:
         try:
             from datetime import datetime
+
             datetime.strptime(args.start_time, "%H:%M")
             start_time = args.start_time
         except ValueError:
-            logger.error(f"Invalid start time format: {args.start_time}. Use HH:MM format (e.g., 09:00).")
+            logger.error(
+                f"Invalid start time format: {args.start_time}. Use HH:MM format (e.g., 09:00)."
+            )
             sys.exit(1)
 
-    script_args = args.script_args[1:] if args.script_args and args.script_args[0] == '--' else args.script_args
+    script_args = (
+        args.script_args[1:]
+        if args.script_args and args.script_args[0] == "--"
+        else args.script_args
+    )
 
     scheduler.add_task(
         name=args.name,

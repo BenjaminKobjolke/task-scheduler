@@ -5,6 +5,7 @@ description = "Windows task scheduler for Python scripts and batch files"
 requires-python = ">=3.11"
 dependencies = [
     "APScheduler>=3.11.0",
+    "bot-commander",
     "prompt_toolkit>=3.0.52",
     "tzdata>=2025.2",
     "tzlocal>=5.3.1",
@@ -24,6 +25,7 @@ packages = ["src"]
 
 [tool.uv.sources]
 xmpp-bot = { path = "../xmpp-bot", editable = true }
+bot-commander = { path = "../bot-commander", editable = true }
 
 [dependency-groups]
 dev = [

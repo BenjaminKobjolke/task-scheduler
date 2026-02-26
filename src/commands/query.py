@@ -12,7 +12,7 @@ def handle_list(scheduler: TaskScheduler, logger: Logger, filter_term: str) -> N
     tasks = scheduler.list_tasks()
     if filter_term:
         filter_lower = filter_term.lower()
-        tasks = [t for t in tasks if filter_lower in t['name'].lower()]
+        tasks = [t for t in tasks if filter_lower in t["name"].lower()]
     logger.info("Scheduled tasks:" + format_task_list(tasks, show_next_run=False))
 
 
@@ -25,7 +25,7 @@ def handle_history(scheduler: TaskScheduler, logger: Logger, count: int) -> None
 def handle_run_id(scheduler: TaskScheduler, logger: Logger, task_id: int) -> None:
     """Run a specific task by its ID."""
     tasks = scheduler.list_tasks()
-    task = next((t for t in tasks if t['id'] == task_id), None)
+    task = next((t for t in tasks if t["id"] == task_id), None)
 
     if not task:
         logger.error(f"No task found with ID {task_id}")
@@ -33,7 +33,7 @@ def handle_run_id(scheduler: TaskScheduler, logger: Logger, task_id: int) -> Non
 
     logger.info(f"Running task {task['name']} (ID: {task['id']})")
     try:
-        scheduler.run_task(task['id'])
+        scheduler.run_task(task["id"])
     except Exception as e:
         logger.error(f"Error running task {task['name']} (ID: {task['id']}): {str(e)}")
         sys.exit(1)
@@ -45,7 +45,9 @@ def handle_ftp_sync(logger: Logger, config: Config) -> None:
     logger.info(f"Starting FTP sync from {status_page.get_output_dir()}")
 
     if not config.is_ftp_enabled():
-        logger.warning("FTP sync is disabled in config. Enable it first in config.ini [FTP] section.")
+        logger.warning(
+            "FTP sync is disabled in config. Enable it first in config.ini [FTP] section."
+        )
         sys.exit(1)
 
     if status_page.sync_to_ftp():

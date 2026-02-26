@@ -26,7 +26,7 @@ class ScriptRunner:
     def _get_clean_env_for_uv(self) -> dict:
         """Get environment without VIRTUAL_ENV for uv execution."""
         env = os.environ.copy()
-        env.pop('VIRTUAL_ENV', None)
+        env.pop("VIRTUAL_ENV", None)
         return env
 
     def _activate_venv(self, script_path: str) -> str:
@@ -76,7 +76,9 @@ class ScriptRunner:
                     self.logger.debug(f"Full command: {' '.join(cmd)}")
                 else:
                     # Basic logging when detailed logging is disabled
-                    self.logger.info(f"Arguments: {' '.join(arguments) if arguments else 'None'}")
+                    self.logger.info(
+                        f"Arguments: {' '.join(arguments) if arguments else 'None'}"
+                    )
 
                 # Run the batch file in its directory
                 try:
@@ -87,10 +89,12 @@ class ScriptRunner:
                         text=True,
                         cwd=script_dir,
                         shell=True,
-                        timeout=DEFAULT_TIMEOUT
+                        timeout=DEFAULT_TIMEOUT,
                     )
                 except subprocess.TimeoutExpired:
-                    self.logger.error(f"Batch file timed out after {DEFAULT_TIMEOUT}s: {script_path}")
+                    self.logger.error(
+                        f"Batch file timed out after {DEFAULT_TIMEOUT}s: {script_path}"
+                    )
                     return False
             elif self._is_uv_project(script_dir):
                 # For uv-managed projects, use uv run
@@ -105,7 +109,9 @@ class ScriptRunner:
                     self.logger.debug(f"Full command: {' '.join(python_cmd)}")
                 else:
                     # Basic logging when detailed logging is disabled
-                    self.logger.info(f"Arguments: {' '.join(arguments) if arguments else 'None'}")
+                    self.logger.info(
+                        f"Arguments: {' '.join(arguments) if arguments else 'None'}"
+                    )
 
                 # Run the script using uv
                 try:
@@ -116,17 +122,21 @@ class ScriptRunner:
                         text=True,
                         cwd=script_dir,
                         env=self._get_clean_env_for_uv(),
-                        timeout=DEFAULT_TIMEOUT
+                        timeout=DEFAULT_TIMEOUT,
                     )
                 except subprocess.TimeoutExpired:
-                    self.logger.error(f"Script timed out after {DEFAULT_TIMEOUT}s: {script_path}")
+                    self.logger.error(
+                        f"Script timed out after {DEFAULT_TIMEOUT}s: {script_path}"
+                    )
                     return False
             else:
                 # For Python scripts with traditional venv
                 venv_activate = self._activate_venv(script_path)
 
                 # Get the Python executable from the virtual environment
-                venv_python = os.path.join(os.path.dirname(venv_activate), Paths.PYTHON_EXE)
+                venv_python = os.path.join(
+                    os.path.dirname(venv_activate), Paths.PYTHON_EXE
+                )
 
                 # Build the command using venv's Python
                 python_cmd = [venv_python, script_name] + (arguments or [])
@@ -140,7 +150,9 @@ class ScriptRunner:
                     self.logger.debug(f"Full command: {' '.join(python_cmd)}")
                 else:
                     # Basic logging when detailed logging is disabled
-                    self.logger.info(f"Arguments: {' '.join(arguments) if arguments else 'None'}")
+                    self.logger.info(
+                        f"Arguments: {' '.join(arguments) if arguments else 'None'}"
+                    )
 
                 # Run the script in the correct directory
                 try:
@@ -150,10 +162,12 @@ class ScriptRunner:
                         stderr=subprocess.PIPE,
                         text=True,
                         cwd=script_dir,
-                        timeout=DEFAULT_TIMEOUT
+                        timeout=DEFAULT_TIMEOUT,
                     )
                 except subprocess.TimeoutExpired:
-                    self.logger.error(f"Script timed out after {DEFAULT_TIMEOUT}s: {script_path}")
+                    self.logger.error(
+                        f"Script timed out after {DEFAULT_TIMEOUT}s: {script_path}"
+                    )
                     return False
 
             if process.stdout:
@@ -192,7 +206,9 @@ class ScriptRunner:
             self.logger.error(f"Error reading pyproject.toml: {str(e)}")
             return []
 
-    def run_uv_command(self, project_dir: str, command: str, arguments: List[str] = None) -> bool:
+    def run_uv_command(
+        self, project_dir: str, command: str, arguments: List[str] = None
+    ) -> bool:
         """
         Run a uv CLI command (entry point) in a project directory.
 
@@ -225,7 +241,9 @@ class ScriptRunner:
                 self.logger.log_arguments(arguments, "uv Command Execution Details")
                 self.logger.debug(f"Full command: {' '.join(cmd)}")
             else:
-                self.logger.info(f"Arguments: {' '.join(arguments) if arguments else 'None'}")
+                self.logger.info(
+                    f"Arguments: {' '.join(arguments) if arguments else 'None'}"
+                )
 
             try:
                 process = subprocess.run(
@@ -235,10 +253,12 @@ class ScriptRunner:
                     text=True,
                     cwd=project_dir,
                     env=self._get_clean_env_for_uv(),
-                    timeout=DEFAULT_TIMEOUT
+                    timeout=DEFAULT_TIMEOUT,
                 )
             except subprocess.TimeoutExpired:
-                self.logger.error(f"Command timed out after {DEFAULT_TIMEOUT}s: {command}")
+                self.logger.error(
+                    f"Command timed out after {DEFAULT_TIMEOUT}s: {command}"
+                )
                 return False
 
             if process.stdout:

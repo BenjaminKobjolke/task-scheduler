@@ -5,6 +5,7 @@ from typing import List, Optional
 from .config import Config
 from .constants import Paths
 
+
 class Logger:
     """Custom logger for the task scheduler."""
 
@@ -38,7 +39,9 @@ class Logger:
         console_handler.setLevel(level)
 
         # Formatter
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
         file_handler.setFormatter(formatter)
         console_handler.setFormatter(formatter)
 
@@ -70,7 +73,9 @@ class Logger:
         """Log debug level message."""
         self.logger.debug(message)
 
-    def log_arguments(self, arguments: Optional[List[str]], header: Optional[str] = None):
+    def log_arguments(
+        self, arguments: Optional[List[str]], header: Optional[str] = None
+    ):
         """Log arguments in a consistent format.
 
         Args:
@@ -82,7 +87,7 @@ class Logger:
         self.debug("Arguments (as stored):")
         if arguments:
             for i, arg in enumerate(arguments):
-                self.debug(f"  {i+1}. [{arg}]")
+                self.debug(f"  {i + 1}. [{arg}]")
         else:
             self.debug("  No arguments")
         if header:

@@ -10,6 +10,7 @@ from .database import Database
 from .status_page import StatusPage
 from .constants import Paths, Defaults, TaskTypes
 
+
 class TaskScheduler:
     """Manages scheduled tasks using APScheduler."""
 
@@ -33,29 +34,31 @@ class TaskScheduler:
         tasks = self.db.get_all_tasks()
         for task in tasks:
             self._schedule_task(
-                task['id'],
-                task['name'],
-                task['script_path'],
-                task['interval'],
-                task['arguments'],
-                task.get('task_type', TaskTypes.SCRIPT),
-                task.get('command'),
-                task.get('start_time')
+                task["id"],
+                task["name"],
+                task["script_path"],
+                task["interval"],
+                task["arguments"],
+                task.get("task_type", TaskTypes.SCRIPT),
+                task.get("command"),
+                task.get("start_time"),
             )
             # Store initial checksum for hot-reload
-            self._task_checksums[task['id']] = self._get_task_checksum(task)
+            self._task_checksums[task["id"]] = self._get_task_checksum(task)
 
         # Add periodic hot-reload job to detect database changes
         self.scheduler.add_job(
             func=self._reload_tasks,
             trigger=IntervalTrigger(seconds=Defaults.RELOAD_INTERVAL),
-            id='_hot_reload',
-            name='Hot-reload task checker',
-            replace_existing=True
+            id="_hot_reload",
+            name="Hot-reload task checker",
+            replace_existing=True,
         )
 
         self.scheduler.start()
-        self.logger.info(f"Scheduler started with {len(tasks)} tasks (hot-reload every {Defaults.RELOAD_INTERVAL}s)")
+        self.logger.info(
+            f"Scheduler started with {len(tasks)} tasks (hot-reload every {Defaults.RELOAD_INTERVAL}s)"
+        )
 
     def shutdown(self):
         """Shutdown the scheduler."""
@@ -93,28 +96,30 @@ class TaskScheduler:
         """Check database for changes and update scheduler accordingly (hot-reload)."""
         try:
             db_tasks = self.db.get_all_tasks()
-            db_task_ids = {task['id'] for task in db_tasks}
+            db_task_ids = {task["id"] for task in db_tasks}
             scheduled_task_ids = set(self._task_checksums.keys())
 
             # Check for new or modified tasks
             for task in db_tasks:
-                task_id = task['id']
+                task_id = task["id"]
                 checksum = self._get_task_checksum(task)
 
                 if task_id not in scheduled_task_ids:
                     # New task - add it
                     self._schedule_task(
                         task_id,
-                        task['name'],
-                        task['script_path'],
-                        task['interval'],
-                        task['arguments'],
-                        task.get('task_type', TaskTypes.SCRIPT),
-                        task.get('command'),
-                        task.get('start_time')
+                        task["name"],
+                        task["script_path"],
+                        task["interval"],
+                        task["arguments"],
+                        task.get("task_type", TaskTypes.SCRIPT),
+                        task.get("command"),
+                        task.get("start_time"),
                     )
                     self._task_checksums[task_id] = checksum
-                    self.logger.info(f"Hot-reload: Added new task '{task['name']}' (ID: {task_id})")
+                    self.logger.info(
+                        f"Hot-reload: Added new task '{task['name']}' (ID: {task_id})"
+                    )
                 elif self._task_checksums.get(task_id) != checksum:
                     # Task changed - reschedule it
                     try:
@@ -123,16 +128,18 @@ class TaskScheduler:
                         pass  # Job may not exist
                     self._schedule_task(
                         task_id,
-                        task['name'],
-                        task['script_path'],
-                        task['interval'],
-                        task['arguments'],
-                        task.get('task_type', TaskTypes.SCRIPT),
-                        task.get('command'),
-                        task.get('start_time')
+                        task["name"],
+                        task["script_path"],
+                        task["interval"],
+                        task["arguments"],
+                        task.get("task_type", TaskTypes.SCRIPT),
+                        task.get("command"),
+                        task.get("start_time"),
                     )
                     self._task_checksums[task_id] = checksum
-                    self.logger.info(f"Hot-reload: Updated task '{task['name']}' (ID: {task_id})")
+                    self.logger.info(
+                        f"Hot-reload: Updated task '{task['name']}' (ID: {task_id})"
+                    )
 
             # Check for removed tasks
             for task_id in scheduled_task_ids - db_task_ids:
@@ -159,7 +166,7 @@ class TaskScheduler:
         """
         now = datetime.now()
         today = now.date()
-        hour, minute = map(int, start_time.split(':'))
+        hour, minute = map(int, start_time.split(":"))
         anchor = datetime.combine(today, time(hour, minute))
 
         if now < anchor:
@@ -195,7 +202,7 @@ class TaskScheduler:
         script_path: str,
         arguments: List[str],
         task_type: str = TaskTypes.SCRIPT,
-        command: Optional[str] = None
+        command: Optional[str] = None,
     ) -> bool:
         """
         Process a single job.
@@ -238,7 +245,7 @@ class TaskScheduler:
         arguments: Optional[List[str]] = None,
         task_type: str = TaskTypes.SCRIPT,
         command: Optional[str] = None,
-        start_time: Optional[str] = None
+        start_time: Optional[str] = None,
     ):
         """
         Schedule a task in the APScheduler.
@@ -272,8 +279,7 @@ class TaskScheduler:
             )
         elif task_id in last_executions:
             last_run = datetime.strptime(
-                last_executions[task_id]['execution_time'],
-                '%Y-%m-%d %H:%M:%S'
+                last_executions[task_id]["execution_time"], "%Y-%m-%d %H:%M:%S"
             )
             next_run = last_run + timedelta(minutes=interval)
 
@@ -301,7 +307,7 @@ class TaskScheduler:
             replace_existing=True,  # Replace if job exists
             name=name,  # Store task name
             misfire_grace_time=int(grace_time),
-            coalesce=True  # If multiple runs were missed, only run once
+            coalesce=True,  # If multiple runs were missed, only run once
         )
 
     def add_task(
@@ -312,7 +318,7 @@ class TaskScheduler:
         arguments: Optional[List[str]] = None,
         task_type: str = TaskTypes.SCRIPT,
         command: Optional[str] = None,
-        start_time: Optional[str] = None
+        start_time: Optional[str] = None,
     ):
         """
         Add a new task to both database and scheduler.
@@ -328,10 +334,21 @@ class TaskScheduler:
         """
         try:
             # Add to database first and get the task ID
-            task_id = self.db.add_task(name, script_path, interval, arguments, task_type, command, start_time)
+            task_id = self.db.add_task(
+                name, script_path, interval, arguments, task_type, command, start_time
+            )
 
             # Schedule the task with the ID
-            self._schedule_task(task_id, name, script_path, interval, arguments, task_type, command, start_time)
+            self._schedule_task(
+                task_id,
+                name,
+                script_path,
+                interval,
+                arguments,
+                task_type,
+                command,
+                start_time,
+            )
 
             start_time_info = f" starting at {start_time}" if start_time else ""
             if task_type == TaskTypes.UV_COMMAND:
@@ -361,7 +378,7 @@ class TaskScheduler:
         try:
             # Get task details before removal
             tasks = self.db.get_all_tasks()
-            task = next((t for t in tasks if t['id'] == task_id), None)
+            task = next((t for t in tasks if t["id"] == task_id), None)
 
             if task:
                 # Remove from database first
@@ -373,7 +390,9 @@ class TaskScheduler:
                         self.scheduler.remove_job(self._get_job_id(task_id))
                     except Exception as e:
                         # Log but don't fail if job removal fails
-                        self.logger.warning(f"Could not remove job from scheduler: {str(e)}")
+                        self.logger.warning(
+                            f"Could not remove job from scheduler: {str(e)}"
+                        )
 
                 self.logger.info(f"Removed task '{task['name']}' (ID: {task_id})")
             else:
@@ -396,7 +415,7 @@ class TaskScheduler:
         arguments: Optional[List[str]] = None,
         task_type: str = TaskTypes.SCRIPT,
         command: Optional[str] = None,
-        start_time: Optional[str] = None
+        start_time: Optional[str] = None,
     ):
         """
         Edit an existing task in both database and scheduler.
@@ -416,7 +435,16 @@ class TaskScheduler:
         """
         try:
             # Update in database first
-            if not self.db.edit_task(task_id, name, script_path, interval, arguments, task_type, command, start_time):
+            if not self.db.edit_task(
+                task_id,
+                name,
+                script_path,
+                interval,
+                arguments,
+                task_type,
+                command,
+                start_time,
+            ):
                 raise ValueError(f"Task with ID {task_id} not found")
 
             # Update in scheduler if running
@@ -425,10 +453,21 @@ class TaskScheduler:
                 try:
                     self.scheduler.remove_job(self._get_job_id(task_id))
                 except Exception as e:
-                    self.logger.warning(f"Could not remove old job from scheduler: {str(e)}")
+                    self.logger.warning(
+                        f"Could not remove old job from scheduler: {str(e)}"
+                    )
 
                 # Schedule new job
-                self._schedule_task(task_id, name, script_path, interval, arguments, task_type, command, start_time)
+                self._schedule_task(
+                    task_id,
+                    name,
+                    script_path,
+                    interval,
+                    arguments,
+                    task_type,
+                    command,
+                    start_time,
+                )
 
             start_time_info = f" starting at {start_time}" if start_time else ""
             self.logger.info(
@@ -452,19 +491,19 @@ class TaskScheduler:
         last_executions = self.db.get_last_execution_per_task()
 
         for task in tasks:
-            job_id = self._get_job_id(task['id'])
+            job_id = self._get_job_id(task["id"])
             if job_id in scheduler_jobs:
-                task['next_run_time'] = scheduler_jobs[job_id].next_run_time
+                task["next_run_time"] = scheduler_jobs[job_id].next_run_time
             else:
-                task['next_run_time'] = None
+                task["next_run_time"] = None
 
             # Add last execution info
-            if task['id'] in last_executions:
-                task['last_run_time'] = last_executions[task['id']]['execution_time']
-                task['last_run_success'] = last_executions[task['id']]['success']
+            if task["id"] in last_executions:
+                task["last_run_time"] = last_executions[task["id"]]["execution_time"]
+                task["last_run_success"] = last_executions[task["id"]]["success"]
             else:
-                task['last_run_time'] = None
-                task['last_run_success'] = None
+                task["last_run_time"] = None
+                task["last_run_success"] = None
 
         return tasks
 
@@ -484,7 +523,7 @@ class TaskScheduler:
         try:
             # Get task details from the database
             tasks = self.db.get_all_tasks()
-            task = next((t for t in tasks if t['id'] == task_id), None)
+            task = next((t for t in tasks if t["id"] == task_id), None)
 
             if not task:
                 self.logger.error(f"Task with ID {task_id} not found")
@@ -492,12 +531,12 @@ class TaskScheduler:
 
             # Run the task and return result
             return self._process_job(
-                task['id'],
-                task['name'],
-                task['script_path'],
-                task['arguments'],
-                task.get('task_type', TaskTypes.SCRIPT),
-                task.get('command')
+                task["id"],
+                task["name"],
+                task["script_path"],
+                task["arguments"],
+                task.get("task_type", TaskTypes.SCRIPT),
+                task.get("command"),
             )
 
         except Exception as e:

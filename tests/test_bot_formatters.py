@@ -1,4 +1,5 @@
 """Tests for bot formatters module."""
+
 from src.bot.formatters import (
     format_add_summary,
     format_edit_changes,

@@ -5,6 +5,7 @@ from typing import List, Optional, Dict
 from .logger import Logger
 from .constants import Paths, Database as DbConstants, TaskTypes
 
+
 class Database:
     """Handle SQLite database operations for task storage."""
 
@@ -49,9 +50,18 @@ class Database:
             """)
 
             # Migration: Add columns if they don't exist (for existing databases)
-            self._migrate_add_column(conn, DbConstants.TABLE_TASKS, DbConstants.COL_TASK_TYPE, "TEXT DEFAULT 'script'")
-            self._migrate_add_column(conn, DbConstants.TABLE_TASKS, DbConstants.COL_COMMAND, "TEXT")
-            self._migrate_add_column(conn, DbConstants.TABLE_TASKS, DbConstants.COL_START_TIME, "TEXT")
+            self._migrate_add_column(
+                conn,
+                DbConstants.TABLE_TASKS,
+                DbConstants.COL_TASK_TYPE,
+                "TEXT DEFAULT 'script'",
+            )
+            self._migrate_add_column(
+                conn, DbConstants.TABLE_TASKS, DbConstants.COL_COMMAND, "TEXT"
+            )
+            self._migrate_add_column(
+                conn, DbConstants.TABLE_TASKS, DbConstants.COL_START_TIME, "TEXT"
+            )
 
     def _migrate_add_column(self, conn, table: str, column: str, definition: str):
         """Add a column to a table if it doesn't exist."""
@@ -59,7 +69,9 @@ class Database:
         columns = [row[1] for row in cursor.fetchall()]
         if column not in columns:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
-            self.logger.info(f"Migrated database: added column '{column}' to table '{table}'")
+            self.logger.info(
+                f"Migrated database: added column '{column}' to table '{table}'"
+            )
 
     def add_task(
         self,
@@ -69,7 +81,7 @@ class Database:
         arguments: Optional[List[str]] = None,
         task_type: str = TaskTypes.SCRIPT,
         command: Optional[str] = None,
-        start_time: Optional[str] = None
+        start_time: Optional[str] = None,
     ) -> int:
         """
         Add a new task to the database.
@@ -97,7 +109,15 @@ class Database:
 
             cursor = conn.execute(
                 "INSERT INTO tasks (name, script_path, arguments, interval, task_type, command, start_time) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (name, script_path, json_args, interval, task_type, command, start_time)
+                (
+                    name,
+                    script_path,
+                    json_args,
+                    interval,
+                    task_type,
+                    command,
+                    start_time,
+                ),
             )
             return cursor.lastrowid
 
@@ -114,17 +134,19 @@ class Database:
             tasks = []
             for row in cursor:
                 task = dict(row)
-                raw_args = task['arguments']
-                task['arguments'] = json.loads(raw_args)
+                raw_args = task["arguments"]
+                task["arguments"] = json.loads(raw_args)
 
                 # Ensure backwards compatibility: default task_type to 'script' if None
-                if task.get('task_type') is None:
-                    task['task_type'] = TaskTypes.SCRIPT
+                if task.get("task_type") is None:
+                    task["task_type"] = TaskTypes.SCRIPT
 
                 # Log argument details if enabled
                 if self.logger.is_detailed_logging_enabled():
                     self.logger.debug(f"Raw JSON from database: {raw_args}")
-                    self.logger.log_arguments(task['arguments'], f"Loading Task {task['id']} Arguments")
+                    self.logger.log_arguments(
+                        task["arguments"], f"Loading Task {task['id']} Arguments"
+                    )
 
                 tasks.append(task)
             return tasks
@@ -150,7 +172,7 @@ class Database:
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT INTO task_history (task_id, execution_time, success) VALUES (?, datetime('now', 'localtime'), ?)",
-                (task_id, success)
+                (task_id, success),
             )
 
     def get_recent_executions(self, limit: int = 10) -> List[Dict]:
@@ -165,7 +187,8 @@ class Database:
         """
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
-            cursor = conn.execute("""
+            cursor = conn.execute(
+                """
                 SELECT
                     h.id as execution_id,
                     h.execution_time,
@@ -180,24 +203,26 @@ class Database:
                 JOIN tasks t ON h.task_id = t.id
                 ORDER BY h.execution_time DESC
                 LIMIT ?
-            """, (limit,))
+            """,
+                (limit,),
+            )
 
             executions = []
             for row in cursor:
                 execution = dict(row)
-                raw_args = execution['arguments']
-                execution['arguments'] = json.loads(raw_args)
+                raw_args = execution["arguments"]
+                execution["arguments"] = json.loads(raw_args)
 
                 # Ensure backwards compatibility: default task_type to 'script' if None
-                if execution.get('task_type') is None:
-                    execution['task_type'] = TaskTypes.SCRIPT
+                if execution.get("task_type") is None:
+                    execution["task_type"] = TaskTypes.SCRIPT
 
                 # Log argument details if enabled
                 if self.logger.is_detailed_logging_enabled():
                     self.logger.debug(f"Raw JSON from database: {raw_args}")
                     self.logger.log_arguments(
-                        execution['arguments'],
-                        f"Loading Execution {execution['execution_id']} Arguments"
+                        execution["arguments"],
+                        f"Loading Execution {execution['execution_id']} Arguments",
                     )
 
                 executions.append(execution)
@@ -224,9 +249,9 @@ class Database:
 
             result = {}
             for row in cursor:
-                result[row['task_id']] = {
-                    'execution_time': row['execution_time'],
-                    'success': bool(row['success'])
+                result[row["task_id"]] = {
+                    "execution_time": row["execution_time"],
+                    "success": bool(row["success"]),
                 }
             return result
 
@@ -239,7 +264,7 @@ class Database:
         arguments: Optional[List[str]] = None,
         task_type: str = TaskTypes.SCRIPT,
         command: Optional[str] = None,
-        start_time: Optional[str] = None
+        start_time: Optional[str] = None,
     ) -> bool:
         """
         Edit an existing task in the database.
@@ -272,7 +297,16 @@ class Database:
                 SET name = ?, script_path = ?, arguments = ?, interval = ?, task_type = ?, command = ?, start_time = ?
                 WHERE id = ?
                 """,
-                (name, script_path, json_args, interval, task_type, command, start_time, task_id)
+                (
+                    name,
+                    script_path,
+                    json_args,
+                    interval,
+                    task_type,
+                    command,
+                    start_time,
+                    task_id,
+                ),
             )
             return cursor.rowcount > 0
 

@@ -1,15 +1,16 @@
 """Tests for bot conversation state machines."""
+
 import time
 
-from src.bot.constants import CONFIRMED_SENTINEL, Messages
+from bot_commander import CONFIRMED_SENTINEL, BotResponse, ConversationState
+from bot_commander.config.constants import DEFAULT_CONVERSATION_TIMEOUT
+
+from src.bot.constants import Messages
 from src.bot.conversation import (
-    CONVERSATION_TIMEOUT,
     AddWizard,
-    ConversationState,
     DeleteConfirmation,
     EditWizard,
 )
-from src.bot.types import BotResponse
 
 
 class TestConversationState:
@@ -42,10 +43,14 @@ class TestConversationState:
         before = time.time()
         state = ConversationState(kind="add_wizard")
         after = time.time()
-        assert before + CONVERSATION_TIMEOUT <= state.expires_at <= after + CONVERSATION_TIMEOUT
+        assert (
+            before + DEFAULT_CONVERSATION_TIMEOUT
+            <= state.expires_at
+            <= after + DEFAULT_CONVERSATION_TIMEOUT
+        )
 
     def test_timeout_constant_is_300_seconds(self) -> None:
-        assert CONVERSATION_TIMEOUT == 300
+        assert DEFAULT_CONVERSATION_TIMEOUT == 300
 
     def test_data_is_independent_between_instances(self) -> None:
         state1 = ConversationState(kind="add_wizard")
@@ -619,7 +624,9 @@ class TestEditWizardUvCommandFlow:
         new_state, response = EditWizard.advance(state, "skip")  # script_path
         assert new_state is not None
         assert new_state.step == 1
-        assert response.text == Messages.WIZARD_EDIT_COMMAND.format(task.get("command", ""))
+        assert response.text == Messages.WIZARD_EDIT_COMMAND.format(
+            task.get("command", "")
+        )
 
     def test_step1_change_command(self) -> None:
         task = _make_sample_uv_task()

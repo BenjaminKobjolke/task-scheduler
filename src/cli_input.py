@@ -15,12 +15,12 @@ def _create_path_key_bindings() -> KeyBindings:
     """Create key bindings for path input with tab completion."""
     kb = KeyBindings()
 
-    @kb.add('enter')
+    @kb.add("enter")
     def _(event):
         if event.app.current_buffer.complete_state:
             current_text = event.app.current_buffer.text
             if os.path.isdir(current_text):
-                new_text = current_text.rstrip('\\') + '\\'
+                new_text = current_text.rstrip("\\") + "\\"
                 event.app.current_buffer.text = new_text
                 event.app.current_buffer.cursor_position = len(new_text)
             event.app.current_buffer.complete_state = None
@@ -54,15 +54,15 @@ def _get_script_path(
             "Path: ",
             completer=completer,
             key_bindings=kb,
-            default=existing_task['script_path'] if existing_task else ""
+            default=existing_task["script_path"] if existing_task else "",
         ).strip()
 
         # Keep existing value if empty input
         if existing_task and not path_input:
             return (
-                existing_task['script_path'],
-                existing_task.get('task_type', TaskTypes.SCRIPT),
-                existing_task.get('command'),
+                existing_task["script_path"],
+                existing_task.get("task_type", TaskTypes.SCRIPT),
+                existing_task.get("command"),
             )
 
         # Check if it's a uv project directory
@@ -76,15 +76,21 @@ def _get_script_path(
                     return (path_input, result[0], result[1])
                 continue
             else:
-                print("Error: Directory is not a valid uv project (missing pyproject.toml or uv.lock)")
-                print("Please enter a script file path or a valid uv project directory.")
+                print(
+                    "Error: Directory is not a valid uv project (missing pyproject.toml or uv.lock)"
+                )
+                print(
+                    "Please enter a script file path or a valid uv project directory."
+                )
                 continue
 
         # Check if it's a file
         if os.path.isfile(path_input):
             return (path_input, TaskTypes.SCRIPT, None)
 
-        print("Error: Not a valid file or uv project directory. Please enter a valid path.")
+        print(
+            "Error: Not a valid file or uv project directory. Please enter a valid path."
+        )
 
 
 def _handle_uv_project(path_input: str, script_runner: ScriptRunner) -> Optional[tuple]:
@@ -106,17 +112,23 @@ def _handle_uv_project(path_input: str, script_runner: ScriptRunner) -> Optional
                 if 0 <= cmd_idx < len(commands):
                     return (TaskTypes.UV_COMMAND, commands[cmd_idx])
                 elif cmd_idx == len(commands):
-                    custom_cmd = input("Enter custom command (e.g., python -m module_name): ").strip()
+                    custom_cmd = input(
+                        "Enter custom command (e.g., python -m module_name): "
+                    ).strip()
                     if custom_cmd:
                         return (TaskTypes.UV_COMMAND, custom_cmd)
                     print("Error: Command cannot be empty.")
                 else:
-                    print(f"Error: Please enter a number between 1 and {len(commands) + 1}")
+                    print(
+                        f"Error: Please enter a number between 1 and {len(commands) + 1}"
+                    )
             except ValueError:
                 print("Error: Please enter a valid number.")
     else:
         print("\nDetected uv project! No predefined commands found.")
-        custom_cmd = input("Enter custom command (e.g., python -m module_name): ").strip()
+        custom_cmd = input(
+            "Enter custom command (e.g., python -m module_name): "
+        ).strip()
         if custom_cmd:
             return (TaskTypes.UV_COMMAND, custom_cmd)
         print("Error: Command cannot be empty.")
@@ -137,14 +149,14 @@ def get_task_input(existing_task: Optional[Dict[str, Any]] = None) -> Dict[str, 
     print("\nAdding new task interactively:")
 
     kb = _create_path_key_bindings()
-    path_completer = PathCompleter(get_paths=lambda: ['.'], expanduser=True)
+    path_completer = PathCompleter(get_paths=lambda: ["."], expanduser=True)
     completer = FuzzyCompleter(path_completer)
     session = PromptSession()
     script_runner = ScriptRunner()
 
     # If editing, show current values
     if existing_task:
-        task_type = existing_task.get('task_type', TaskTypes.SCRIPT)
+        task_type = existing_task.get("task_type", TaskTypes.SCRIPT)
         print("\nEditing task (press Enter to keep current value):")
         print("Current values:")
         print(f"Name: {existing_task['name']}")
@@ -156,9 +168,11 @@ def get_task_input(existing_task: Optional[Dict[str, Any]] = None) -> Dict[str, 
             print("Type: script")
             print(f"Script: {existing_task['script_path']}")
         print(f"Interval: {existing_task['interval']} minute(s)")
-        if existing_task.get('start_time'):
+        if existing_task.get("start_time"):
             print(f"Start time: {existing_task['start_time']}")
-        print(f"Arguments: {' '.join(existing_task['arguments']) if existing_task['arguments'] else 'None'}")
+        print(
+            f"Arguments: {' '.join(existing_task['arguments']) if existing_task['arguments'] else 'None'}"
+        )
 
     # Get script path
     script_path, task_type, command = _get_script_path(
@@ -203,7 +217,7 @@ def _get_task_name(
 
     name = input(prompt_text).strip()
     if existing_task and not name:
-        name = existing_task['name']
+        name = existing_task["name"]
     elif not name and default_name:
         name = default_name
     while not name:
@@ -223,7 +237,7 @@ def _get_interval(existing_task: Optional[Dict[str, Any]]) -> int:
 
         interval_input = input(prompt_text).strip()
         if existing_task and not interval_input:
-            return existing_task['interval']
+            return existing_task["interval"]
 
         try:
             interval = int(interval_input)
@@ -239,13 +253,13 @@ def _get_start_time(existing_task: Optional[Dict[str, Any]]) -> Optional[str]:
     """Get optional start time in HH:MM format from user input."""
     while True:
         prompt_text = "\nStart time (optional, HH:MM format for aligned scheduling)"
-        if existing_task and existing_task.get('start_time'):
+        if existing_task and existing_task.get("start_time"):
             prompt_text += f" [{existing_task['start_time']}]"
         prompt_text += ": "
 
         start_time_input = input(prompt_text).strip()
         if existing_task and not start_time_input:
-            return existing_task.get('start_time')
+            return existing_task.get("start_time")
         elif not start_time_input:
             return None
 
@@ -263,8 +277,8 @@ def _get_arguments(
 ) -> Optional[list]:
     """Get optional arguments from user input."""
     print("\nEnter arguments (press Enter twice to finish):")
-    print("Example: --source \"path/to/source\" --target \"path/to/target\"")
-    if existing_task and existing_task['arguments']:
+    print('Example: --source "path/to/source" --target "path/to/target"')
+    if existing_task and existing_task["arguments"]:
         print(f"Current arguments: {' '.join(existing_task['arguments'])}")
 
     args = None
@@ -274,9 +288,9 @@ def _get_arguments(
 
         if not arg:
             if not arg_lines and existing_task:
-                args = shlex.split(' '.join(existing_task['arguments']))
+                args = shlex.split(" ".join(existing_task["arguments"]))
             elif arg_lines:
-                args = shlex.split(' '.join(arg_lines))
+                args = shlex.split(" ".join(arg_lines))
             break
         arg_lines.append(arg)
 

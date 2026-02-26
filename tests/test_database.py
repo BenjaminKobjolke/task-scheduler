@@ -1,4 +1,5 @@
 """Tests for database module."""
+
 import os
 import tempfile
 import pytest
@@ -147,7 +148,7 @@ class TestDatabaseUvCommandTasks:
             script_path="/path/to/project",
             interval=5,
             task_type=TaskTypes.UV_COMMAND,
-            command="my-command"
+            command="my-command",
         )
         assert task_id > 0
 
@@ -157,7 +158,7 @@ class TestDatabaseUvCommandTasks:
             script_path="/path/to/project",
             interval=5,
             task_type=TaskTypes.UV_COMMAND,
-            command="my-command"
+            command="my-command",
         )
 
         tasks = temp_db.get_all_tasks()
@@ -171,13 +172,16 @@ class TestDatabaseUvCommandTasks:
             script_path="/path/to/project",
             interval=5,
             task_type=TaskTypes.UV_COMMAND,
-            command="old-command"
+            command="old-command",
         )
 
         result = temp_db.edit_task(
-            task_id, "UV Task", "/path/to/project", 5,
+            task_id,
+            "UV Task",
+            "/path/to/project",
+            5,
             task_type=TaskTypes.UV_COMMAND,
-            command="new-command"
+            command="new-command",
         )
 
         assert result is True
@@ -194,9 +198,11 @@ class TestDatabaseUvCommandTasks:
 
     def test_execution_includes_task_type(self, temp_db):
         task_id = temp_db.add_task(
-            "UV Task", "/path/to/project", 5,
+            "UV Task",
+            "/path/to/project",
+            5,
             task_type=TaskTypes.UV_COMMAND,
-            command="my-command"
+            command="my-command",
         )
         temp_db.add_task_execution(task_id, True)
 

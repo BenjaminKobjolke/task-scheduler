@@ -1,4 +1,5 @@
 """Tests for bot constants module."""
+
 from src.bot.constants import Commands, Messages
 
 

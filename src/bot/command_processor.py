@@ -1,127 +1,81 @@
-"""Bot command processor - handles all bot commands."""
-from typing import Callable, Dict
+"""Task-scheduler command processor - subclasses bot_commander.Commander."""
 
-from .types import BotMessage, BotResponse, BotConfig
-from .constants import CONFIRMED_SENTINEL, Commands, Messages
-from .formatters import (
-    format_task_list_compact,
-    format_execution_history_compact,
-)
-from .conversation import (
-    ConversationState,
-    AddWizard,
-    EditWizard,
-    DeleteConfirmation,
-)
-from src.scheduler import TaskScheduler
+from dataclasses import dataclass
+
+from bot_commander import BotResponse, Commander
+
+from .constants import Commands, Messages
+from .conversation import AddWizard, DeleteConfirmation, EditWizard
+from .formatters import format_execution_history_compact, format_task_list_compact
 from src.logger import Logger
+from src.scheduler import TaskScheduler
 
 
-class CommandProcessor:
-    """Processes bot commands. Pure synchronous, no bot dependencies."""
+@dataclass(frozen=True)
+class BotConfig:
+    """Bot permission configuration."""
+
+    allow_add: bool
+    allow_edit: bool
+    allow_delete: bool
+
+
+class TaskCommandProcessor(Commander):
+    """Task-scheduler specific command processor."""
 
     def __init__(self, scheduler: TaskScheduler, bot_config: BotConfig) -> None:
+        super().__init__(
+            unknown_command_text=Messages.UNKNOWN_COMMAND,
+            command_disabled_text=Messages.COMMAND_DISABLED,
+            expired_text=Messages.CONVERSATION_EXPIRED,
+            cancelled_text=Messages.OPERATION_CANCELLED,
+        )
         self._scheduler = scheduler
         self._bot_config = bot_config
-        self._conversations: Dict[str, ConversationState] = {}
-        self._logger = Logger("CommandProcessor")
-        self._command_map: Dict[str, Callable[[str, str], BotResponse]] = {
-            Commands.LIST: self._cmd_list,
-            Commands.RUN: self._cmd_run,
-            Commands.HISTORY: self._cmd_history,
-            Commands.ADD: self._cmd_add,
-            Commands.EDIT: self._cmd_edit,
-            Commands.DELETE: self._cmd_delete,
-            Commands.HELP: self._cmd_help,
-            Commands.CANCEL: self._cmd_cancel,
-        }
+        self._logger = Logger("TaskCommandProcessor")
 
-    def process(self, message: BotMessage) -> BotResponse:
-        """Process an incoming message and return a response."""
-        user_id = message.user_id
+        # Register commands
+        self.register_command(Commands.HELP, self._cmd_help)
+        self.register_command(Commands.LIST, self._cmd_list)
+        self.register_command(Commands.RUN, self._cmd_run)
+        self.register_command(Commands.HISTORY, self._cmd_history)
+        self.register_command(
+            Commands.ADD, self._cmd_add, requires_permission="allow_add"
+        )
+        self.register_command(
+            Commands.EDIT, self._cmd_edit, requires_permission="allow_edit"
+        )
+        self.register_command(
+            Commands.DELETE, self._cmd_delete, requires_permission="allow_delete"
+        )
 
-        # Clean up expired conversations
-        expired = self._cleanup_expired(user_id)
-        if expired:
-            return BotResponse(text=Messages.CONVERSATION_EXPIRED)
+        # Register conversations with on_confirmed callbacks
+        self.register_conversation(
+            "add_wizard", AddWizard.advance, on_confirmed=self._execute_add
+        )
+        self.register_conversation(
+            "edit_wizard", EditWizard.advance, on_confirmed=self._execute_edit
+        )
+        self.register_conversation(
+            "confirm_delete",
+            DeleteConfirmation.handle_response,
+            on_confirmed=self._execute_delete,
+        )
 
-        # Check for active conversation first
-        if user_id in self._conversations:
-            if message.text.strip().lower() == Commands.CANCEL:
-                return self._cmd_cancel(user_id, "")
-            return self._continue_conversation(user_id, message.text)
+        # Set permission checker
+        self.set_permission_checker(self._check_permission)
 
-        # Parse command
-        parts = message.text.strip().split(maxsplit=1)
-        command = parts[0].lower() if parts else ""
-        args = parts[1].strip() if len(parts) > 1 else ""
-
-        handler = self._command_map.get(command)
-        if handler is None:
-            return BotResponse(text=Messages.UNKNOWN_COMMAND)
-
-        # Check if command is allowed
-        if not self._is_command_allowed(command):
-            return BotResponse(text=Messages.COMMAND_DISABLED.format(command))
-
-        return handler(user_id, args)
-
-    def _is_command_allowed(self, command: str) -> bool:
-        """Check if a command is allowed by config."""
-        if command == Commands.ADD:
+    def _check_permission(self, permission: str, user_id: str) -> bool:
+        """Check if a permission is allowed."""
+        if permission == "allow_add":
             return self._bot_config.allow_add
-        elif command == Commands.EDIT:
+        if permission == "allow_edit":
             return self._bot_config.allow_edit
-        elif command == Commands.DELETE:
+        if permission == "allow_delete":
             return self._bot_config.allow_delete
-        return True  # All other commands always allowed
+        return True
 
-    def _cleanup_expired(self, user_id: str) -> bool:
-        """Remove expired conversation for a user. Returns True if one was removed."""
-        if user_id in self._conversations and self._conversations[user_id].is_expired():
-            del self._conversations[user_id]
-            return True
-        return False
-
-    def _continue_conversation(self, user_id: str, text: str) -> BotResponse:
-        """Continue an active conversation (wizard or confirmation)."""
-        state = self._conversations[user_id]
-
-        if state.kind == "add_wizard":
-            new_state, response = AddWizard.advance(state, text)
-            if new_state is None:
-                del self._conversations[user_id]
-                if response.text == CONFIRMED_SENTINEL:
-                    # Wizard completed with "yes" - create the task
-                    return self._execute_add(state.data)
-                return response
-            self._conversations[user_id] = new_state
-            return response
-
-        elif state.kind == "edit_wizard":
-            new_state, response = EditWizard.advance(state, text)
-            if new_state is None:
-                del self._conversations[user_id]
-                if response.text == CONFIRMED_SENTINEL:
-                    # Wizard completed with "yes" - apply edit
-                    return self._execute_edit(state.data)
-                return response
-            self._conversations[user_id] = new_state
-            return response
-
-        elif state.kind == "confirm_delete":
-            new_state, response = DeleteConfirmation.handle_response(state, text)
-            del self._conversations[user_id]
-            if response.text == CONFIRMED_SENTINEL:
-                # Confirmed - execute delete
-                return self._execute_delete(
-                    state.data["task_id"], state.data["task_name"]
-                )
-            return response
-
-        # Unknown conversation kind
-        del self._conversations[user_id]
-        return BotResponse(text=Messages.UNKNOWN_COMMAND)
+    # -- Command handlers --
 
     def _cmd_help(self, user_id: str, args: str) -> BotResponse:
         """Handle the /help command."""
@@ -176,7 +130,7 @@ class CommandProcessor:
     def _cmd_add(self, user_id: str, args: str) -> BotResponse:
         """Handle the /add command - starts the add wizard."""
         state, response = AddWizard.start()
-        self._conversations[user_id] = state
+        self.start_conversation(user_id, state)
         return response
 
     def _cmd_edit(self, user_id: str, args: str) -> BotResponse:
@@ -192,7 +146,7 @@ class CommandProcessor:
             return BotResponse(text=Messages.TASK_NOT_FOUND.format(task_id))
 
         state, response = EditWizard.start(task)
-        self._conversations[user_id] = state
+        self.start_conversation(user_id, state)
         return response
 
     def _cmd_delete(self, user_id: str, args: str) -> BotResponse:
@@ -208,14 +162,10 @@ class CommandProcessor:
             return BotResponse(text=Messages.TASK_NOT_FOUND.format(task_id))
 
         state, response = DeleteConfirmation.start(task_id, task["name"])
-        self._conversations[user_id] = state
+        self.start_conversation(user_id, state)
         return response
 
-    def _cmd_cancel(self, user_id: str, args: str) -> BotResponse:
-        """Handle the /cancel command - clears active conversation."""
-        if user_id in self._conversations:
-            del self._conversations[user_id]
-        return BotResponse(text=Messages.OPERATION_CANCELLED)
+    # -- on_confirmed callbacks (receive state.data dict) --
 
     def _execute_add(self, data: dict) -> BotResponse:
         """Execute task addition from wizard data."""
@@ -261,12 +211,12 @@ class CommandProcessor:
         except Exception as e:
             return BotResponse(text=f"Error editing task: {e}")
 
-    def _execute_delete(self, task_id: int, task_name: str) -> BotResponse:
+    def _execute_delete(self, data: dict) -> BotResponse:
         """Execute task deletion."""
         try:
+            task_id = data["task_id"]
+            task_name = data["task_name"]
             self._scheduler.remove_task(task_id)
-            return BotResponse(
-                text=Messages.TASK_DELETED.format(task_name, task_id)
-            )
+            return BotResponse(text=Messages.TASK_DELETED.format(task_name, task_id))
         except Exception as e:
             return BotResponse(text=f"Error deleting task: {e}")

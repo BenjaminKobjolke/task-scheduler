@@ -4,11 +4,13 @@ import signal
 import sys
 import time
 
+from bot_commander import BotManager
+
 from src.scheduler import TaskScheduler
 from src.logger import Logger
 from src.config import Config
 from src.formatters import format_task_list
-from src.bot import BotManager
+from src.bot.command_processor import TaskCommandProcessor
 from src.commands import (
     handle_list,
     handle_history,
@@ -279,7 +281,13 @@ if __name__ == "__main__":
             sys.exit(0)
 
         # If no specific action was requested, run the scheduler
-        bot_manager = BotManager(scheduler, config)
+        bot_config_dto = config.get_bot_config()
+        processor = TaskCommandProcessor(scheduler, bot_config_dto)
+        bot_manager = BotManager(
+            message_handler=processor,
+            config_provider=config,
+            bot_type=config.get_bot_type(),
+        )
 
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)

@@ -1,10 +1,5 @@
 """Constants for bot integration."""
 
-# Sentinel value indicating "confirmed, execute the action".
-# Used by conversation wizards when the user says "yes" - the caller
-# checks for this to know it should perform the actual operation.
-CONFIRMED_SENTINEL = ""
-
 
 class Commands:
     """Bot command constants."""
@@ -40,8 +35,7 @@ class Messages:
     TASK_EXECUTED_FAILURE = "Task '{}' (ID: {}) failed."
     TASK_EXECUTION_ERROR = "Error executing task {}: {}"
     CONFIRM_DELETE = (
-        "Delete task '{}' (ID: {})?\n"
-        "Reply 'yes' to confirm or /cancel to abort."
+        "Delete task '{}' (ID: {})?\nReply 'yes' to confirm or /cancel to abort."
     )
     TASK_DELETED = "Task '{}' (ID: {}) deleted."
     DELETE_CANCELLED = "Delete cancelled."
@@ -78,8 +72,6 @@ class Messages:
     WIZARD_EDIT_INTERVAL = "Interval in minutes [{}]:"
     WIZARD_EDIT_START_TIME = "Start time [{}]:"
     WIZARD_EDIT_ARGUMENTS = "Arguments [{}]:"
-    WIZARD_EDIT_CONFIRM = (
-        "Changes:\n{}\n\nReply 'yes' to save or /cancel to abort."
-    )
+    WIZARD_EDIT_CONFIRM = "Changes:\n{}\n\nReply 'yes' to save or /cancel to abort."
     WIZARD_EDIT_SUCCESS = "Task '{}' (ID: {}) updated."
     WIZARD_EDIT_NO_CHANGES = "No changes made."

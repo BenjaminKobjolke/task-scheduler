@@ -9,7 +9,7 @@ from .config import Config
 class PhpLoginHandler:
     """Handles copying and configuring the php-simple-login library."""
 
-    PHP_AUTH_HEADER = '''<?php
+    PHP_AUTH_HEADER = """<?php
 require_once __DIR__ . '/simple-login-config.php';
 require_once __DIR__ . '/lib/simple-login/Session.php';
 require_once __DIR__ . '/lib/simple-login/SimpleLogin.php';
@@ -17,7 +17,7 @@ require_once __DIR__ . '/lib/simple-login/SimpleLogin.php';
 use BenjaminKobjolke\\SimpleLogin\\SimpleLogin;
 SimpleLogin::requireAuth();
 ?>
-'''
+"""
 
     def __init__(self):
         """Initialize the PHP login handler."""
@@ -75,7 +75,7 @@ SimpleLogin::requireAuth();
 define('SIMPLE_LOGIN_PASSWORD', '{password}');
 """
         config_path = os.path.join(output_dir, "simple-login-config.php")
-        with open(config_path, 'w', encoding='utf-8') as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             f.write(config_content)
         self.logger.info(f"Generated PHP config at {config_path}")
 

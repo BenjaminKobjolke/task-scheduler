@@ -21,7 +21,9 @@ class StatusPage:
         self._last_ftp_sync = None  # Track last FTP sync time for throttling
 
         self.script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self.template_path = os.path.join(self.script_dir, "sources", "web", "templates", "index.html")
+        self.template_path = os.path.join(
+            self.script_dir, "sources", "web", "templates", "index.html"
+        )
 
         # Get output path from config (can be relative or absolute)
         self._update_output_paths()
@@ -77,7 +79,7 @@ class StatusPage:
         task_type: str = TaskTypes.SCRIPT,
         command: Optional[str] = None,
         interval: Optional[int] = None,
-        start_time: Optional[str] = None
+        start_time: Optional[str] = None,
     ) -> str:
         """Generate HTML for a task card."""
         if success is not None:
@@ -92,18 +94,18 @@ class StatusPage:
             args_list = []
             current_arg = []
             for arg in arguments:
-                if arg.startswith('--'):
+                if arg.startswith("--"):
                     if current_arg:
-                        args_list.append(' '.join(current_arg))
+                        args_list.append(" ".join(current_arg))
                     current_arg = [arg]
                 else:
                     current_arg.append(arg)
             if current_arg:
-                args_list.append(' '.join(current_arg))
+                args_list.append(" ".join(current_arg))
             args_html = '<div class="task-arguments">'
             for arg_pair in args_list:
                 args_html += f'<div class="argument">{arg_pair}</div>'
-            args_html += '</div>'
+            args_html += "</div>"
 
         # Format details based on task type
         if task_type == TaskTypes.UV_COMMAND and command:
@@ -136,7 +138,12 @@ class StatusPage:
             </div>
         """
 
-    def update(self, recent_executions: List[Dict], next_jobs: List[Dict], tasks: Optional[List[Dict]] = None):
+    def update(
+        self,
+        recent_executions: List[Dict],
+        next_jobs: List[Dict],
+        tasks: Optional[List[Dict]] = None,
+    ):
         """
         Update the status page with recent executions and next scheduled tasks.
 
@@ -156,20 +163,20 @@ class StatusPage:
             task_lookup = {}
             if tasks:
                 for task in tasks:
-                    task_lookup[task['id']] = task
+                    task_lookup[task["id"]] = task
 
             # Generate HTML for recent tasks
             recent_html = []
             for execution in recent_executions:
                 recent_html.append(
                     self._generate_task_card(
-                        name=execution['name'],
-                        script_path=execution['script_path'],
-                        time=execution['execution_time'],
-                        task_id=execution['task_id'],
-                        success=execution['success'],
-                        task_type=execution.get('task_type', TaskTypes.SCRIPT),
-                        command=execution.get('command')
+                        name=execution["name"],
+                        script_path=execution["script_path"],
+                        time=execution["execution_time"],
+                        task_id=execution["task_id"],
+                        success=execution["success"],
+                        task_type=execution.get("task_type", TaskTypes.SCRIPT),
+                        command=execution.get("command"),
                     )
                 )
 
@@ -186,8 +193,8 @@ class StatusPage:
                     interval = None
                     start_time = None
                     if task_id in task_lookup:
-                        interval = task_lookup[task_id].get('interval')
-                        start_time = task_lookup[task_id].get('start_time')
+                        interval = task_lookup[task_id].get("interval")
+                        start_time = task_lookup[task_id].get("start_time")
 
                     task_html = self._generate_task_card(
                         name=job.name,
@@ -198,22 +205,26 @@ class StatusPage:
                         task_type=task_type,
                         command=command,
                         interval=interval,
-                        start_time=start_time
+                        start_time=start_time,
                     )
                     next_html.append(task_html)
-                next_html = '\n'.join(next_html)
+                next_html = "\n".join(next_html)
             else:
                 next_html = '<p class="no-tasks">No upcoming tasks</p>'
 
             # Read the template
-            with open(self.template_path, 'r', encoding='utf-8') as f:
+            with open(self.template_path, "r", encoding="utf-8") as f:
                 template = f.read()
 
             # Prepare replacements
             replacements = {
-                '{{last_update}}': datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
-                '{{next_tasks}}': next_html if next_html else '<p class="no-tasks">No upcoming tasks</p>',
-                '{{recent_tasks}}': '\n'.join(recent_html) if recent_html else '<p class="no-tasks">No recent tasks</p>'
+                "{{last_update}}": datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
+                "{{next_tasks}}": next_html
+                if next_html
+                else '<p class="no-tasks">No upcoming tasks</p>',
+                "{{recent_tasks}}": "\n".join(recent_html)
+                if recent_html
+                else '<p class="no-tasks">No recent tasks</p>',
             }
 
             # Apply all replacements
@@ -225,7 +236,7 @@ class StatusPage:
                 template = self.php_handler.wrap_html_with_php(template)
 
             # Write the updated file
-            with open(self.output_path, 'w', encoding='utf-8') as f:
+            with open(self.output_path, "w", encoding="utf-8") as f:
                 f.write(template)
 
             self.logger.debug(f"Status page updated at {self.output_path}")
