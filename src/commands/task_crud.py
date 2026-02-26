@@ -1,8 +1,9 @@
 import os
 import sys
+from argparse import Namespace
 
 from ..cli_input import get_task_input
-from ..constants import TaskTypes
+from ..constants import Paths, TaskTypes
 from ..formatters import format_task_list
 from ..logger import Logger
 from ..scheduler import TaskScheduler
@@ -160,3 +161,66 @@ def handle_copy_task(scheduler: TaskScheduler, logger: Logger, task_id: int) -> 
     except Exception as e:
         logger.error(f"Failed to copy task: {str(e)}")
         sys.exit(1)
+
+
+def handle_uv_command(scheduler: TaskScheduler, logger: Logger, args: Namespace) -> None:
+    """Add a new uv command task via CLI arguments."""
+    if not args.name:
+        logger.error("--name is required when adding a new task")
+        sys.exit(1)
+
+    if args.interval is None:
+        logger.error("--interval is required when adding a new task")
+        sys.exit(1)
+
+    if args.interval < 1:
+        logger.error("Interval must be at least 1 minute")
+        sys.exit(1)
+
+    project_dir, command_name = args.uv_command
+
+    if not os.path.isdir(project_dir):
+        logger.error(f"Project directory does not exist: {project_dir}")
+        sys.exit(1)
+
+    if not os.path.isfile(os.path.join(project_dir, Paths.PYPROJECT_TOML)):
+        logger.error(f"Not a valid uv project: missing {Paths.PYPROJECT_TOML} in {project_dir}")
+        sys.exit(1)
+
+    if not os.path.isfile(os.path.join(project_dir, Paths.UV_LOCK)):
+        logger.error(f"Not a valid uv project: missing {Paths.UV_LOCK} in {project_dir}")
+        sys.exit(1)
+
+    start_time = None
+    if args.start_time:
+        try:
+            from datetime import datetime
+            datetime.strptime(args.start_time, "%H:%M")
+            start_time = args.start_time
+        except ValueError:
+            logger.error(f"Invalid start time format: {args.start_time}. Use HH:MM format (e.g., 09:00).")
+            sys.exit(1)
+
+    script_args = args.script_args[1:] if args.script_args and args.script_args[0] == '--' else args.script_args
+
+    scheduler.add_task(
+        name=args.name,
+        script_path=project_dir,
+        interval=args.interval,
+        arguments=script_args,
+        task_type=TaskTypes.UV_COMMAND,
+        command=command_name,
+        start_time=start_time,
+    )
+
+    task_details = {
+        "name": args.name,
+        "script_path": project_dir,
+        "interval": args.interval,
+        "task_type": TaskTypes.UV_COMMAND,
+        "command": command_name,
+        "start_time": start_time,
+        "arguments": script_args,
+    }
+    logger.info("Task added successfully:")
+    _log_task_details(logger, task_details)

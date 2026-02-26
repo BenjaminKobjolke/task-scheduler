@@ -21,6 +21,7 @@ from src.commands import (
     handle_script,
     handle_run_id,
     handle_ftp_sync,
+    handle_uv_command,
 )
 
 
@@ -40,6 +41,9 @@ Examples:
 
     # Add a batch file task
     python main.py --script "backup.bat" --name "backup task" --interval 60
+
+    # Add a uv command task with arguments
+    python main.py --uv-command "D:\\project" "sync-to-local" --name "Sync" --interval 5 -- --config "config.json"
 
     # Add a task interactively
     python main.py --add
@@ -78,6 +82,13 @@ Note:
         "--script",
         type=str,
         help="Path to the Python script or batch file to schedule"
+    )
+
+    group.add_argument(
+        "--uv-command",
+        nargs=2,
+        metavar=("PROJECT_DIR", "COMMAND"),
+        help="Add a uv command task: PROJECT_DIR is the uv project path, COMMAND is the uv command to run"
     )
 
     parser.add_argument(
@@ -251,6 +262,10 @@ if __name__ == "__main__":
 
         elif args.script:
             handle_script(scheduler, logger, args)
+            sys.exit(0)
+
+        elif args.uv_command:
+            handle_uv_command(scheduler, logger, args)
             sys.exit(0)
 
         elif args.run_id:

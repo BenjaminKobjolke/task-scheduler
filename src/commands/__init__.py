@@ -5,6 +5,7 @@ from .task_crud import (
     handle_delete,
     handle_edit,
     handle_script,
+    handle_uv_command,
 )
 from .task_settings import (
     handle_set_arguments,
@@ -25,4 +26,5 @@ __all__ = [
     "handle_set_arguments",
     "handle_set_interval",
     "handle_set_start_time",
+    "handle_uv_command",
 ]

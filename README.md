@@ -9,7 +9,7 @@ Task Scheduler for Python Scripts and Batch Files is a utility that allows you t
 - Give descriptive names to scheduled tasks
 - Edit existing tasks with updated parameters
 - Automatic virtual environment activation for Python scripts (venv and uv projects)
-- **Custom uv commands** (e.g., `python -m module_name`) for uv projects
+- **Custom uv commands** (e.g., `python -m module_name`) for uv projects (interactive and CLI modes)
 - Batch files run directly from their own directory
 - Persistent storage of tasks in SQLite database
 - Configurable logging system with detailed debugging options
@@ -46,7 +46,7 @@ Task Scheduler for Python Scripts and Batch Files is a utility that allows you t
 
 ### Adding a New Task
 
-There are two ways to add a new task:
+There are three ways to add a new task:
 
 #### 1. Interactive Mode
 
@@ -85,7 +85,7 @@ Detected uv project! No predefined commands found.
 Enter custom command (e.g., python -m module_name): python -m mypackage.main
 ```
 
-#### 2. Command Line Mode
+#### 2. Command Line Mode (Script/Batch)
 
 Use the `--script` flag along with other parameters to add a task directly:
 
@@ -93,17 +93,42 @@ Use the `--script` flag along with other parameters to add a task directly:
 python main.py --script "path/to/script.py" --name "task description" --interval minutes -- script_arguments
 ```
 
+#### 3. Command Line Mode (uv Command)
+
+Use the `--uv-command` flag to add a uv command task directly from the CLI:
+
+```bash
+python main.py --uv-command "PROJECT_DIR" "COMMAND" --name "task name" --interval minutes -- command_arguments
+```
+
+- `PROJECT_DIR`: Absolute path to the uv project directory (must contain `pyproject.toml` and `uv.lock`)
+- `COMMAND`: The uv command to run (e.g., `sync-to-local`, `python -m mypackage`)
+
+**Examples:**
+
+```bash
+# uv command task without arguments
+python main.py --uv-command "D:\GIT\my-project" "sync-data" --name "Sync data" --interval 10
+
+# uv command task with arguments
+python main.py --uv-command "D:\GIT\my-project" "sync-to-local" --name "Sync to local" --interval 5 -- --config "D:\config\settings.json"
+
+# uv command task with start time
+python main.py --uv-command "D:\GIT\my-project" "backup" --name "Scheduled backup" --interval 120 --start-time 09:00
+```
+
 #### Parameters
 
 - `--script`: Path to the Python script or batch file to schedule (absolute path or relative to current directory)
+- `--uv-command PROJECT_DIR COMMAND`: Add a uv command task (project directory + command name)
 - `--name`: Descriptive name for the task (e.g., "convert audio notes to text")
 - `--interval`: Interval in minutes between script executions
 - `--start-time`: Optional start time for aligned scheduling (HH:MM format)
 - `--set-start-time ID TIME`: Set or clear start time for an existing task (use `none` to clear)
 - `--set-interval ID MINUTES`: Set interval for an existing task
 - `--run_id ID`: Run a specific task immediately by its ID
-- `--`: Separator after which all arguments are passed to the script
-- Arguments after `--` are passed directly to the script
+- `--`: Separator after which all arguments are passed to the script/command
+- Arguments after `--` are passed directly to the script/command
 
 #### Examples
 
@@ -122,6 +147,9 @@ python main.py --script "cleanup.bat" --name "cleanup temp files" --interval 30 
 
 # Task with aligned scheduling (runs at 09:00, 11:00, 13:00, etc.)
 python main.py --script "backup.py" --name "scheduled backup" --interval 120 --start-time 09:00
+
+# uv command task with arguments
+python main.py --uv-command "D:\GIT\my-project" "sync-to-local" --name "Sync to local" --interval 5 -- --config "config.json"
 ```
 
 Note: When using arguments with spaces or special characters, make sure to:
@@ -450,6 +478,7 @@ To stop the scheduler:
 
 ```
 task-scheduler/
+├── .claude/commands/        # Claude Code custom slash commands
 ├── .venv/                   # Project's virtual environment (uv managed)
 ├── src/
 │   ├── __init__.py
