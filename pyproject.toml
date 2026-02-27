@@ -24,8 +24,8 @@ build-backend = "hatchling.build"
 packages = ["src"]
 
 [tool.uv.sources]
-xmpp-bot = { path = "../xmpp-bot", editable = true }
-bot-commander = { path = "../bot-commander", editable = true }
+xmpp-bot = { git = "https://github.com/BenjaminKobjolke/xmpp-bot.git" }
+bot-commander = { git = "https://github.com/BenjaminKobjolke/bot-commander.git" }
 
 [dependency-groups]
 dev = [

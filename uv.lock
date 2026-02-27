@@ -121,20 +121,7 @@ wheels = [
 [[package]]
 name = "bot-commander"
 version = "0.1.0"
-source = { editable = "../bot-commander" }
-
-[package.metadata]
-requires-dist = [
-    { name = "telegram-bot", marker = "extra == 'telegram'", editable = "../telegram-bot" },
-    { name = "xmpp-bot", marker = "extra == 'xmpp'", editable = "../xmpp-bot" },
-]
-provides-extras = ["telegram", "xmpp"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=8.0.0" },
-    { name = "ruff", specifier = ">=0.4.0" },
-]
+source = { git = "https://github.com/BenjaminKobjolke/bot-commander.git#06c1219477d5aec3178cb4ae40fd78ba3049dc8f" }
 
 [[package]]
 name = "cffi"
@@ -823,13 +810,13 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "apscheduler", specifier = ">=3.11.0" },
-    { name = "bot-commander", editable = "../bot-commander" },
+    { name = "bot-commander", git = "https://github.com/BenjaminKobjolke/bot-commander.git" },
     { name = "prompt-toolkit", specifier = ">=3.0.52" },
     { name = "pyftpsync", specifier = ">=4.0.0" },
     { name = "tzdata", specifier = ">=2025.2" },
     { name = "tzlocal", specifier = ">=5.3.1" },
     { name = "wcwidth", specifier = ">=0.2.13" },
-    { name = "xmpp-bot", marker = "extra == 'xmpp'", editable = "../xmpp-bot" },
+    { name = "xmpp-bot", marker = "extra == 'xmpp'", git = "https://github.com/BenjaminKobjolke/xmpp-bot.git" },
 ]
 provides-extras = ["xmpp"]
 
@@ -872,22 +859,11 @@ wheels = [
 [[package]]
 name = "xmpp-bot"
 version = "0.1.0"
-source = { editable = "../xmpp-bot" }
+source = { git = "https://github.com/BenjaminKobjolke/xmpp-bot.git#fabecbb8d6fade18e39ec64594366326838edf3a" }
 dependencies = [
     { name = "python-dotenv" },
     { name = "slixmpp" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.10.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
-    { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4.0" },
-    { name = "slixmpp", specifier = ">=1.8.0" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "zipp"
