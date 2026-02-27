@@ -87,8 +87,11 @@ class EditWizard:
             data={"original": task, "changes": {}},
         )
         detail = format_task_detail(task)
-        text = Messages.WIZARD_EDIT_START.format(task["name"], task["id"], detail)
-        return state, BotResponse(text=text)
+        intro = Messages.WIZARD_EDIT_START.format(task["name"], task["id"], detail)
+        first_prompt = Messages.WIZARD_EDIT_SCRIPT.format(
+            task.get("script_path", "")
+        )
+        return state, BotResponse(text=f"{intro}\n\n{first_prompt}")
 
     @staticmethod
     def advance(
@@ -141,7 +144,7 @@ class DeleteConfirmation:
         Returns (None, empty BotResponse) on 'yes' so the caller can perform
         the actual deletion. Returns cancel message otherwise.
         """
-        if user_input.strip().lower() == "yes":
+        if user_input.strip().lower() in ("yes", "y"):
             return None, BotResponse(text=CONFIRMED_SENTINEL)
         return None, BotResponse(text=Messages.DELETE_CANCELLED)
 
@@ -231,7 +234,7 @@ def _add_step_arguments(
 def _add_step_confirm(
     state: ConversationState, text: str
 ) -> tuple[Optional[ConversationState], BotResponse]:
-    if text.lower() == "yes":
+    if text.lower() in ("yes", "y"):
         return None, BotResponse(text=CONFIRMED_SENTINEL)
     return None, BotResponse(text=Messages.OPERATION_CANCELLED)
 
@@ -322,7 +325,7 @@ def _edit_step_start_time(
     state: ConversationState, text: str
 ) -> tuple[ConversationState, BotResponse]:
     original = state.data["original"]
-    if text.lower() == "skip":
+    if text.lower() in ("skip", "s"):
         pass  # no change
     elif text.lower() in ("none", ""):
         state.data["changes"]["start_time"] = None
@@ -343,7 +346,7 @@ def _edit_step_arguments(
     original = state.data["original"]
     changes = state.data["changes"]
 
-    if text.lower() == "skip":
+    if text.lower() in ("skip", "s"):
         pass  # no change
     elif text.lower() in ("none", ""):
         changes["arguments"] = None
@@ -361,6 +364,6 @@ def _edit_step_arguments(
 def _edit_step_confirm(
     state: ConversationState, text: str
 ) -> tuple[Optional[ConversationState], BotResponse]:
-    if text.lower() == "yes":
+    if text.lower() in ("yes", "y"):
         return None, BotResponse(text=CONFIRMED_SENTINEL)
     return None, BotResponse(text=Messages.OPERATION_CANCELLED)

@@ -35,7 +35,7 @@ class Messages:
     TASK_EXECUTED_FAILURE = "Task '{}' (ID: {}) failed."
     TASK_EXECUTION_ERROR = "Error executing task {}: {}"
     CONFIRM_DELETE = (
-        "Delete task '{}' (ID: {})?\nReply 'yes' to confirm or /cancel to abort."
+        "Delete task '{}' (ID: {})?\nReply 'y' or 'yes' to confirm. Anything else cancels."
     )
     TASK_DELETED = "Task '{}' (ID: {}) deleted."
     DELETE_CANCELLED = "Delete cancelled."
@@ -52,26 +52,31 @@ class Messages:
     WIZARD_ADD_COMMAND = "Enter the uv command name:"
     WIZARD_ADD_NAME = "Enter a name for this task:"
     WIZARD_ADD_INTERVAL = "Enter interval in minutes (0 = manual only):"
-    WIZARD_ADD_START_TIME = "Enter start time (HH:MM) or 'skip':"
-    WIZARD_ADD_ARGUMENTS = "Enter arguments (space-separated) or 'skip':"
+    WIZARD_ADD_START_TIME = "Enter start time (HH:MM) or 'skip' (s):"
+    WIZARD_ADD_ARGUMENTS = "Enter arguments (space-separated) or 'skip' (s):"
     WIZARD_ADD_CONFIRM = (
-        "Please confirm:\n{}\n\nReply 'yes' to add or /cancel to abort."
+        "Please confirm:\n{}\n\nReply 'y' or 'yes' to add. Anything else cancels."
     )
     WIZARD_ADD_SUCCESS = "Task '{}' added successfully (ID: {})."
     WIZARD_INVALID_INTERVAL = "Please enter a valid number (0 or higher). Use 0 for manual-only tasks."
     WIZARD_INVALID_TIME = "Invalid time format. Use HH:MM (e.g., 09:00) or 'skip'."
     # Edit wizard messages
-    WIZARD_EDIT_START = (
-        "Editing task '{}' (ID: {}).\n\n"
-        "Current values shown below. "
-        "Enter new value or 'skip' to keep current.\n\n{}"
+    WIZARD_EDIT_START = "Editing task '{}' (ID: {}).\n\nCurrent values:\n\n{}"
+    WIZARD_EDIT_SCRIPT = "Script path [{}]:\nEnter new path or 'skip' (s) to keep current."
+    WIZARD_EDIT_COMMAND = "Command [{}]:\nEnter new command or 'skip' (s) to keep current."
+    WIZARD_EDIT_NAME = "Name [{}]:\nEnter new name or 'skip' (s) to keep current."
+    WIZARD_EDIT_INTERVAL = (
+        "Interval in minutes [{}]:\n"
+        "Enter new interval or 'skip' (s) to keep current. Use 0 for manual-only."
     )
-    WIZARD_EDIT_SCRIPT = "Script path [{}]:"
-    WIZARD_EDIT_COMMAND = "Command [{}]:"
-    WIZARD_EDIT_NAME = "Name [{}]:"
-    WIZARD_EDIT_INTERVAL = "Interval in minutes [{}]:"
-    WIZARD_EDIT_START_TIME = "Start time [{}]:"
-    WIZARD_EDIT_ARGUMENTS = "Arguments [{}]:"
-    WIZARD_EDIT_CONFIRM = "Changes:\n{}\n\nReply 'yes' to save or /cancel to abort."
+    WIZARD_EDIT_START_TIME = (
+        "Start time [{}]:\n"
+        "Enter time (HH:MM), 'none' to clear, or 'skip' (s) to keep current."
+    )
+    WIZARD_EDIT_ARGUMENTS = (
+        "Arguments [{}]:\n"
+        "Enter new arguments, 'none' to clear, or 'skip' (s) to keep current."
+    )
+    WIZARD_EDIT_CONFIRM = "Changes:\n{}\n\nReply 'y' or 'yes' to save. Anything else cancels."
     WIZARD_EDIT_SUCCESS = "Task '{}' (ID: {}) updated."
     WIZARD_EDIT_NO_CHANGES = "No changes made."
