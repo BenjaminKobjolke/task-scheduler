@@ -479,7 +479,7 @@ Install the bot library you want to use:
 # For Telegram
 tools\install_telegram_bot.bat
 
-# For XMPP
+# For XMPP (requires Rust compiler, install from https://rustup.rs/)
 tools\install_xmpp_bot.bat
 ```
 
