@@ -295,9 +295,12 @@ if __name__ == "__main__":
         scheduler.start()
 
         # Initialize bot if configured
-        bot_started = bot_manager.start()
-        if bot_started:
-            logger.info("Bot integration started")
+        try:
+            bot_started = bot_manager.start()
+            if bot_started:
+                logger.info("Bot integration started")
+        except Exception as e:
+            logger.error(f"Bot failed to start: {e}")
 
         tasks = scheduler.list_tasks()
         logger.info("Current tasks:" + format_task_list(tasks, show_next_run=True))
