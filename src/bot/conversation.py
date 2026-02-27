@@ -189,9 +189,14 @@ def _add_step_interval(
 ) -> tuple[ConversationState, BotResponse]:
     try:
         interval = int(text)
-        if interval < 1:
+        if interval < 0:
             return state, BotResponse(text=Messages.WIZARD_INVALID_INTERVAL)
         state.data["interval"] = interval
+        if interval == 0:
+            # Manual-only: skip start_time, go straight to arguments
+            state.data["start_time"] = None
+            state.step = 5
+            return state, BotResponse(text=Messages.WIZARD_ADD_ARGUMENTS)
         state.step = 4
         return state, BotResponse(text=Messages.WIZARD_ADD_START_TIME)
     except ValueError:
@@ -281,6 +286,13 @@ def _edit_step_interval(
 ) -> tuple[ConversationState, BotResponse]:
     original = state.data["original"]
     if is_skip(text):
+        # Check effective interval (changed or original) for start_time skip
+        effective_interval = state.data["changes"].get("interval", original["interval"])
+        if effective_interval == 0:
+            state.step = 5
+            args = original.get("arguments", [])
+            args_display = " ".join(args) if args else ""
+            return state, BotResponse(text=Messages.WIZARD_EDIT_ARGUMENTS.format(args_display))
         state.step = 4
         return state, BotResponse(
             text=Messages.WIZARD_EDIT_START_TIME.format(original.get("start_time", ""))
@@ -288,9 +300,16 @@ def _edit_step_interval(
 
     try:
         interval = int(text)
-        if interval < 1:
+        if interval < 0:
             return state, BotResponse(text=Messages.WIZARD_INVALID_INTERVAL)
         state.data["changes"]["interval"] = interval
+        if interval == 0:
+            # Manual-only: clear start_time and skip to arguments
+            state.data["changes"]["start_time"] = None
+            state.step = 5
+            args = original.get("arguments", [])
+            args_display = " ".join(args) if args else ""
+            return state, BotResponse(text=Messages.WIZARD_EDIT_ARGUMENTS.format(args_display))
         state.step = 4
         return state, BotResponse(
             text=Messages.WIZARD_EDIT_START_TIME.format(original.get("start_time", ""))

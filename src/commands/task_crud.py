@@ -3,7 +3,7 @@ import sys
 from argparse import Namespace
 
 from ..cli_input import get_task_input
-from ..constants import Paths, TaskTypes
+from ..constants import Defaults, Paths, TaskTypes
 from ..formatters import format_task_list
 from ..logger import Logger
 from ..scheduler import TaskScheduler
@@ -18,7 +18,9 @@ def _log_task_details(logger: Logger, task_details: dict) -> None:
         logger.info(f"Command: {task_details.get('command')}")
     else:
         logger.info(f"Script: {task_details['script_path']}")
-    logger.info(f"Interval: {task_details['interval']} minute(s)")
+    interval = task_details["interval"]
+    interval_display = Defaults.MANUAL_ONLY_LABEL if interval == 0 else f"{interval} minute(s)"
+    logger.info(f"Interval: {interval_display}")
     if task_details.get("start_time"):
         logger.info(f"Start time: {task_details['start_time']}")
     if task_details.get("arguments"):
@@ -109,12 +111,15 @@ def handle_script(scheduler: TaskScheduler, logger: Logger, args) -> None:
         logger.error("--interval is required when adding a new task")
         sys.exit(1)
 
-    if args.interval < 1:
-        logger.error("Interval must be at least 1 minute")
+    if args.interval < 0:
+        logger.error("Interval must be 0 or higher. Use 0 for manual-only tasks.")
         sys.exit(1)
 
     start_time = None
     if args.start_time:
+        if args.interval == 0:
+            logger.error("Start time is not applicable for manual-only tasks (interval 0).")
+            sys.exit(1)
         try:
             from datetime import datetime
 
@@ -137,10 +142,11 @@ def handle_script(scheduler: TaskScheduler, logger: Logger, args) -> None:
         args.name, script_path, args.interval, script_args, start_time=start_time
     )
 
+    interval_display = Defaults.MANUAL_ONLY_LABEL if args.interval == 0 else f"{args.interval} minute(s)"
     logger.info("Task added successfully:")
     logger.info(f"Name: {args.name}")
     logger.info(f"Script: {script_path}")
-    logger.info(f"Interval: {args.interval} minute(s)")
+    logger.info(f"Interval: {interval_display}")
     if start_time:
         logger.info(f"Start time: {start_time}")
     if script_args:
@@ -186,8 +192,8 @@ def handle_uv_command(
         logger.error("--interval is required when adding a new task")
         sys.exit(1)
 
-    if args.interval < 1:
-        logger.error("Interval must be at least 1 minute")
+    if args.interval < 0:
+        logger.error("Interval must be 0 or higher. Use 0 for manual-only tasks.")
         sys.exit(1)
 
     project_dir, command_name = args.uv_command

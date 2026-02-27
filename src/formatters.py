@@ -1,6 +1,6 @@
 from typing import Dict, List
 
-from .constants import TaskTypes
+from .constants import Defaults, TaskTypes
 
 
 def format_execution_history(executions: List[Dict]) -> str:
@@ -28,18 +28,20 @@ def format_task_list(tasks: List[Dict], show_next_run: bool = True) -> str:
         task_type = task.get("task_type", TaskTypes.SCRIPT)
 
         start_time = task.get("start_time")
+        interval = task["interval"]
+        interval_display = Defaults.MANUAL_ONLY_LABEL if interval == 0 else f"{interval} minute(s)"
         if task_type == TaskTypes.UV_COMMAND:
             lines = [
                 f"\n{task['id']}. {task['name']} [uv command]",
                 f"   Project: {task['script_path']}",
                 f"   Command: {task.get('command', 'N/A')}",
-                f"   Interval: {task['interval']} minute(s)",
+                f"   Interval: {interval_display}",
             ]
         else:
             lines = [
                 f"\n{task['id']}. {task['name']}",
                 f"   Script: {task['script_path']}",
-                f"   Interval: {task['interval']} minute(s)",
+                f"   Interval: {interval_display}",
             ]
 
         if start_time:
@@ -58,11 +60,12 @@ def format_task_list(tasks: List[Dict], show_next_run: bool = True) -> str:
             lines.append("   Last run: Never")
 
         if show_next_run:
-            next_run = (
-                task["next_run_time"].strftime("%Y-%m-%d %H:%M:%S")
-                if task["next_run_time"]
-                else "Not scheduled"
-            )
+            if interval == 0:
+                next_run = Defaults.MANUAL_ONLY_LABEL
+            elif task["next_run_time"]:
+                next_run = task["next_run_time"].strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                next_run = "Not scheduled"
             lines.append(f"   Next run: {next_run}")
         output.extend(lines)
     return "\n".join(output)

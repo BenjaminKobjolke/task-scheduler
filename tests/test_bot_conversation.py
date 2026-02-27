@@ -130,7 +130,7 @@ class TestAddWizardScriptFlow:
         assert new_state.step == 3  # stays on same step
         assert response.text == Messages.WIZARD_INVALID_INTERVAL
 
-    def test_step3_invalid_interval_zero(self) -> None:
+    def test_step3_interval_zero_is_manual_only(self) -> None:
         state, _ = AddWizard.start()
         state, _ = AddWizard.advance(state, "backup.py")
         assert state is not None
@@ -138,8 +138,11 @@ class TestAddWizardScriptFlow:
         assert state is not None
         new_state, response = AddWizard.advance(state, "0")
         assert new_state is not None
-        assert new_state.step == 3
-        assert response.text == Messages.WIZARD_INVALID_INTERVAL
+        assert new_state.data["interval"] == 0
+        assert new_state.data["start_time"] is None
+        # Should skip start_time step and go to arguments (step 5)
+        assert new_state.step == 5
+        assert response.text == Messages.WIZARD_ADD_ARGUMENTS
 
     def test_step3_invalid_interval_negative(self) -> None:
         state, _ = AddWizard.start()
@@ -501,12 +504,14 @@ class TestEditWizardScriptFlow:
         assert new_state.step == 3
         assert response.text == Messages.WIZARD_INVALID_INTERVAL
 
-    def test_step3_zero_interval(self) -> None:
+    def test_step3_zero_interval_is_manual_only(self) -> None:
         state = _build_edit_state_at_step3()
         new_state, response = EditWizard.advance(state, "0")
         assert new_state is not None
-        assert new_state.step == 3
-        assert response.text == Messages.WIZARD_INVALID_INTERVAL
+        assert new_state.data["changes"]["interval"] == 0
+        assert new_state.data["changes"]["start_time"] is None
+        # Should skip start_time step and go to arguments (step 5)
+        assert new_state.step == 5
 
     def test_step4_change_start_time(self) -> None:
         state = _build_edit_state_at_step4()

@@ -74,11 +74,11 @@ def handle_set_interval(
 
     try:
         new_interval = int(interval_str)
-        if new_interval < 1:
-            logger.error("Interval must be at least 1 minute")
+        if new_interval < 0:
+            logger.error("Interval must be 0 or higher. Use 0 for manual-only tasks.")
             sys.exit(1)
     except ValueError:
-        logger.error(f"Invalid interval: {interval_str}. Must be a positive integer.")
+        logger.error(f"Invalid interval: {interval_str}. Must be a non-negative integer.")
         sys.exit(1)
 
     tasks = scheduler.list_tasks()
@@ -87,6 +87,9 @@ def handle_set_interval(
     if not task:
         logger.error(f"No task found with ID {task_id}")
         sys.exit(1)
+
+    # Clear start_time when interval is 0 (manual-only)
+    start_time = None if new_interval == 0 else task.get("start_time")
 
     try:
         scheduler.edit_task(
@@ -97,11 +100,16 @@ def handle_set_interval(
             arguments=task["arguments"],
             task_type=task.get("task_type", TaskTypes.SCRIPT),
             command=task.get("command"),
-            start_time=task.get("start_time"),
+            start_time=start_time,
         )
-        logger.info(
-            f"Task '{task['name']}' (ID: {task_id}) interval set to {new_interval} minute(s)"
-        )
+        if new_interval == 0:
+            logger.info(
+                f"Task '{task['name']}' (ID: {task_id}) set to manual only"
+            )
+        else:
+            logger.info(
+                f"Task '{task['name']}' (ID: {task_id}) interval set to {new_interval} minute(s)"
+            )
     except ValueError as e:
         logger.error(str(e))
         sys.exit(1)

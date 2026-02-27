@@ -105,5 +105,6 @@ class Defaults:
 
     HISTORY_LIMIT = 10
     MISFIRE_GRACE_TIME = 60
-    MIN_INTERVAL = 1
+    MIN_INTERVAL = 0
+    MANUAL_ONLY_LABEL = "manual only"
     RELOAD_INTERVAL = 60  # seconds between database checks for hot-reload

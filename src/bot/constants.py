@@ -51,14 +51,14 @@ class Messages:
     )
     WIZARD_ADD_COMMAND = "Enter the uv command name:"
     WIZARD_ADD_NAME = "Enter a name for this task:"
-    WIZARD_ADD_INTERVAL = "Enter interval in minutes:"
+    WIZARD_ADD_INTERVAL = "Enter interval in minutes (0 = manual only):"
     WIZARD_ADD_START_TIME = "Enter start time (HH:MM) or 'skip':"
     WIZARD_ADD_ARGUMENTS = "Enter arguments (space-separated) or 'skip':"
     WIZARD_ADD_CONFIRM = (
         "Please confirm:\n{}\n\nReply 'yes' to add or /cancel to abort."
     )
     WIZARD_ADD_SUCCESS = "Task '{}' added successfully (ID: {})."
-    WIZARD_INVALID_INTERVAL = "Please enter a valid number (minimum 1)."
+    WIZARD_INVALID_INTERVAL = "Please enter a valid number (0 or higher). Use 0 for manual-only tasks."
     WIZARD_INVALID_TIME = "Invalid time format. Use HH:MM (e.g., 09:00) or 'skip'."
     # Edit wizard messages
     WIZARD_EDIT_START = (

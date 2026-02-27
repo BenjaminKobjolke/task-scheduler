@@ -65,18 +65,18 @@ class TestHandleUvCommandValidation:
         mock_logger.error.assert_called_once()
         assert "--interval" in mock_logger.error.call_args[0][0]
 
-    def test_interval_below_one_exits(
+    def test_negative_interval_exits(
         self, mock_scheduler: MagicMock, mock_logger: MagicMock
     ) -> None:
         args = _make_args(
             uv_command=["C:\\some\\project", "my-cmd"],
             name="Test Task",
-            interval=0,
+            interval=-1,
         )
         with pytest.raises(SystemExit):
             handle_uv_command(mock_scheduler, mock_logger, args)
         mock_logger.error.assert_called_once()
-        assert "at least 1" in mock_logger.error.call_args[0][0]
+        assert "0 or higher" in mock_logger.error.call_args[0][0]
 
     def test_invalid_start_time_exits(
         self, mock_scheduler: MagicMock, mock_logger: MagicMock, tmp_path: object

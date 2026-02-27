@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 from .logger import Logger
 from .config import Config
-from .constants import TaskTypes
+from .constants import Defaults, TaskTypes
 from .php_login import PhpLoginHandler
 from .ftp_syncer import FtpSyncer
 
@@ -119,7 +119,9 @@ class StatusPage:
         # Format schedule info if interval is provided
         schedule_html = ""
         if interval is not None:
-            if start_time:
+            if interval == 0:
+                schedule_html = f'<div class="task-schedule">{Defaults.MANUAL_ONLY_LABEL.capitalize()}</div>'
+            elif start_time:
                 schedule_html = f'<div class="task-schedule">Every {interval} min from {start_time}</div>'
             else:
                 schedule_html = f'<div class="task-schedule">Every {interval} min</div>'

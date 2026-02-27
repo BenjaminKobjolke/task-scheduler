@@ -264,6 +264,13 @@ class TaskScheduler:
             command: Command name for uv_command tasks
             start_time: Optional start time for aligned scheduling (HH:MM format)
         """
+        # Manual-only tasks (interval 0) don't get an APScheduler job
+        if interval == 0:
+            self.logger.info(
+                f"Task '{name}' (ID: {task_id}) is {Defaults.MANUAL_ONLY_LABEL} — no scheduled job created"
+            )
+            return
+
         # Create unique job ID using task ID
         job_id = self._get_job_id(task_id)
 
@@ -350,15 +357,16 @@ class TaskScheduler:
                 start_time,
             )
 
+            interval_info = Defaults.MANUAL_ONLY_LABEL if interval == 0 else f"{interval} minutes"
             start_time_info = f" starting at {start_time}" if start_time else ""
             if task_type == TaskTypes.UV_COMMAND:
                 self.logger.info(
-                    f"Added uv command task '{name}': {command} in {script_path} with interval {interval} minutes{start_time_info}"
+                    f"Added uv command task '{name}': {command} in {script_path} with interval {interval_info}{start_time_info}"
                     f"{' and arguments: ' + ' '.join(arguments) if arguments else ''}"
                 )
             else:
                 self.logger.info(
-                    f"Added task '{name}': {script_path} with interval {interval} minutes{start_time_info}"
+                    f"Added task '{name}': {script_path} with interval {interval_info}{start_time_info}"
                     f"{' and arguments: ' + ' '.join(arguments) if arguments else ''}"
                 )
 
@@ -469,9 +477,10 @@ class TaskScheduler:
                     start_time,
                 )
 
+            interval_info = Defaults.MANUAL_ONLY_LABEL if interval == 0 else f"{interval} minutes"
             start_time_info = f" starting at {start_time}" if start_time else ""
             self.logger.info(
-                f"Updated task '{name}' (ID: {task_id}): {script_path} with interval {interval} minutes{start_time_info}"
+                f"Updated task '{name}' (ID: {task_id}): {script_path} with interval {interval_info}{start_time_info}"
                 f"{' and arguments: ' + ' '.join(arguments) if arguments else ''}"
             )
 

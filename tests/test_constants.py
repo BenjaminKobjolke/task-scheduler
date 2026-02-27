@@ -63,4 +63,7 @@ class TestDefaults:
         assert Defaults.MISFIRE_GRACE_TIME == 60
 
     def test_min_interval(self):
-        assert Defaults.MIN_INTERVAL == 1
+        assert Defaults.MIN_INTERVAL == 0
+
+    def test_manual_only_label(self):
+        assert Defaults.MANUAL_ONLY_LABEL == "manual only"

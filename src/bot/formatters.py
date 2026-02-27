@@ -2,7 +2,7 @@
 
 from typing import Dict, List
 
-from ..constants import TaskTypes
+from ..constants import Defaults, TaskTypes
 from .constants import Messages
 
 
@@ -18,7 +18,9 @@ def format_task_list_compact(tasks: List[Dict]) -> str:
     lines: List[str] = []
     for task in tasks:
         task_type = task.get("task_type", TaskTypes.SCRIPT)
-        line = f"{task['id']}. {task['name']} [{task['interval']}min]"
+        interval = task["interval"]
+        interval_tag = "manual" if interval == 0 else f"{interval}min"
+        line = f"{task['id']}. {task['name']} [{interval_tag}]"
 
         if task_type == TaskTypes.UV_COMMAND:
             line += " [uv]"
@@ -50,7 +52,9 @@ def format_task_detail(task: Dict) -> str:
         lines.append("Type: script")
         lines.append(f"Script: {task['script_path']}")
 
-    lines.append(f"Interval: {task['interval']} min")
+    interval = task["interval"]
+    interval_display = Defaults.MANUAL_ONLY_LABEL if interval == 0 else f"{interval} min"
+    lines.append(f"Interval: {interval_display}")
 
     start_time = task.get("start_time")
     if start_time:
@@ -110,7 +114,9 @@ def format_add_summary(data: Dict) -> str:
         lines.append("Type: script")
         lines.append(f"Script: {data['script_path']}")
 
-    lines.append(f"Interval: {data['interval']} min")
+    interval = data["interval"]
+    interval_display = Defaults.MANUAL_ONLY_LABEL if interval == 0 else f"{interval} min"
+    lines.append(f"Interval: {interval_display}")
 
     start_time = data.get("start_time")
     if start_time:

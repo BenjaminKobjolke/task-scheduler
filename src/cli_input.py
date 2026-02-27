@@ -8,7 +8,7 @@ from prompt_toolkit.completion import PathCompleter, FuzzyCompleter
 from prompt_toolkit.key_binding import KeyBindings
 
 from .script_runner import ScriptRunner
-from .constants import TaskTypes, Paths
+from .constants import Defaults, TaskTypes, Paths
 
 
 def _create_path_key_bindings() -> KeyBindings:
@@ -167,7 +167,9 @@ def get_task_input(existing_task: Optional[Dict[str, Any]] = None) -> Dict[str, 
         else:
             print("Type: script")
             print(f"Script: {existing_task['script_path']}")
-        print(f"Interval: {existing_task['interval']} minute(s)")
+        interval = existing_task["interval"]
+        interval_display = Defaults.MANUAL_ONLY_LABEL if interval == 0 else f"{interval} minute(s)"
+        print(f"Interval: {interval_display}")
         if existing_task.get("start_time"):
             print(f"Start time: {existing_task['start_time']}")
         print(
@@ -185,8 +187,11 @@ def get_task_input(existing_task: Optional[Dict[str, Any]] = None) -> Dict[str, 
     # Get interval
     interval = _get_interval(existing_task)
 
-    # Get start time
-    start_time = _get_start_time(existing_task)
+    # Get start time (skip for manual-only tasks)
+    if interval == 0:
+        start_time = None
+    else:
+        start_time = _get_start_time(existing_task)
 
     # Get arguments
     arguments = _get_arguments(session, kb, existing_task)
@@ -230,7 +235,7 @@ def _get_task_name(
 def _get_interval(existing_task: Optional[Dict[str, Any]]) -> int:
     """Get interval in minutes from user input."""
     while True:
-        prompt_text = "\nInterval in minutes"
+        prompt_text = "\nInterval in minutes (0 = manual only)"
         if existing_task:
             prompt_text += f" [{existing_task['interval']}]"
         prompt_text += ": "
@@ -241,8 +246,8 @@ def _get_interval(existing_task: Optional[Dict[str, Any]]) -> int:
 
         try:
             interval = int(interval_input)
-            if interval < 1:
-                print("Error: Interval must be at least 1 minute.")
+            if interval < 0:
+                print("Error: Interval must be 0 or higher. Use 0 for manual-only tasks.")
                 continue
             return interval
         except ValueError:
