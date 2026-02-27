@@ -28,7 +28,7 @@ class Messages:
         "/cancel - Cancel current operation\n"
         "/help - Show this help"
     )
-    UNKNOWN_COMMAND = "Unknown command. Type /help for available commands."
+    UNKNOWN_COMMAND = "Unknown command.\n\n" + HELP
     COMMAND_DISABLED = "Command {} is disabled by configuration."
     TASK_NOT_FOUND = "No task found with ID {}"
     TASK_EXECUTED_SUCCESS = "Task '{}' (ID: {}) executed successfully."
