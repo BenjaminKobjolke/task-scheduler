@@ -14,3 +14,4 @@ nul
 /.claude
 /config.ini
 /code_analysis_results
+.mcp.json
