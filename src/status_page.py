@@ -187,6 +187,8 @@ class StatusPage:
             next_html = []
             if next_jobs:
                 for job in next_jobs:
+                    if not hasattr(job, 'args') or not job.args:
+                        continue
                     task_id = job.args[0]
                     task_type = job.args[4] if len(job.args) > 4 else TaskTypes.SCRIPT
                     command = job.args[5] if len(job.args) > 5 else None
