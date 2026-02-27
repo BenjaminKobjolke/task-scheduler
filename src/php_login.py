@@ -56,7 +56,7 @@ SimpleLogin::requireAuth();
                 dst_file = os.path.join(lib_dir, filename)
                 if os.path.exists(src_file):
                     shutil.copy2(src_file, dst_file)
-                    self.logger.info(f"Copied {filename} to {lib_dir}")
+                    self.logger.debug(f"Copied {filename} to {lib_dir}")
                 else:
                     self.logger.warning(f"PHP library file not found: {src_file}")
 
@@ -77,7 +77,7 @@ define('SIMPLE_LOGIN_PASSWORD', '{password}');
         config_path = os.path.join(output_dir, "simple-login-config.php")
         with open(config_path, "w", encoding="utf-8") as f:
             f.write(config_content)
-        self.logger.info(f"Generated PHP config at {config_path}")
+        self.logger.debug(f"Generated PHP config at {config_path}")
 
     def wrap_html_with_php(self, html_content: str) -> str:
         """
