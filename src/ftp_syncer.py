@@ -1,5 +1,8 @@
 """FTP synchronization for status page uploads."""
 
+import os
+import sys
+
 from ftpsync.ftp_target import FTPTarget
 from ftpsync.synchronizers import UploadSynchronizer
 from ftpsync.targets import FsTarget
@@ -59,7 +62,20 @@ class FtpSyncer:
             }
 
             syncer = UploadSynchronizer(local, remote, opts)
-            syncer.run()
+
+            # ftpsync writes progress to sys.stdout directly;
+            # suppress it when console logging is disabled
+            if not self.config.is_console_logging_enabled():
+                devnull = open(os.devnull, "w")  # noqa: SIM115
+                old_stdout = sys.stdout
+                sys.stdout = devnull
+                try:
+                    syncer.run()
+                finally:
+                    sys.stdout = old_stdout
+                    devnull.close()
+            else:
+                syncer.run()
 
             self.logger.info("FTP sync completed successfully")
             return True
