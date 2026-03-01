@@ -9,6 +9,7 @@ from bot_commander import BotManager
 from src.scheduler import TaskScheduler
 from src.logger import Logger
 from src.config import Config
+from src.constants import Paths
 from src.formatters import format_task_list
 from src.bot.command_processor import TaskCommandProcessor
 from src.commands import (
@@ -281,6 +282,7 @@ if __name__ == "__main__":
             sys.exit(0)
 
         # If no specific action was requested, run the scheduler
+        bot_logger = Logger("Bot", log_file_prefix=Paths.LOG_FILE_PREFIX_BOT)
         bot_config_dto = config.get_bot_config()
         processor = TaskCommandProcessor(scheduler, bot_config_dto)
         bot_manager = BotManager(
@@ -298,9 +300,9 @@ if __name__ == "__main__":
         try:
             bot_started = bot_manager.start()
             if bot_started:
-                logger.info("Bot integration started")
+                bot_logger.info("Bot integration started")
         except Exception as e:
-            logger.error(f"Bot failed to start: {e}")
+            bot_logger.error(f"Bot failed to start: {e}")
 
         tasks = scheduler.list_tasks()
         logger.info("Current tasks:" + format_task_list(tasks, show_next_run=True))
@@ -311,6 +313,7 @@ if __name__ == "__main__":
                 time.sleep(1)
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received")
+            bot_logger.info("Bot shutting down")
             bot_manager.shutdown()
             scheduler.shutdown()
             sys.exit(0)

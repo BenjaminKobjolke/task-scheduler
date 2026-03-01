@@ -45,6 +45,7 @@ class Config:
         self.config[ConfigConstants.SECTION_LOGGING] = {
             ConfigConstants.KEY_LEVEL: ConfigConstants.DEFAULT_LEVEL,
             ConfigConstants.KEY_DETAILED_ARGS: ConfigConstants.DEFAULT_DETAILED,
+            ConfigConstants.KEY_CONSOLE_LOGGING: ConfigConstants.DEFAULT_CONSOLE_LOGGING,
         }
 
         self.config[ConfigConstants.SECTION_STATUS_PAGE] = {
@@ -102,6 +103,14 @@ class Config:
         return self.config.getboolean(
             ConfigConstants.SECTION_LOGGING,
             ConfigConstants.KEY_DETAILED_ARGS,
+            fallback=False,
+        )
+
+    def is_console_logging_enabled(self) -> bool:
+        """Check if console logging is enabled."""
+        return self.config.getboolean(
+            ConfigConstants.SECTION_LOGGING,
+            ConfigConstants.KEY_CONSOLE_LOGGING,
             fallback=False,
         )
 

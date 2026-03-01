@@ -10,6 +10,8 @@ class Paths:
     PYTHON_EXE = "python.exe"
     DATA_DIR = "data"
     LOGS_DIR = "logs"
+    LOG_FILE_PREFIX_SCHEDULER = "scheduler"
+    LOG_FILE_PREFIX_BOT = "bot"
     PYPROJECT_TOML = "pyproject.toml"
     UV_LOCK = "uv.lock"
     BAT_EXTENSION = ".bat"
@@ -40,8 +42,10 @@ class Config:
     SECTION_LOGGING = "Logging"
     KEY_LEVEL = "level"
     KEY_DETAILED_ARGS = "detailed_args_logging"
+    KEY_CONSOLE_LOGGING = "console_logging"
     DEFAULT_LEVEL = "INFO"
     DEFAULT_DETAILED = "false"
+    DEFAULT_CONSOLE_LOGGING = "false"
 
     # StatusPage section
     SECTION_STATUS_PAGE = "StatusPage"

@@ -9,10 +9,16 @@ from .constants import Paths
 class Logger:
     """Custom logger for the task scheduler."""
 
-    def __init__(self, name: str = "TaskScheduler"):
-        """Initialize logger with specified name."""
+    def __init__(self, name: str = "TaskScheduler", log_file_prefix: str = ""):
+        """Initialize logger with specified name.
+
+        Args:
+            name: Logger name for identification in log entries.
+            log_file_prefix: File prefix for the log file. Defaults to scheduler prefix.
+        """
         self.logger = logging.getLogger(name)
         self.config = Config()
+        self._log_file_prefix = log_file_prefix or Paths.LOG_FILE_PREFIX_SCHEDULER
         self._setup_logger()
 
     def _setup_logger(self):
@@ -30,24 +36,25 @@ class Logger:
         os.makedirs(Paths.LOGS_DIR, exist_ok=True)
 
         # File handler
-        log_file = f"{Paths.LOGS_DIR}/scheduler_{datetime.now().strftime('%Y%m%d')}.log"
+        log_file = f"{Paths.LOGS_DIR}/{self._log_file_prefix}_{datetime.now().strftime('%Y%m%d')}.log"
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(level)
-
-        # Console handler
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(level)
 
         # Formatter
         formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
         file_handler.setFormatter(formatter)
-        console_handler.setFormatter(formatter)
 
         # Add handlers
         self.logger.addHandler(file_handler)
-        self.logger.addHandler(console_handler)
+
+        # Console handler (only when enabled in config)
+        if self.config.is_console_logging_enabled():
+            console_handler = logging.StreamHandler()
+            console_handler.setLevel(level)
+            console_handler.setFormatter(formatter)
+            self.logger.addHandler(console_handler)
 
     def update_config(self):
         """Update logger configuration."""
