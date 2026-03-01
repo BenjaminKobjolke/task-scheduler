@@ -6,8 +6,41 @@ from .config import Config
 from .constants import Paths
 
 
+def _configure_root_logger(config: Config) -> None:
+    """Configure the root logger to control third-party library console output.
+
+    Removes existing handlers from the root logger and sets up appropriate
+    handlers based on the console_logging config setting. This prevents
+    libraries like APScheduler from outputting to console when disabled.
+
+    Args:
+        config: Config instance to read settings from.
+    """
+    root = logging.getLogger()
+    level_str = config.get_logging_level()
+    level = getattr(logging, level_str.upper())
+    root.setLevel(level)
+
+    # Remove existing handlers (except pytest's LogCaptureHandler)
+    for handler in root.handlers[:]:
+        if type(handler) is logging.StreamHandler:
+            root.removeHandler(handler)
+
+    if config.is_console_logging_enabled():
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(level)
+        console_handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        )
+        root.addHandler(console_handler)
+    else:
+        root.addHandler(logging.NullHandler())
+
+
 class Logger:
     """Custom logger for the task scheduler."""
+
+    _root_logger_configured: bool = False
 
     def __init__(self, name: str = "TaskScheduler", log_file_prefix: str = ""):
         """Initialize logger with specified name.
@@ -19,6 +52,9 @@ class Logger:
         self.logger = logging.getLogger(name)
         self.config = Config()
         self._log_file_prefix = log_file_prefix or Paths.LOG_FILE_PREFIX_SCHEDULER
+        if not Logger._root_logger_configured:
+            _configure_root_logger(self.config)
+            Logger._root_logger_configured = True
         self._setup_logger()
 
     def _setup_logger(self):

@@ -69,6 +69,62 @@ class TestConsoleHandler:
         assert logging.FileHandler in handler_types
 
 
+class TestRootLoggerSuppression:
+    """Tests for root logger third-party console output suppression."""
+
+    @pytest.fixture(autouse=True)
+    def reset_root_logger_configured(self):
+        """Reset the root logger configured flag before each test."""
+        Logger._root_logger_configured = False
+        yield
+        Logger._root_logger_configured = False
+        # Clean up root logger handlers
+        root = logging.getLogger()
+        for handler in root.handlers[:]:
+            handler.close()
+            root.removeHandler(handler)
+
+    def test_root_logger_no_stream_handler_when_console_disabled(self, temp_logs_dir):
+        """Root logger should have no StreamHandler when console_logging is false."""
+        mock_config = MagicMock(spec=config_module.Config)
+        mock_config.get_logging_level.return_value = "INFO"
+        mock_config.is_console_logging_enabled.return_value = False
+
+        with patch("src.logger.Config", return_value=mock_config), \
+             patch("src.logger.Paths") as mock_paths:
+            mock_paths.LOGS_DIR = temp_logs_dir
+            mock_paths.LOG_FILE_PREFIX_SCHEDULER = "scheduler"
+
+            Logger("TestRootSuppress")
+
+        root = logging.getLogger()
+        stream_handlers = [
+            h for h in root.handlers
+            if type(h) is logging.StreamHandler
+        ]
+        assert len(stream_handlers) == 0
+
+    def test_root_logger_has_stream_handler_when_console_enabled(self, temp_logs_dir):
+        """Root logger should have a StreamHandler when console_logging is true."""
+        mock_config = MagicMock(spec=config_module.Config)
+        mock_config.get_logging_level.return_value = "INFO"
+        mock_config.is_console_logging_enabled.return_value = True
+
+        with patch("src.logger.Config", return_value=mock_config), \
+             patch("src.logger.Paths") as mock_paths:
+            mock_paths.LOGS_DIR = temp_logs_dir
+            mock_paths.LOG_FILE_PREFIX_SCHEDULER = "scheduler"
+
+            Logger("TestRootConsole")
+
+        root = logging.getLogger()
+        stream_handlers = [
+            h for h in root.handlers
+            if type(h) is logging.StreamHandler
+        ]
+        assert len(stream_handlers) >= 1
+
+
 class TestBotLogFile:
     """Tests for bot-specific log file."""
 
