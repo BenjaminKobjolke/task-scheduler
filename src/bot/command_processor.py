@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from bot_commander import BotResponse, Commander
+from bot_commander import BotMessage, BotResponse, Commander
 
 from .constants import Commands, Messages
 from .conversation import AddWizard, DeleteConfirmation, EditWizard
@@ -64,6 +64,27 @@ class TaskCommandProcessor(Commander):
 
         # Set permission checker
         self.set_permission_checker(self._check_permission)
+
+    def handle(self, message: BotMessage) -> BotResponse:
+        """Normalize input to support aliases and slash-optional commands."""
+        user_id = message.user_id
+        text = message.text.strip()
+        # Only normalize when no active conversation (conversation input is free-form)
+        if text and user_id not in self._conversations:
+            parts = text.split(maxsplit=1)
+            cmd = parts[0].lower().lstrip("/")
+            cmd = Commands.ALIASES.get(cmd, cmd)
+            normalized = "/" + cmd
+            if len(parts) > 1:
+                normalized += " " + parts[1]
+            message = BotMessage(user_id=user_id, text=normalized)
+        elif text and user_id in self._conversations:
+            # Still resolve cancel alias within conversations
+            cmd = text.split(maxsplit=1)[0].lower().lstrip("/")
+            resolved = Commands.ALIASES.get(cmd, cmd)
+            if resolved == "cancel":
+                message = BotMessage(user_id=user_id, text="/cancel")
+        return super().handle(message)
 
     def _check_permission(self, permission: str, user_id: str) -> bool:
         """Check if a permission is allowed."""

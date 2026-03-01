@@ -784,3 +784,120 @@ class TestCommandParsing:
         msg = BotMessage(user_id="user1", text="/help  ")
         response = processor.handle(msg)
         assert response.text == Messages.HELP
+
+
+# -- Command alias tests --
+
+
+class TestCommandAliases:
+    """Tests for command aliases and slash-optional input."""
+
+    def test_list_alias_l(
+        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
+    ) -> None:
+        """Short alias 'l' triggers list command."""
+        scheduler_mock.list_tasks.return_value = []
+        msg = BotMessage(user_id="user1", text="l")
+        response = processor.handle(msg)
+        assert response.text == Messages.NO_TASKS
+
+    def test_list_alias_slash_l(
+        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
+    ) -> None:
+        """Short alias '/l' triggers list command."""
+        scheduler_mock.list_tasks.return_value = []
+        msg = BotMessage(user_id="user1", text="/l")
+        response = processor.handle(msg)
+        assert response.text == Messages.NO_TASKS
+
+    def test_help_alias_h(self, processor: TaskCommandProcessor) -> None:
+        """Short alias 'h' triggers help command."""
+        msg = BotMessage(user_id="user1", text="h")
+        response = processor.handle(msg)
+        assert response.text == Messages.HELP
+
+    def test_history_alias_hi(
+        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
+    ) -> None:
+        """Short alias 'hi' triggers history command."""
+        scheduler_mock.db.get_recent_executions.return_value = []
+        msg = BotMessage(user_id="user1", text="hi")
+        response = processor.handle(msg)
+        assert response.text == Messages.NO_HISTORY
+
+    def test_run_alias_r_with_args(
+        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
+    ) -> None:
+        """Short alias 'r 1' triggers run command with arguments."""
+        task = _make_task(task_id=1, name="Backup")
+        scheduler_mock.list_tasks.return_value = [task]
+        scheduler_mock.run_task.return_value = True
+        msg = BotMessage(user_id="user1", text="r 1")
+        response = processor.handle(msg)
+        assert response.text == Messages.TASK_EXECUTED_SUCCESS.format("Backup", 1)
+
+    def test_add_alias_a(
+        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
+    ) -> None:
+        """Short alias 'a' triggers add wizard."""
+        msg = BotMessage(user_id="user1", text="a")
+        response = processor.handle(msg)
+        assert response.text == Messages.WIZARD_ADD_START
+
+    def test_edit_alias_e(
+        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
+    ) -> None:
+        """Short alias 'e 1' triggers edit wizard."""
+        task = _make_task(task_id=1, name="Backup")
+        scheduler_mock.list_tasks.return_value = [task]
+        msg = BotMessage(user_id="user1", text="e 1")
+        response = processor.handle(msg)
+        assert "Backup" in response.text
+
+    def test_delete_alias_d(
+        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
+    ) -> None:
+        """Short alias 'd 1' triggers delete confirmation."""
+        task = _make_task(task_id=1, name="Backup")
+        scheduler_mock.list_tasks.return_value = [task]
+        msg = BotMessage(user_id="user1", text="d 1")
+        response = processor.handle(msg)
+        assert "Backup" in response.text
+        assert "yes" in response.text.lower()
+
+    def test_cancel_alias_c(
+        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
+    ) -> None:
+        """Short alias 'c' cancels active conversation."""
+        # Start a wizard first
+        processor.handle(BotMessage(user_id="user1", text="/add"))
+        # Cancel with alias
+        response = processor.handle(BotMessage(user_id="user1", text="c"))
+        assert response.text == Messages.OPERATION_CANCELLED
+
+    def test_command_without_slash(
+        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
+    ) -> None:
+        """Full command name without slash prefix works."""
+        scheduler_mock.list_tasks.return_value = []
+        msg = BotMessage(user_id="user1", text="list")
+        response = processor.handle(msg)
+        assert response.text == Messages.NO_TASKS
+
+    def test_alias_case_insensitive(
+        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
+    ) -> None:
+        """Aliases are case insensitive."""
+        scheduler_mock.list_tasks.return_value = []
+        msg = BotMessage(user_id="user1", text="L")
+        response = processor.handle(msg)
+        assert response.text == Messages.NO_TASKS
+
+    def test_command_without_slash_with_args(
+        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
+    ) -> None:
+        """Full command without slash preserves arguments."""
+        scheduler_mock.db.get_recent_executions.return_value = []
+        msg = BotMessage(user_id="user1", text="history 5")
+        processor.handle(msg)
+        scheduler_mock.db.get_recent_executions.assert_called_once_with(5)

@@ -13,20 +13,33 @@ class Commands:
     HELP = "/help"
     CANCEL = "/cancel"
 
+    # Short alias -> canonical command name (without slash)
+    ALIASES: dict[str, str] = {
+        "l": "list",
+        "r": "run",
+        "hi": "history",
+        "a": "add",
+        "e": "edit",
+        "d": "delete",
+        "h": "help",
+        "c": "cancel",
+    }
+
 
 class Messages:
     """Bot response message templates."""
 
     HELP = (
         "Available commands:\n"
-        "/list [filter] - List tasks\n"
-        "/run <id> - Run a task\n"
-        "/history [n] - Show execution history\n"
-        "/add - Add a new task\n"
-        "/edit <id> - Edit a task\n"
-        "/delete <id> - Delete a task\n"
-        "/cancel - Cancel current operation\n"
-        "/help - Show this help"
+        "/list (l) [filter] - List tasks\n"
+        "/run (r) <id> - Run a task\n"
+        "/history (hi) [n] - Show execution history\n"
+        "/add (a) - Add a new task\n"
+        "/edit (e) <id> - Edit a task\n"
+        "/delete (d) <id> - Delete a task\n"
+        "/cancel (c) - Cancel current operation\n"
+        "/help (h) - Show this help\n\n"
+        "Commands work with or without / prefix."
     )
     UNKNOWN_COMMAND = "Unknown command.\n\n" + HELP
     COMMAND_DISABLED = "Command {} is disabled by configuration."
