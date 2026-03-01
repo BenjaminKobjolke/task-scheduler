@@ -104,6 +104,32 @@ class TestConfigSetDetailedLogging:
         assert config.is_detailed_logging_enabled() is False
 
 
+class TestConfigConsoleLogging:
+    """Tests for console logging configuration."""
+
+    def test_default_console_logging_disabled(self, temp_config_dir):
+        config_path = os.path.join(temp_config_dir, "config.ini")
+
+        config = config_module.Config()
+        config.config_path = config_path
+        config.config = configparser.ConfigParser()
+        config._create_default_config()
+
+        assert config.is_console_logging_enabled() is False
+
+    def test_console_logging_enabled_when_configured(self, temp_config_dir):
+        config_path = os.path.join(temp_config_dir, "config.ini")
+
+        config = config_module.Config()
+        config.config_path = config_path
+        config.config = configparser.ConfigParser()
+        config._create_default_config()
+
+        config.config["Logging"]["console_logging"] = "true"
+
+        assert config.is_console_logging_enabled() is True
+
+
 class TestConfigPersistence:
     """Tests for configuration persistence."""
 
