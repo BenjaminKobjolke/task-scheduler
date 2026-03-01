@@ -365,6 +365,9 @@ level = INFO
 
 # Enable/disable detailed argument logging
 detailed_args_logging = false
+
+# Enable/disable console output (affects both scheduler and third-party libraries)
+console_logging = false
 ```
 
 ### Command Line Options
@@ -403,8 +406,8 @@ This is particularly useful when debugging issues with argument handling.
 
 Logs are stored in the `logs` directory with the following format:
 
-- File name: `scheduler_YYYYMMDD.log`
-- Contains execution details, script output, and any errors
+- Scheduler log: `scheduler_YYYYMMDD.log` - execution details, script output, and errors
+- Bot log: `bot_YYYYMMDD.log` - bot integration messages (when a bot is configured)
 - Log level and detail settings affect what information is included
 
 ## Status Page Configuration
