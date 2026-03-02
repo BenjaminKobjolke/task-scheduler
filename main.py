@@ -7,11 +7,12 @@ import time
 from bot_commander import BotManager
 
 from src.scheduler import TaskScheduler
-from src.logger import Logger
+from src.logger import Logger, setup_bot_library_logging
 from src.config import Config
-from src.constants import Paths
+from src.constants import Bot, Paths
 from src.formatters import format_task_list
 from src.bot.command_processor import TaskCommandProcessor
+from src.bot_health import BotHealthMonitor
 from src.commands import (
     handle_list,
     handle_history,
@@ -283,6 +284,7 @@ if __name__ == "__main__":
 
         # If no specific action was requested, run the scheduler
         bot_logger = Logger("Bot", log_file_prefix=Paths.LOG_FILE_PREFIX_BOT)
+        setup_bot_library_logging()
         bot_config_dto = config.get_bot_config()
         processor = TaskCommandProcessor(scheduler, bot_config_dto)
         bot_manager = BotManager(
@@ -297,20 +299,30 @@ if __name__ == "__main__":
         scheduler.start()
 
         # Initialize bot if configured
+        health_monitor = None
         try:
             bot_started = bot_manager.start()
             if bot_started:
                 bot_logger.info("Bot integration started")
+                health_monitor = BotHealthMonitor(bot_manager, bot_logger)
         except Exception as e:
-            bot_logger.error(f"Bot failed to start: {e}")
+            bot_logger.error(f"Bot failed to start: {e}", exc_info=True)
 
         tasks = scheduler.list_tasks()
         logger.info("Current tasks:" + format_task_list(tasks, show_next_run=True))
         logger.info("\nPress Ctrl+C to exit")
 
         try:
+            last_health_check = time.time()
             while True:
                 time.sleep(1)
+                now = time.time()
+                if (
+                    health_monitor is not None
+                    and now - last_health_check >= Bot.HEALTH_CHECK_INTERVAL_SECONDS
+                ):
+                    health_monitor.check_health()
+                    last_health_check = now
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received")
             bot_logger.info("Bot shutting down")
@@ -319,5 +331,5 @@ if __name__ == "__main__":
             sys.exit(0)
 
     except Exception as e:
-        logger.error(f"Error: {str(e)}")
+        logger.error(f"Error: {str(e)}", exc_info=True)
         sys.exit(1)
