@@ -8,6 +8,7 @@ from bot_commander import BotManager
 
 from src.scheduler import TaskScheduler
 from src.logger import Logger, setup_bot_library_logging
+from src.cli_output import CliOutput
 from src.config import Config
 from src.constants import Bot, Paths
 from src.formatters import format_task_list
@@ -227,59 +228,60 @@ if __name__ == "__main__":
         # Initialize logger and scheduler
         logger = Logger("Main")
         scheduler = TaskScheduler()
+        cli = CliOutput()
 
         if args.list is not None:
-            handle_list(scheduler, logger, args.list)
+            handle_list(scheduler, cli, args.list)
             sys.exit(0)
 
         elif args.history is not None:
-            handle_history(scheduler, logger, args.history)
+            handle_history(scheduler, cli, args.history)
             sys.exit(0)
 
         elif args.delete is not None:
-            handle_delete(scheduler, logger, args.delete)
+            handle_delete(scheduler, cli, args.delete)
             sys.exit(0)
 
         elif args.set_start_time:
             task_id_str, time_value = args.set_start_time
-            handle_set_start_time(scheduler, logger, task_id_str, time_value)
+            handle_set_start_time(scheduler, cli, task_id_str, time_value)
             sys.exit(0)
 
         elif args.set_interval:
             task_id_str, interval_str = args.set_interval
-            handle_set_interval(scheduler, logger, task_id_str, interval_str)
+            handle_set_interval(scheduler, cli, task_id_str, interval_str)
             sys.exit(0)
 
         elif args.set_arguments is not None:
-            handle_set_arguments(scheduler, logger, args.set_arguments)
+            handle_set_arguments(scheduler, cli, args.set_arguments)
             sys.exit(0)
 
         elif args.copy_task is not None:
-            handle_copy_task(scheduler, logger, args.copy_task)
+            handle_copy_task(scheduler, cli, args.copy_task)
             sys.exit(0)
 
         elif args.edit is not None:
-            handle_edit(scheduler, logger, args.edit)
+            handle_edit(scheduler, cli, args.edit)
             sys.exit(0)
 
         elif args.add:
-            handle_add(scheduler, logger)
+            handle_add(scheduler, cli)
             sys.exit(0)
 
         elif args.script:
-            handle_script(scheduler, logger, args)
+            handle_script(scheduler, cli, args)
             sys.exit(0)
 
         elif args.uv_command:
-            handle_uv_command(scheduler, logger, args)
+            handle_uv_command(scheduler, cli, args)
             sys.exit(0)
 
         elif args.run_id:
-            handle_run_id(scheduler, logger, args.run_id)
+            handle_run_id(scheduler, cli, args.run_id)
             sys.exit(0)
 
         elif args.ftp_sync:
-            handle_ftp_sync(logger, config)
+            handle_ftp_sync(cli, config)
             sys.exit(0)
 
         # If no specific action was requested, run the scheduler

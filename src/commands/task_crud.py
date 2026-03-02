@@ -3,31 +3,31 @@ import sys
 from argparse import Namespace
 
 from ..cli_input import get_task_input
+from ..cli_output import CliOutput
 from ..constants import Defaults, Paths, TaskTypes
 from ..formatters import format_task_list
-from ..logger import Logger
 from ..scheduler import TaskScheduler
 
 
-def _log_task_details(logger: Logger, task_details: dict) -> None:
+def _log_task_details(cli: CliOutput, task_details: dict) -> None:
     """Log task details after add/edit."""
-    logger.info(f"Name: {task_details['name']}")
+    cli.info(f"Name: {task_details['name']}")
     if task_details.get("task_type") == TaskTypes.UV_COMMAND:
-        logger.info("Type: uv command")
-        logger.info(f"Project: {task_details['script_path']}")
-        logger.info(f"Command: {task_details.get('command')}")
+        cli.info("Type: uv command")
+        cli.info(f"Project: {task_details['script_path']}")
+        cli.info(f"Command: {task_details.get('command')}")
     else:
-        logger.info(f"Script: {task_details['script_path']}")
+        cli.info(f"Script: {task_details['script_path']}")
     interval = task_details["interval"]
     interval_display = Defaults.MANUAL_ONLY_LABEL if interval == 0 else f"{interval} minute(s)"
-    logger.info(f"Interval: {interval_display}")
+    cli.info(f"Interval: {interval_display}")
     if task_details.get("start_time"):
-        logger.info(f"Start time: {task_details['start_time']}")
+        cli.info(f"Start time: {task_details['start_time']}")
     if task_details.get("arguments"):
-        logger.info(f"Arguments: {' '.join(task_details['arguments'])}")
+        cli.info(f"Arguments: {' '.join(task_details['arguments'])}")
 
 
-def handle_add(scheduler: TaskScheduler, logger: Logger) -> None:
+def handle_add(scheduler: TaskScheduler, cli: CliOutput) -> None:
     """Add a new task interactively."""
     task_details = get_task_input()
 
@@ -41,21 +41,21 @@ def handle_add(scheduler: TaskScheduler, logger: Logger) -> None:
         start_time=task_details.get("start_time"),
     )
 
-    logger.info("Task added successfully:")
-    _log_task_details(logger, task_details)
+    cli.info("Task added successfully:")
+    _log_task_details(cli, task_details)
 
 
-def handle_edit(scheduler: TaskScheduler, logger: Logger, task_id: int) -> None:
+def handle_edit(scheduler: TaskScheduler, cli: CliOutput, task_id: int) -> None:
     """Edit a task interactively."""
     tasks = scheduler.list_tasks()
     task = next((t for t in tasks if t["id"] == task_id), None)
 
     if not task:
-        logger.error(f"No task found with ID {task_id}")
+        cli.error(f"No task found with ID {task_id}")
         sys.exit(1)
 
-    logger.info("\nEditing task:")
-    logger.info(format_task_list([task], show_next_run=False))
+    cli.info("\nEditing task:")
+    cli.info(format_task_list([task], show_next_run=False))
 
     task_details = get_task_input(task)
 
@@ -70,55 +70,55 @@ def handle_edit(scheduler: TaskScheduler, logger: Logger, task_id: int) -> None:
             command=task_details.get("command"),
             start_time=task_details.get("start_time"),
         )
-        logger.info("Task updated successfully:")
-        _log_task_details(logger, task_details)
+        cli.info("Task updated successfully:")
+        _log_task_details(cli, task_details)
     except ValueError as e:
-        logger.error(str(e))
+        cli.error(str(e))
         sys.exit(1)
 
 
-def handle_delete(scheduler: TaskScheduler, logger: Logger, task_id: int) -> None:
+def handle_delete(scheduler: TaskScheduler, cli: CliOutput, task_id: int) -> None:
     """Delete a task by ID after confirmation."""
     tasks = scheduler.list_tasks()
     task = next((t for t in tasks if t["id"] == task_id), None)
 
     if not task:
-        logger.error(f"No task found with ID {task_id}")
+        cli.error(f"No task found with ID {task_id}")
         sys.exit(1)
 
-    logger.info("\nTask to delete:")
-    logger.info(format_task_list([task], show_next_run=False))
+    cli.info("\nTask to delete:")
+    cli.info(format_task_list([task], show_next_run=False))
 
     confirmation = input("\nAre you sure you want to delete this task? (y/N): ")
     if confirmation.lower() == "y":
         try:
             scheduler.remove_task(task_id)
-            logger.info("Task deleted successfully")
+            cli.info("Task deleted successfully")
         except ValueError as e:
-            logger.error(str(e))
+            cli.error(str(e))
             sys.exit(1)
     else:
-        logger.info("Deletion cancelled")
+        cli.info("Deletion cancelled")
 
 
-def handle_script(scheduler: TaskScheduler, logger: Logger, args) -> None:
+def handle_script(scheduler: TaskScheduler, cli: CliOutput, args) -> None:
     """Add a new task via CLI arguments."""
     if not args.name:
-        logger.error("--name is required when adding a new task")
+        cli.error("--name is required when adding a new task")
         sys.exit(1)
 
     if not args.interval:
-        logger.error("--interval is required when adding a new task")
+        cli.error("--interval is required when adding a new task")
         sys.exit(1)
 
     if args.interval < 0:
-        logger.error("Interval must be 0 or higher. Use 0 for manual-only tasks.")
+        cli.error("Interval must be 0 or higher. Use 0 for manual-only tasks.")
         sys.exit(1)
 
     start_time = None
     if args.start_time:
         if args.interval == 0:
-            logger.error("Start time is not applicable for manual-only tasks (interval 0).")
+            cli.error("Start time is not applicable for manual-only tasks (interval 0).")
             sys.exit(1)
         try:
             from datetime import datetime
@@ -126,7 +126,7 @@ def handle_script(scheduler: TaskScheduler, logger: Logger, args) -> None:
             datetime.strptime(args.start_time, "%H:%M")
             start_time = args.start_time
         except ValueError:
-            logger.error(
+            cli.error(
                 f"Invalid start time format: {args.start_time}. Use HH:MM format (e.g., 09:00)."
             )
             sys.exit(1)
@@ -143,23 +143,23 @@ def handle_script(scheduler: TaskScheduler, logger: Logger, args) -> None:
     )
 
     interval_display = Defaults.MANUAL_ONLY_LABEL if args.interval == 0 else f"{args.interval} minute(s)"
-    logger.info("Task added successfully:")
-    logger.info(f"Name: {args.name}")
-    logger.info(f"Script: {script_path}")
-    logger.info(f"Interval: {interval_display}")
+    cli.info("Task added successfully:")
+    cli.info(f"Name: {args.name}")
+    cli.info(f"Script: {script_path}")
+    cli.info(f"Interval: {interval_display}")
     if start_time:
-        logger.info(f"Start time: {start_time}")
+        cli.info(f"Start time: {start_time}")
     if script_args:
-        logger.info(f"Arguments: {' '.join(script_args)}")
+        cli.info(f"Arguments: {' '.join(script_args)}")
 
 
-def handle_copy_task(scheduler: TaskScheduler, logger: Logger, task_id: int) -> None:
+def handle_copy_task(scheduler: TaskScheduler, cli: CliOutput, task_id: int) -> None:
     """Copy an existing task."""
     tasks = scheduler.list_tasks()
     task = next((t for t in tasks if t["id"] == task_id), None)
 
     if not task:
-        logger.error(f"No task found with ID {task_id}")
+        cli.error(f"No task found with ID {task_id}")
         sys.exit(1)
 
     try:
@@ -172,44 +172,44 @@ def handle_copy_task(scheduler: TaskScheduler, logger: Logger, task_id: int) -> 
             command=task.get("command"),
             start_time=task.get("start_time"),
         )
-        logger.info(
+        cli.info(
             f"Task '{task['name']}' (ID: {task['id']}) copied successfully as new task (ID: {new_task_id})"
         )
     except Exception as e:
-        logger.error(f"Failed to copy task: {str(e)}")
+        cli.error(f"Failed to copy task: {str(e)}")
         sys.exit(1)
 
 
 def handle_uv_command(
-    scheduler: TaskScheduler, logger: Logger, args: Namespace
+    scheduler: TaskScheduler, cli: CliOutput, args: Namespace
 ) -> None:
     """Add a new uv command task via CLI arguments."""
     if not args.name:
-        logger.error("--name is required when adding a new task")
+        cli.error("--name is required when adding a new task")
         sys.exit(1)
 
     if args.interval is None:
-        logger.error("--interval is required when adding a new task")
+        cli.error("--interval is required when adding a new task")
         sys.exit(1)
 
     if args.interval < 0:
-        logger.error("Interval must be 0 or higher. Use 0 for manual-only tasks.")
+        cli.error("Interval must be 0 or higher. Use 0 for manual-only tasks.")
         sys.exit(1)
 
     project_dir, command_name = args.uv_command
 
     if not os.path.isdir(project_dir):
-        logger.error(f"Project directory does not exist: {project_dir}")
+        cli.error(f"Project directory does not exist: {project_dir}")
         sys.exit(1)
 
     if not os.path.isfile(os.path.join(project_dir, Paths.PYPROJECT_TOML)):
-        logger.error(
+        cli.error(
             f"Not a valid uv project: missing {Paths.PYPROJECT_TOML} in {project_dir}"
         )
         sys.exit(1)
 
     if not os.path.isfile(os.path.join(project_dir, Paths.UV_LOCK)):
-        logger.error(
+        cli.error(
             f"Not a valid uv project: missing {Paths.UV_LOCK} in {project_dir}"
         )
         sys.exit(1)
@@ -222,7 +222,7 @@ def handle_uv_command(
             datetime.strptime(args.start_time, "%H:%M")
             start_time = args.start_time
         except ValueError:
-            logger.error(
+            cli.error(
                 f"Invalid start time format: {args.start_time}. Use HH:MM format (e.g., 09:00)."
             )
             sys.exit(1)
@@ -252,5 +252,5 @@ def handle_uv_command(
         "start_time": start_time,
         "arguments": script_args,
     }
-    logger.info("Task added successfully:")
-    _log_task_details(logger, task_details)
+    cli.info("Task added successfully:")
+    _log_task_details(cli, task_details)

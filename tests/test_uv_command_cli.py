@@ -4,9 +4,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from src.cli_output import CliOutput
 from src.commands.task_crud import handle_uv_command
 from src.constants import TaskTypes
-from src.logger import Logger
 from src.scheduler import TaskScheduler
 
 
@@ -17,7 +17,7 @@ def mock_scheduler() -> MagicMock:
 
 @pytest.fixture
 def mock_logger() -> MagicMock:
-    return MagicMock(spec=Logger)
+    return MagicMock(spec=CliOutput)
 
 
 def _make_args(
