@@ -2,8 +2,11 @@ import logging
 import os
 from datetime import datetime
 from typing import List, Optional
+
 from .config import Config
 from .constants import Paths
+
+_BOT_LIBRARY_LOGGERS = ("bot_commander", "xmpp_bot")
 
 
 def _configure_root_logger(config: Config) -> None:
@@ -35,6 +38,37 @@ def _configure_root_logger(config: Config) -> None:
         root.addHandler(console_handler)
     else:
         root.addHandler(logging.NullHandler())
+
+
+def setup_bot_library_logging(logs_dir: str = Paths.LOGS_DIR) -> None:
+    """Attach a FileHandler to bot library loggers so their output goes to the bot log file.
+
+    Routes log output from ``bot_commander`` and ``xmpp_bot`` (and all their
+    child loggers) to ``logs/bot_YYYYMMDD.log``.  Safe to call multiple times;
+    duplicate handlers are skipped.
+
+    Args:
+        logs_dir: Directory where log files are written.
+    """
+    os.makedirs(logs_dir, exist_ok=True)
+    log_file = (
+        f"{logs_dir}/{Paths.LOG_FILE_PREFIX_BOT}"
+        f"_{datetime.now().strftime('%Y%m%d')}.log"
+    )
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+
+    for name in _BOT_LIBRARY_LOGGERS:
+        lib_logger = logging.getLogger(name)
+        # Skip if a FileHandler already exists on this logger
+        if any(isinstance(h, logging.FileHandler) for h in lib_logger.handlers):
+            continue
+        lib_logger.setLevel(logging.DEBUG)
+        handler = logging.FileHandler(log_file)
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(formatter)
+        lib_logger.addHandler(handler)
 
 
 class Logger:
@@ -104,9 +138,14 @@ class Logger:
         """Log info level message."""
         self.logger.info(message)
 
-    def error(self, message: str):
-        """Log error level message."""
-        self.logger.error(message)
+    def error(self, message: str, *, exc_info: bool = False) -> None:
+        """Log error level message.
+
+        Args:
+            message: Error message to log.
+            exc_info: If True, include exception traceback in the log entry.
+        """
+        self.logger.error(message, exc_info=exc_info)
 
     def warning(self, message: str):
         """Log warning level message."""
