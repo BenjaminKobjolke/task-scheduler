@@ -1,6 +1,7 @@
 """Tests for bot command processor."""
 
 import time
+import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -183,28 +184,87 @@ class TestListCommand:
 
 
 class TestRunCommand:
-    """Tests for the /run command."""
+    """Tests for the /run command (async behavior)."""
 
-    def test_run_success(
+    def test_run_returns_immediate_ack(
         self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
     ) -> None:
+        """Run command returns immediate 'Running task...' acknowledgment."""
+        task = _make_task(task_id=1, name="Backup")
+        scheduler_mock.list_tasks.return_value = [task]
+        # Block run_task so the thread doesn't finish before we assert
+        scheduler_mock.run_task.side_effect = lambda _: time.sleep(0.5)
+        msg = BotMessage(user_id="user1", text="/run 1")
+        response = processor.handle(msg)
+        assert response.text == Messages.TASK_RUNNING.format("Backup", 1)
+
+    def test_run_spawns_background_thread(
+        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
+    ) -> None:
+        """Run command spawns a daemon thread for task execution."""
+        task = _make_task(task_id=1, name="Backup")
+        scheduler_mock.list_tasks.return_value = [task]
+        done = threading.Event()
+        scheduler_mock.run_task.side_effect = lambda _: done.set() or True
+        processor.handle(BotMessage(user_id="user1", text="/run 1"))
+        assert done.wait(timeout=2), "Background thread did not run"
+
+    def test_run_async_success_notifies(
+        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
+    ) -> None:
+        """After successful execution, notifier is called with success message."""
+        notifier = MagicMock()
+        processor.set_notifier(notifier)
         task = _make_task(task_id=1, name="Backup")
         scheduler_mock.list_tasks.return_value = [task]
         scheduler_mock.run_task.return_value = True
-        msg = BotMessage(user_id="user1", text="/run 1")
-        response = processor.handle(msg)
-        assert response.text == Messages.TASK_EXECUTED_SUCCESS.format("Backup", 1)
-        scheduler_mock.run_task.assert_called_once_with(1)
+        processor.handle(BotMessage(user_id="user1", text="/run 1"))
+        # Wait for thread to complete
+        time.sleep(0.5)
+        notifier.assert_called_once_with(
+            "user1", Messages.TASK_EXECUTED_SUCCESS.format("Backup", 1)
+        )
 
-    def test_run_failure(
+    def test_run_async_failure_notifies(
         self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
     ) -> None:
+        """After failed execution, notifier is called with failure message."""
+        notifier = MagicMock()
+        processor.set_notifier(notifier)
         task = _make_task(task_id=1, name="Backup")
         scheduler_mock.list_tasks.return_value = [task]
         scheduler_mock.run_task.return_value = False
-        msg = BotMessage(user_id="user1", text="/run 1")
-        response = processor.handle(msg)
-        assert response.text == Messages.TASK_EXECUTED_FAILURE.format("Backup", 1)
+        processor.handle(BotMessage(user_id="user1", text="/run 1"))
+        time.sleep(0.5)
+        notifier.assert_called_once_with(
+            "user1", Messages.TASK_EXECUTED_FAILURE.format("Backup", 1)
+        )
+
+    def test_run_async_exception_notifies(
+        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
+    ) -> None:
+        """After exception, notifier is called with error message."""
+        notifier = MagicMock()
+        processor.set_notifier(notifier)
+        task = _make_task(task_id=1, name="Backup")
+        scheduler_mock.list_tasks.return_value = [task]
+        scheduler_mock.run_task.side_effect = RuntimeError("Connection lost")
+        processor.handle(BotMessage(user_id="user1", text="/run 1"))
+        time.sleep(0.5)
+        notifier.assert_called_once_with(
+            "user1", Messages.TASK_EXECUTION_ERROR.format(1, "Connection lost")
+        )
+
+    def test_run_no_notifier_does_not_crash(
+        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
+    ) -> None:
+        """Without a notifier set, async execution completes without crash."""
+        task = _make_task(task_id=1, name="Backup")
+        scheduler_mock.list_tasks.return_value = [task]
+        scheduler_mock.run_task.return_value = True
+        processor.handle(BotMessage(user_id="user1", text="/run 1"))
+        time.sleep(0.5)
+        # No crash = success
 
     def test_run_invalid_id_not_a_number(self, processor: TaskCommandProcessor) -> None:
         msg = BotMessage(user_id="user1", text="/run abc")
@@ -216,24 +276,22 @@ class TestRunCommand:
         response = processor.handle(msg)
         assert response.text == Messages.INVALID_TASK_ID.format(Commands.RUN)
 
-    def test_run_nonexistent_task_raises_value_error(
+    def test_run_nonexistent_task_returns_ack_with_fallback_name(
         self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
     ) -> None:
+        """When task not in list, uses fallback name but still spawns thread."""
         scheduler_mock.list_tasks.return_value = []
         scheduler_mock.run_task.side_effect = ValueError("Task with ID 99 not found")
+        notifier = MagicMock()
+        processor.set_notifier(notifier)
         msg = BotMessage(user_id="user1", text="/run 99")
         response = processor.handle(msg)
-        assert "not found" in response.text.lower() or "99" in response.text
-
-    def test_run_exception_returns_error(
-        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
-    ) -> None:
-        task = _make_task(task_id=1, name="Backup")
-        scheduler_mock.list_tasks.return_value = [task]
-        scheduler_mock.run_task.side_effect = RuntimeError("Connection lost")
-        msg = BotMessage(user_id="user1", text="/run 1")
-        response = processor.handle(msg)
-        assert "Connection lost" in response.text
+        assert response.text == Messages.TASK_RUNNING.format("Task 99", 99)
+        time.sleep(0.5)
+        # ValueError is caught as str(e)
+        notifier.assert_called_once()
+        call_text = notifier.call_args[0][1]
+        assert "99" in call_text
 
 
 # -- History command tests --
@@ -657,7 +715,7 @@ class TestDisabledCommands:
             proc = TaskCommandProcessor(scheduler=scheduler_mock, bot_config=config)
         msg = BotMessage(user_id="user1", text="/run 1")
         response = proc.handle(msg)
-        assert "Backup" in response.text
+        assert response.text == Messages.TASK_RUNNING.format("Backup", 1)
 
     def test_history_always_allowed(self, scheduler_mock: MagicMock) -> None:
         config = _make_config(allow_add=False, allow_edit=False, allow_delete=False)
@@ -834,7 +892,7 @@ class TestCommandAliases:
         scheduler_mock.run_task.return_value = True
         msg = BotMessage(user_id="user1", text="r 1")
         response = processor.handle(msg)
-        assert response.text == Messages.TASK_EXECUTED_SUCCESS.format("Backup", 1)
+        assert response.text == Messages.TASK_RUNNING.format("Backup", 1)
 
     def test_add_alias_a(
         self, processor: TaskCommandProcessor, scheduler_mock: MagicMock

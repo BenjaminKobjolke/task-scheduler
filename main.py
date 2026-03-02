@@ -305,6 +305,7 @@ if __name__ == "__main__":
         try:
             bot_started = bot_manager.start()
             if bot_started:
+                processor.set_notifier(bot_manager.send_message)
                 bot_logger.info("Bot integration started")
                 health_monitor = BotHealthMonitor(bot_manager, bot_logger)
         except Exception as e:

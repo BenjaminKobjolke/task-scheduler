@@ -43,6 +43,7 @@ class Messages:
     )
     UNKNOWN_COMMAND = "Unknown command.\n\n" + HELP
     COMMAND_DISABLED = "Command {} is disabled by configuration."
+    TASK_RUNNING = "Running task '{}' (ID: {})..."
     TASK_NOT_FOUND = "No task found with ID {}"
     TASK_EXECUTED_SUCCESS = "Task '{}' (ID: {}) executed successfully."
     TASK_EXECUTED_FAILURE = "Task '{}' (ID: {}) failed."

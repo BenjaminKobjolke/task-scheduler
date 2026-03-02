@@ -1,5 +1,7 @@
 """Task-scheduler command processor - subclasses bot_commander.Commander."""
 
+import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from bot_commander import BotMessage, BotResponse, Commander
@@ -33,6 +35,7 @@ class TaskCommandProcessor(Commander):
         self._scheduler = scheduler
         self._bot_config = bot_config
         self._logger = Logger("TaskCommandProcessor")
+        self._notifier: Callable[[str, str], None] | None = None
 
         # Register commands
         self.register_command(Commands.HELP, self._cmd_help)
@@ -64,6 +67,10 @@ class TaskCommandProcessor(Commander):
 
         # Set permission checker
         self.set_permission_checker(self._check_permission)
+
+    def set_notifier(self, notifier: Callable[[str, str], None]) -> None:
+        """Set a callback for sending follow-up messages outside request/response."""
+        self._notifier = notifier
 
     def handle(self, message: BotMessage) -> BotResponse:
         """Normalize input to support aliases and slash-optional commands."""
@@ -111,33 +118,36 @@ class TaskCommandProcessor(Commander):
         return BotResponse(text=format_task_list_compact(tasks))
 
     def _cmd_run(self, user_id: str, args: str) -> BotResponse:
-        """Handle the /run command."""
+        """Handle the /run command — returns immediately, runs task in background."""
         try:
             task_id = int(args.strip())
         except (ValueError, AttributeError):
             return BotResponse(text=Messages.INVALID_TASK_ID.format(Commands.RUN))
 
-        try:
-            # Get task name for response message
-            tasks = self._scheduler.list_tasks()
-            task = next((t for t in tasks if t["id"] == task_id), None)
-            task_name = task["name"] if task else f"Task {task_id}"
+        # Get task name for response message
+        tasks = self._scheduler.list_tasks()
+        task = next((t for t in tasks if t["id"] == task_id), None)
+        task_name = task["name"] if task else f"Task {task_id}"
 
+        threading.Thread(
+            target=self._run_task_async,
+            args=(user_id, task_id, task_name),
+            daemon=True,
+        ).start()
+        return BotResponse(text=Messages.TASK_RUNNING.format(task_name, task_id))
+
+    def _run_task_async(self, user_id: str, task_id: int, task_name: str) -> None:
+        """Execute a task in a background thread and notify the user."""
+        try:
             success = self._scheduler.run_task(task_id)
             if success:
-                return BotResponse(
-                    text=Messages.TASK_EXECUTED_SUCCESS.format(task_name, task_id)
-                )
+                text = Messages.TASK_EXECUTED_SUCCESS.format(task_name, task_id)
             else:
-                return BotResponse(
-                    text=Messages.TASK_EXECUTED_FAILURE.format(task_name, task_id)
-                )
-        except ValueError as e:
-            return BotResponse(text=str(e))
+                text = Messages.TASK_EXECUTED_FAILURE.format(task_name, task_id)
         except Exception as e:
-            return BotResponse(
-                text=Messages.TASK_EXECUTION_ERROR.format(task_id, str(e))
-            )
+            text = Messages.TASK_EXECUTION_ERROR.format(task_id, str(e))
+        if self._notifier:
+            self._notifier(user_id, text)
 
     def _cmd_history(self, user_id: str, args: str) -> BotResponse:
         """Handle the /history command."""

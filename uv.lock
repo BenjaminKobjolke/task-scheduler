@@ -121,7 +121,7 @@ wheels = [
 [[package]]
 name = "bot-commander"
 version = "0.1.0"
-source = { git = "https://github.com/BenjaminKobjolke/bot-commander.git#06c1219477d5aec3178cb4ae40fd78ba3049dc8f" }
+source = { git = "https://github.com/BenjaminKobjolke/bot-commander.git#507597e37db8cd31f79b7c1b86989198192abce1" }
 
 [[package]]
 name = "cffi"
