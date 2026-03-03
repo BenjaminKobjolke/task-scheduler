@@ -21,6 +21,7 @@ from src.commands import (
     handle_set_start_time,
     handle_set_interval,
     handle_set_arguments,
+    handle_rename,
     handle_copy_task,
     handle_edit,
     handle_add,
@@ -135,6 +136,13 @@ Note:
         type=int,
         metavar="ID",
         help="Set arguments for a task interactively"
+    )
+
+    parser.add_argument(
+        "--rename",
+        type=int,
+        metavar="ID",
+        help="Rename a task by its ID (prompts for new name)"
     )
 
     parser.add_argument(
@@ -254,6 +262,10 @@ if __name__ == "__main__":
 
         elif args.set_arguments is not None:
             handle_set_arguments(scheduler, cli, args.set_arguments)
+            sys.exit(0)
+
+        elif args.rename is not None:
+            handle_rename(scheduler, cli, args.rename)
             sys.exit(0)
 
         elif args.copy_task is not None:

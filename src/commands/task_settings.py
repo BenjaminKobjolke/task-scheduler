@@ -115,6 +115,55 @@ def handle_set_interval(
         sys.exit(1)
 
 
+def handle_rename(
+    scheduler: TaskScheduler,
+    cli: CliOutput,
+    task_id: int,
+    new_name: str | None = None,
+) -> None:
+    """Rename a task by its ID.
+
+    Args:
+        scheduler: TaskScheduler instance.
+        cli: CLI output helper.
+        task_id: Numeric task ID.
+        new_name: New name for the task. When None, prompts interactively.
+    """
+    tasks = scheduler.list_tasks()
+    task = next((t for t in tasks if t["id"] == task_id), None)
+
+    if not task:
+        cli.error(f"No task found with ID {task_id}")
+        sys.exit(1)
+
+    old_name = task["name"]
+
+    if new_name is None:
+        cli.info(f"\nTask: {old_name} (ID: {task_id})")
+        cli.info(f"Current name: {old_name}")
+        cli.info("\nEnter new name (press Enter to keep current):")
+
+        session = PromptSession()
+        reply = session.prompt("> ").strip()
+        new_name = reply if reply else old_name
+
+    try:
+        scheduler.edit_task(
+            task_id=task_id,
+            name=new_name,
+            script_path=task["script_path"],
+            interval=task["interval"],
+            arguments=task["arguments"],
+            task_type=task.get("task_type", TaskTypes.SCRIPT),
+            command=task.get("command"),
+            start_time=task.get("start_time"),
+        )
+        cli.info(f"Task '{old_name}' (ID: {task_id}) renamed to '{new_name}'")
+    except ValueError as e:
+        cli.error(str(e))
+        sys.exit(1)
+
+
 def handle_set_arguments(
     scheduler: TaskScheduler, cli: CliOutput, task_id: int
 ) -> None:
