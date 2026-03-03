@@ -7,7 +7,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 import src.config as config_module
-from src.logger import Logger, setup_bot_library_logging
+from src.logger import Logger, _SafeStreamHandler, setup_bot_library_logging
 
 
 @pytest.fixture(autouse=True)
@@ -47,9 +47,13 @@ class TestConsoleHandler:
 
             logger = Logger("TestLogger")
 
-        handler_types = [type(h) for h in logger.logger.handlers]
-        assert logging.StreamHandler not in handler_types
-        assert logging.FileHandler in handler_types
+        console_handlers = [
+            h for h in logger.logger.handlers
+            if isinstance(h, logging.StreamHandler)
+            and not isinstance(h, logging.FileHandler)
+        ]
+        assert len(console_handlers) == 0
+        assert any(isinstance(h, logging.FileHandler) for h in logger.logger.handlers)
 
     def test_console_handler_when_enabled(self, temp_logs_dir):
         """Console handler SHOULD be added when console_logging is true."""
@@ -64,9 +68,12 @@ class TestConsoleHandler:
 
             logger = Logger("TestLogger")
 
-        handler_types = [type(h) for h in logger.logger.handlers]
-        assert logging.StreamHandler in handler_types
-        assert logging.FileHandler in handler_types
+        console_handlers = [
+            h for h in logger.logger.handlers
+            if isinstance(h, _SafeStreamHandler)
+        ]
+        assert len(console_handlers) == 1
+        assert any(isinstance(h, logging.FileHandler) for h in logger.logger.handlers)
 
 
 class TestRootLoggerSuppression:
@@ -78,11 +85,14 @@ class TestRootLoggerSuppression:
         Logger._root_logger_configured = False
         yield
         Logger._root_logger_configured = False
-        # Clean up root logger handlers
+        # Clean up root logger handlers (console handlers only, preserve pytest's)
         root = logging.getLogger()
         for handler in root.handlers[:]:
-            handler.close()
-            root.removeHandler(handler)
+            if isinstance(handler, logging.StreamHandler) and not isinstance(
+                handler, logging.FileHandler
+            ):
+                handler.close()
+                root.removeHandler(handler)
 
     def test_root_logger_no_stream_handler_when_console_disabled(self, temp_logs_dir):
         """Root logger should have no StreamHandler when console_logging is false."""
@@ -98,11 +108,12 @@ class TestRootLoggerSuppression:
             Logger("TestRootSuppress")
 
         root = logging.getLogger()
-        stream_handlers = [
+        console_handlers = [
             h for h in root.handlers
-            if type(h) is logging.StreamHandler
+            if isinstance(h, logging.StreamHandler)
+            and not isinstance(h, logging.FileHandler)
         ]
-        assert len(stream_handlers) == 0
+        assert len(console_handlers) == 0
 
     def test_root_logger_has_stream_handler_when_console_enabled(self, temp_logs_dir):
         """Root logger should have a StreamHandler when console_logging is true."""
@@ -118,11 +129,11 @@ class TestRootLoggerSuppression:
             Logger("TestRootConsole")
 
         root = logging.getLogger()
-        stream_handlers = [
+        console_handlers = [
             h for h in root.handlers
-            if type(h) is logging.StreamHandler
+            if isinstance(h, _SafeStreamHandler)
         ]
-        assert len(stream_handlers) >= 1
+        assert len(console_handlers) >= 1
 
 
 class TestErrorExcInfo:

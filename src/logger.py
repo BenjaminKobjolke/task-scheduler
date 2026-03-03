@@ -9,6 +9,33 @@ from .constants import Paths
 _BOT_LIBRARY_LOGGERS = ("bot_commander", "xmpp_bot")
 
 
+class _SafeStreamHandler(logging.StreamHandler):
+    """StreamHandler that replaces unencodable characters instead of failing.
+
+    On Windows with cp1252, Unicode characters like box-drawing or emoji
+    cause ``UnicodeEncodeError``.  This handler falls back to ``errors='replace'``
+    so the message is still emitted (with replacement chars) instead of being
+    silently dropped.
+    """
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            msg = self.format(record)
+            stream = self.stream
+            try:
+                stream.write(msg + self.terminator)
+                self.flush()
+            except UnicodeEncodeError:
+                encoding = getattr(stream, "encoding", None) or "ascii"
+                safe_msg = msg.encode(encoding, errors="replace").decode(encoding)
+                stream.write(safe_msg + self.terminator)
+                self.flush()
+        except RecursionError:
+            raise
+        except Exception:
+            self.handleError(record)
+
+
 def _configure_root_logger(config: Config) -> None:
     """Configure the root logger to control third-party library console output.
 
@@ -26,11 +53,13 @@ def _configure_root_logger(config: Config) -> None:
 
     # Remove existing handlers (except pytest's LogCaptureHandler)
     for handler in root.handlers[:]:
-        if type(handler) is logging.StreamHandler:
+        if isinstance(handler, logging.StreamHandler) and not isinstance(
+            handler, logging.FileHandler
+        ):
             root.removeHandler(handler)
 
     if config.is_console_logging_enabled():
-        console_handler = logging.StreamHandler()
+        console_handler = _SafeStreamHandler()
         console_handler.setLevel(level)
         console_handler.setFormatter(
             logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -65,7 +94,7 @@ def setup_bot_library_logging(logs_dir: str = Paths.LOGS_DIR) -> None:
         if any(isinstance(h, logging.FileHandler) for h in lib_logger.handlers):
             continue
         lib_logger.setLevel(logging.DEBUG)
-        handler = logging.FileHandler(log_file)
+        handler = logging.FileHandler(log_file, encoding="utf-8")
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(formatter)
         lib_logger.addHandler(handler)
@@ -107,7 +136,7 @@ class Logger:
 
         # File handler
         log_file = f"{Paths.LOGS_DIR}/{self._log_file_prefix}_{datetime.now().strftime('%Y%m%d')}.log"
-        file_handler = logging.FileHandler(log_file)
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
         file_handler.setLevel(level)
 
         # Formatter
@@ -121,7 +150,7 @@ class Logger:
 
         # Console handler (only when enabled in config)
         if self.config.is_console_logging_enabled():
-            console_handler = logging.StreamHandler()
+            console_handler = _SafeStreamHandler()
             console_handler.setLevel(level)
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
