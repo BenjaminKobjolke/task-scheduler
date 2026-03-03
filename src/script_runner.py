@@ -1,10 +1,16 @@
+from __future__ import annotations
+
 import os
 import shlex
 import subprocess
 import tomllib
-from typing import List
+from typing import TYPE_CHECKING, List
+
+from .constants import Discovery, Paths
 from .logger import Logger
-from .constants import Paths
+
+if TYPE_CHECKING:
+    from .interaction import InteractionHandler
 
 # Default timeout for script execution (30 minutes)
 DEFAULT_TIMEOUT = 1800
@@ -29,6 +35,67 @@ class ScriptRunner:
         env.pop("VIRTUAL_ENV", None)
         return env
 
+    def _run_interactive(
+        self,
+        cmd: list[str],
+        cwd: str,
+        env: dict | None,
+        shell: bool,
+        interaction_handler: InteractionHandler,
+    ) -> bool:
+        """Run a subprocess with interactive prompt support.
+
+        Reads stdout line-by-line, parses interactive protocol messages,
+        and writes responses back to the process's stdin.
+
+        Args:
+            cmd: Command to execute
+            cwd: Working directory
+            env: Environment variables (None for default)
+            shell: Whether to use shell execution
+            interaction_handler: Handler for interactive prompts
+
+        Returns:
+            bool: True if process exited with code 0
+        """
+        from .interaction import InteractionRequest
+
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=cwd,
+                env=env,
+                shell=shell,
+            )
+
+            for line in iter(proc.stdout.readline, ""):
+                request = InteractionRequest.parse(line)
+                if request:
+                    response = interaction_handler.handle_prompt(request)
+                    proc.stdin.write(response.to_json_line() + "\n")
+                    proc.stdin.flush()
+                else:
+                    self.logger.info(line.rstrip())
+
+            stderr = proc.stderr.read()
+            if stderr:
+                self.logger.info(f"Script stderr output:\n{stderr}")
+
+            proc.wait(timeout=DEFAULT_TIMEOUT)
+            return proc.returncode == 0
+
+        except subprocess.TimeoutExpired:
+            self.logger.error(f"Interactive process timed out after {DEFAULT_TIMEOUT}s")
+            proc.kill()
+            return False
+        except Exception as e:
+            self.logger.error(f"Error in interactive execution: {str(e)}")
+            return False
+
     def _activate_venv(self, script_path: str) -> str:
         """Get the activation command for the script's virtual environment."""
         script_dir = os.path.dirname(script_path)
@@ -39,13 +106,19 @@ class ScriptRunner:
 
         return os.path.join(venv_path, Paths.SCRIPTS_DIR, Paths.ACTIVATE_SCRIPT)
 
-    def run_script(self, script_path: str, arguments: List[str] = None) -> bool:
+    def run_script(
+        self,
+        script_path: str,
+        arguments: List[str] = None,
+        interaction_handler: InteractionHandler | None = None,
+    ) -> bool:
         """
         Run a Python script with its virtual environment or a batch file.
 
         Args:
             script_path: Path to the Python script or batch file
             arguments: List of command line arguments for the script
+            interaction_handler: Optional handler for interactive prompts
 
         Returns:
             bool: True if script executed successfully, False otherwise
@@ -81,6 +154,14 @@ class ScriptRunner:
                     )
 
                 # Run the batch file in its directory
+                if interaction_handler:
+                    return self._run_interactive(
+                        cmd=cmd,
+                        cwd=script_dir,
+                        env=None,
+                        shell=True,
+                        interaction_handler=interaction_handler,
+                    )
                 try:
                     process = subprocess.run(
                         cmd,
@@ -114,6 +195,14 @@ class ScriptRunner:
                     )
 
                 # Run the script using uv
+                if interaction_handler:
+                    return self._run_interactive(
+                        cmd=python_cmd,
+                        cwd=script_dir,
+                        env=self._get_clean_env_for_uv(),
+                        shell=False,
+                        interaction_handler=interaction_handler,
+                    )
                 try:
                     process = subprocess.run(
                         python_cmd,
@@ -155,6 +244,14 @@ class ScriptRunner:
                     )
 
                 # Run the script in the correct directory
+                if interaction_handler:
+                    return self._run_interactive(
+                        cmd=python_cmd,
+                        cwd=script_dir,
+                        env=None,
+                        shell=False,
+                        interaction_handler=interaction_handler,
+                    )
                 try:
                     process = subprocess.run(
                         python_cmd,
@@ -206,8 +303,75 @@ class ScriptRunner:
             self.logger.error(f"Error reading pyproject.toml: {str(e)}")
             return []
 
+    def discover_entry_points(self, project_dir: str) -> list[tuple[str, str]]:
+        """
+        Discover likely entry points for a uv project.
+
+        Scans for common entry points and returns them as selectable options.
+
+        Args:
+            project_dir: Path to the uv project directory
+
+        Returns:
+            List of (command_string, description) tuples
+        """
+        entries: list[tuple[str, str]] = []
+        seen_commands: set[str] = set()
+
+        # 1. Project name from pyproject.toml
+        pyproject_path = os.path.join(project_dir, Paths.PYPROJECT_TOML)
+        if os.path.exists(pyproject_path):
+            try:
+                with open(pyproject_path, "rb") as f:
+                    data = tomllib.load(f)
+                project_name = data.get("project", {}).get("name", "")
+                if project_name:
+                    module_name = project_name.replace("-", "_")
+                    pkg_dir = os.path.join(project_dir, module_name)
+                    init_path = os.path.join(pkg_dir, Paths.INIT_PY)
+                    if os.path.isdir(pkg_dir) and os.path.exists(init_path):
+                        cmd = f"python -m {module_name}"
+                        entries.append((cmd, Discovery.DESC_PROJECT_MODULE))
+                        seen_commands.add(cmd)
+            except Exception:
+                pass
+
+        # 2. Root-level entry files
+        for filename in Discovery.ROOT_ENTRY_FILES:
+            filepath = os.path.join(project_dir, filename)
+            if os.path.isfile(filepath):
+                cmd = f"python {filename}"
+                if cmd not in seen_commands:
+                    entries.append((cmd, Discovery.DESC_ROOT_FILE))
+                    seen_commands.add(cmd)
+
+        # 3. Packages with __main__.py
+        try:
+            for entry in os.listdir(project_dir):
+                entry_path = os.path.join(project_dir, entry)
+                if not os.path.isdir(entry_path):
+                    continue
+                if entry.startswith("."):
+                    continue
+                if entry in Discovery.EXCLUDED_DIRS:
+                    continue
+                main_path = os.path.join(entry_path, Paths.MAIN_PY)
+                if os.path.exists(main_path):
+                    cmd = f"python -m {entry}"
+                    if cmd not in seen_commands:
+                        entries.append((cmd, Discovery.DESC_MAIN_MODULE))
+                        seen_commands.add(cmd)
+        except OSError:
+            pass
+
+        return entries
+
     def run_uv_command(
-        self, project_dir: str, command: str, arguments: List[str] = None
+        self,
+        project_dir: str,
+        command: str,
+        arguments: List[str] = None,
+        interaction_handler: InteractionHandler | None = None,
     ) -> bool:
         """
         Run a uv CLI command (entry point) in a project directory.
@@ -216,6 +380,7 @@ class ScriptRunner:
             project_dir: Path to the uv project directory
             command: The uv command/entry point name
             arguments: List of command line arguments for the command
+            interaction_handler: Optional handler for interactive prompts
 
         Returns:
             bool: True if command executed successfully, False otherwise
@@ -243,6 +408,15 @@ class ScriptRunner:
             else:
                 self.logger.info(
                     f"Arguments: {' '.join(arguments) if arguments else 'None'}"
+                )
+
+            if interaction_handler:
+                return self._run_interactive(
+                    cmd=cmd,
+                    cwd=project_dir,
+                    env=self._get_clean_env_for_uv(),
+                    shell=False,
+                    interaction_handler=interaction_handler,
                 )
 
             try:

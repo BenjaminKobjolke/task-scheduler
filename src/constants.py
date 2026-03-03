@@ -15,6 +15,8 @@ class Paths:
     PYPROJECT_TOML = "pyproject.toml"
     UV_LOCK = "uv.lock"
     BAT_EXTENSION = ".bat"
+    INIT_PY = "__init__.py"
+    MAIN_PY = "__main__.py"
 
 
 class Database:
@@ -105,6 +107,25 @@ class Bot:
     HEALTH_CHECK_INTERVAL_SECONDS = 30
     MAX_RECONNECT_ATTEMPTS = 5
     RECONNECT_DELAY_SECONDS = 10
+
+
+class Discovery:
+    """Constants for entry point discovery."""
+
+    ROOT_ENTRY_FILES = ("main.py", "app.py", "run.py", "cli.py")
+    EXCLUDED_DIRS = {"tests", "test", "__pycache__"}
+    DESC_PROJECT_MODULE = "project module (from pyproject.toml name)"
+    DESC_ROOT_FILE = "found in project root"
+    DESC_MAIN_MODULE = "package with __main__.py"
+
+
+class Interactive:
+    """Interactive script communication protocol constants."""
+
+    DEFAULT_TIMEOUT = 300
+    MARKER_FIELD = "_interactive"
+    SECTION = "Interactive"
+    KEY_TIMEOUT = "timeout"
 
 
 class Defaults:

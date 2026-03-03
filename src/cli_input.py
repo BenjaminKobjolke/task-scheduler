@@ -97,35 +97,17 @@ def _handle_uv_project(path_input: str, script_runner: ScriptRunner) -> Optional
     """
     Handle uv project selection, returning (task_type, command) or None if user should retry.
     """
-    commands = script_runner.get_uv_commands(path_input)
+    predefined = script_runner.get_uv_commands(path_input)
+    discovered = script_runner.discover_entry_points(path_input)
 
-    if commands:
-        print("\nDetected uv project! Available commands:")
-        for i, cmd in enumerate(commands, 1):
-            print(f"  {i}. {cmd}")
-        print(f"  {len(commands) + 1}. [Custom command]")
+    # Build combined option list: (command, description_or_none)
+    options: list[tuple[str, Optional[str]]] = []
 
-        while True:
-            cmd_input = input(f"\nSelect command [1-{len(commands) + 1}]: ").strip()
-            try:
-                cmd_idx = int(cmd_input) - 1
-                if 0 <= cmd_idx < len(commands):
-                    return (TaskTypes.UV_COMMAND, commands[cmd_idx])
-                elif cmd_idx == len(commands):
-                    custom_cmd = input(
-                        "Enter custom command (e.g., python -m module_name): "
-                    ).strip()
-                    if custom_cmd:
-                        return (TaskTypes.UV_COMMAND, custom_cmd)
-                    print("Error: Command cannot be empty.")
-                else:
-                    print(
-                        f"Error: Please enter a number between 1 and {len(commands) + 1}"
-                    )
-            except ValueError:
-                print("Error: Please enter a valid number.")
-    else:
-        print("\nDetected uv project! No predefined commands found.")
+    has_predefined = len(predefined) > 0
+    has_discovered = len(discovered) > 0
+
+    if not has_predefined and not has_discovered:
+        print("\nDetected uv project! No predefined or discovered commands found.")
         custom_cmd = input(
             "Enter custom command (e.g., python -m module_name): "
         ).strip()
@@ -133,6 +115,48 @@ def _handle_uv_project(path_input: str, script_runner: ScriptRunner) -> Optional
             return (TaskTypes.UV_COMMAND, custom_cmd)
         print("Error: Command cannot be empty.")
         return None
+
+    if has_predefined and has_discovered:
+        print("\nDetected uv project! Available commands:")
+        print("  Predefined:")
+        for cmd in predefined:
+            options.append((cmd, None))
+            print(f"    {len(options)}. {cmd}")
+        print("  Discovered:")
+        for cmd, desc in discovered:
+            options.append((cmd, desc))
+            print(f"    {len(options)}. {cmd}  ({desc})")
+    elif has_predefined:
+        print("\nDetected uv project! Available commands:")
+        for cmd in predefined:
+            options.append((cmd, None))
+            print(f"  {len(options)}. {cmd}")
+    else:
+        print("\nDetected uv project! No predefined commands, but found possible entry points:")
+        for cmd, desc in discovered:
+            options.append((cmd, desc))
+            print(f"  {len(options)}. {cmd}  ({desc})")
+
+    custom_idx = len(options) + 1
+    print(f"  {custom_idx}. [Custom command]")
+
+    while True:
+        cmd_input = input(f"\nSelect command [1-{custom_idx}]: ").strip()
+        try:
+            choice = int(cmd_input)
+            if 1 <= choice <= len(options):
+                return (TaskTypes.UV_COMMAND, options[choice - 1][0])
+            elif choice == custom_idx:
+                custom_cmd = input(
+                    "Enter custom command (e.g., python -m module_name): "
+                ).strip()
+                if custom_cmd:
+                    return (TaskTypes.UV_COMMAND, custom_cmd)
+                print("Error: Command cannot be empty.")
+            else:
+                print(f"Error: Please enter a number between 1 and {custom_idx}")
+        except ValueError:
+            print("Error: Please enter a valid number.")
 
 
 def get_task_input(existing_task: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

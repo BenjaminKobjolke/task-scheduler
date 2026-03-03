@@ -155,3 +155,107 @@ class TestRunUvCommand:
         result = runner.run_uv_command(temp_dir, "nonexistent-command")
         # Should return False (command doesn't exist) but not raise
         assert isinstance(result, bool)
+
+
+class TestDiscoverEntryPoints:
+    """Tests for discover_entry_points method."""
+
+    def test_discover_entry_points_from_project_name(self, runner, temp_dir):
+        """Project name in pyproject.toml with matching package dir returns python -m command."""
+        pyproject_path = os.path.join(temp_dir, Paths.PYPROJECT_TOML)
+        with open(pyproject_path, "w") as f:
+            f.write('[project]\nname = "my-cool-app"\n')
+
+        # Create matching package directory
+        pkg_dir = os.path.join(temp_dir, "my_cool_app")
+        os.makedirs(pkg_dir)
+        open(os.path.join(pkg_dir, "__init__.py"), "w").close()
+
+        result = runner.discover_entry_points(temp_dir)
+
+        assert any(cmd == "python -m my_cool_app" for cmd, _ in result)
+
+    def test_discover_entry_points_no_matching_package(self, runner, temp_dir):
+        """Project name exists but no matching directory → skipped."""
+        pyproject_path = os.path.join(temp_dir, Paths.PYPROJECT_TOML)
+        with open(pyproject_path, "w") as f:
+            f.write('[project]\nname = "my-cool-app"\n')
+
+        result = runner.discover_entry_points(temp_dir)
+
+        assert not any("my_cool_app" in cmd for cmd, _ in result)
+
+    def test_discover_entry_points_root_files(self, runner, temp_dir):
+        """main.py and app.py in project root are discovered."""
+        # Create pyproject.toml (required for uv project)
+        pyproject_path = os.path.join(temp_dir, Paths.PYPROJECT_TOML)
+        with open(pyproject_path, "w") as f:
+            f.write('[project]\nname = "test"\n')
+
+        open(os.path.join(temp_dir, "main.py"), "w").close()
+        open(os.path.join(temp_dir, "app.py"), "w").close()
+
+        result = runner.discover_entry_points(temp_dir)
+
+        commands = [cmd for cmd, _ in result]
+        assert "python main.py" in commands
+        assert "python app.py" in commands
+
+    def test_discover_entry_points_main_module(self, runner, temp_dir):
+        """Package with __main__.py is discovered."""
+        pyproject_path = os.path.join(temp_dir, Paths.PYPROJECT_TOML)
+        with open(pyproject_path, "w") as f:
+            f.write('[project]\nname = "test"\n')
+
+        pkg_dir = os.path.join(temp_dir, "mypackage")
+        os.makedirs(pkg_dir)
+        open(os.path.join(pkg_dir, "__main__.py"), "w").close()
+
+        result = runner.discover_entry_points(temp_dir)
+
+        assert any(cmd == "python -m mypackage" for cmd, _ in result)
+
+    def test_discover_entry_points_dedup(self, runner, temp_dir):
+        """Project name and __main__.py scan producing same command → only one entry."""
+        pyproject_path = os.path.join(temp_dir, Paths.PYPROJECT_TOML)
+        with open(pyproject_path, "w") as f:
+            f.write('[project]\nname = "mypackage"\n')
+
+        pkg_dir = os.path.join(temp_dir, "mypackage")
+        os.makedirs(pkg_dir)
+        open(os.path.join(pkg_dir, "__init__.py"), "w").close()
+        open(os.path.join(pkg_dir, "__main__.py"), "w").close()
+
+        result = runner.discover_entry_points(temp_dir)
+
+        matching = [cmd for cmd, _ in result if cmd == "python -m mypackage"]
+        assert len(matching) == 1
+
+    def test_discover_entry_points_empty(self, runner, temp_dir):
+        """Nothing found → returns empty list."""
+        pyproject_path = os.path.join(temp_dir, Paths.PYPROJECT_TOML)
+        with open(pyproject_path, "w") as f:
+            f.write('[project]\nname = "test"\n')
+
+        result = runner.discover_entry_points(temp_dir)
+
+        assert result == []
+
+    def test_discover_entry_points_skips_excluded_dirs(self, runner, temp_dir):
+        """tests/, __pycache__/, .hidden/ directories are skipped."""
+        pyproject_path = os.path.join(temp_dir, Paths.PYPROJECT_TOML)
+        with open(pyproject_path, "w") as f:
+            f.write('[project]\nname = "test"\n')
+
+        # Create excluded dirs with __main__.py
+        for dirname in ["tests", "__pycache__", ".hidden"]:
+            excluded_dir = os.path.join(temp_dir, dirname)
+            os.makedirs(excluded_dir)
+            open(os.path.join(excluded_dir, "__main__.py"), "w").close()
+
+        result = runner.discover_entry_points(temp_dir)
+
+        commands = [cmd for cmd, _ in result]
+        assert "python -m tests" not in commands
+        assert "python -m __pycache__" not in commands
+        assert "python -m .hidden" not in commands
