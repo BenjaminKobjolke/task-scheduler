@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-xmpp = ["xmpp-bot"]
+xmpp = ["xmpp-bot", "aiodns<4.0.0"]
 
 [build-system]
 requires = ["hatchling"]
