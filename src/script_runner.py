@@ -6,7 +6,7 @@ import subprocess
 import tomllib
 from typing import TYPE_CHECKING, List
 
-from .constants import Discovery, Paths
+from .constants import Discovery, Interactive, Paths
 from .logger import Logger
 
 if TYPE_CHECKING:
@@ -29,10 +29,23 @@ class ScriptRunner:
         uv_lock_path = os.path.join(script_dir, Paths.UV_LOCK)
         return os.path.exists(pyproject_path) and os.path.exists(uv_lock_path)
 
-    def _get_clean_env_for_uv(self) -> dict:
-        """Get environment without VIRTUAL_ENV for uv execution."""
+    def _build_env(self, clean_uv: bool = False) -> dict:
+        """Build environment for subprocess execution.
+
+        Sets the TASK_SCHEDULER marker so child scripts can detect
+        they are running under the scheduler. Optionally removes
+        VIRTUAL_ENV for uv-managed projects.
+
+        Args:
+            clean_uv: If True, remove VIRTUAL_ENV from the environment.
+
+        Returns:
+            A copy of os.environ with modifications applied.
+        """
         env = os.environ.copy()
-        env.pop("VIRTUAL_ENV", None)
+        env[Interactive.ENV_MARKER] = "1"
+        if clean_uv:
+            env.pop("VIRTUAL_ENV", None)
         return env
 
     def _run_interactive(
@@ -158,7 +171,7 @@ class ScriptRunner:
                     return self._run_interactive(
                         cmd=cmd,
                         cwd=script_dir,
-                        env=None,
+                        env=self._build_env(),
                         shell=True,
                         interaction_handler=interaction_handler,
                     )
@@ -170,6 +183,7 @@ class ScriptRunner:
                         text=True,
                         cwd=script_dir,
                         shell=True,
+                        env=self._build_env(),
                         timeout=DEFAULT_TIMEOUT,
                     )
                 except subprocess.TimeoutExpired:
@@ -199,7 +213,7 @@ class ScriptRunner:
                     return self._run_interactive(
                         cmd=python_cmd,
                         cwd=script_dir,
-                        env=self._get_clean_env_for_uv(),
+                        env=self._build_env(clean_uv=True),
                         shell=False,
                         interaction_handler=interaction_handler,
                     )
@@ -210,7 +224,7 @@ class ScriptRunner:
                         stderr=subprocess.PIPE,
                         text=True,
                         cwd=script_dir,
-                        env=self._get_clean_env_for_uv(),
+                        env=self._build_env(clean_uv=True),
                         timeout=DEFAULT_TIMEOUT,
                     )
                 except subprocess.TimeoutExpired:
@@ -248,7 +262,7 @@ class ScriptRunner:
                     return self._run_interactive(
                         cmd=python_cmd,
                         cwd=script_dir,
-                        env=None,
+                        env=self._build_env(),
                         shell=False,
                         interaction_handler=interaction_handler,
                     )
@@ -259,6 +273,7 @@ class ScriptRunner:
                         stderr=subprocess.PIPE,
                         text=True,
                         cwd=script_dir,
+                        env=self._build_env(),
                         timeout=DEFAULT_TIMEOUT,
                     )
                 except subprocess.TimeoutExpired:
@@ -414,7 +429,7 @@ class ScriptRunner:
                 return self._run_interactive(
                     cmd=cmd,
                     cwd=project_dir,
-                    env=self._get_clean_env_for_uv(),
+                    env=self._build_env(clean_uv=True),
                     shell=False,
                     interaction_handler=interaction_handler,
                 )
@@ -426,7 +441,7 @@ class ScriptRunner:
                     stderr=subprocess.PIPE,
                     text=True,
                     cwd=project_dir,
-                    env=self._get_clean_env_for_uv(),
+                    env=self._build_env(clean_uv=True),
                     timeout=DEFAULT_TIMEOUT,
                 )
             except subprocess.TimeoutExpired:

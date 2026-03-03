@@ -2,9 +2,10 @@
 
 import os
 import tempfile
+from unittest.mock import patch
 import pytest
 from src.script_runner import ScriptRunner
-from src.constants import Paths
+from src.constants import Interactive, Paths
 
 
 @pytest.fixture
@@ -259,3 +260,24 @@ class TestDiscoverEntryPoints:
         assert "python -m tests" not in commands
         assert "python -m __pycache__" not in commands
         assert "python -m .hidden" not in commands
+
+
+class TestBuildEnv:
+    """Tests for _build_env method."""
+
+    def test_build_env_sets_task_scheduler(self, runner):
+        """Verify TASK_SCHEDULER is set to '1' in returned env."""
+        env = runner._build_env()
+        assert env[Interactive.ENV_MARKER] == "1"
+
+    def test_build_env_clean_uv_removes_virtual_env(self, runner):
+        """Verify VIRTUAL_ENV is removed when clean_uv=True."""
+        with patch.dict(os.environ, {"VIRTUAL_ENV": "/some/venv"}):
+            env = runner._build_env(clean_uv=True)
+            assert "VIRTUAL_ENV" not in env
+
+    def test_build_env_keeps_virtual_env_by_default(self, runner):
+        """Verify VIRTUAL_ENV is kept when clean_uv=False."""
+        with patch.dict(os.environ, {"VIRTUAL_ENV": "/some/venv"}):
+            env = runner._build_env(clean_uv=False)
+            assert env["VIRTUAL_ENV"] == "/some/venv"

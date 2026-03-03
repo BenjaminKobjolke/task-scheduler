@@ -126,6 +126,7 @@ class Interactive:
     MARKER_FIELD = "_interactive"
     SECTION = "Interactive"
     KEY_TIMEOUT = "timeout"
+    ENV_MARKER = "TASK_SCHEDULER"
 
 
 class Defaults:
