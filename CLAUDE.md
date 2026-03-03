@@ -63,6 +63,11 @@ powershell -Command "cd 'D:\GIT\BenjaminKobjolke\task-scheduler'; cmd /c '.\tool
 
 Fix any reported issues before committing.
 
+## Bash Tool Rules
+
+- **No compound commands**: Never chain commands with `&&`, `;`, or `||`. Run each command as a separate Bash tool call.
+- **No `cd` combined with other commands**: Do not use `cd /path && git commit` or similar. Use separate Bash calls, one for `cd` and one for the command, or pass the directory via the command itself.
+
 ## Coding Rules Source
 
 Path: `D:\GIT\BenjaminKobjolke\claude-code\coding-rules`
