@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shlex
 import subprocess
+import threading
 import tomllib
 from typing import TYPE_CHECKING, List
 
@@ -10,7 +11,7 @@ from .constants import Discovery, Interactive, Paths
 from .logger import Logger
 
 if TYPE_CHECKING:
-    from .interaction import InteractionHandler
+    from .interaction import InteractionHandler, ScriptOutput
 
 # Default timeout for script execution (30 minutes)
 DEFAULT_TIMEOUT = 1800
@@ -55,6 +56,7 @@ class ScriptRunner:
         env: dict | None,
         shell: bool,
         interaction_handler: InteractionHandler,
+        script_output: ScriptOutput | None = None,
     ) -> bool:
         """Run a subprocess with interactive prompt support.
 
@@ -67,11 +69,24 @@ class ScriptRunner:
             env: Environment variables (None for default)
             shell: Whether to use shell execution
             interaction_handler: Handler for interactive prompts
+            script_output: Optional output handler for direct console display
 
         Returns:
             bool: True if process exited with code 0
         """
-        from .interaction import InteractionRequest
+        from .interaction import InteractionRequest, InteractionType
+
+        def _drain_stderr(
+            stream: object,
+            output: ScriptOutput | None,
+            logger: Logger,
+        ) -> None:
+            for err_line in iter(stream.readline, ""):
+                stripped = err_line.rstrip()
+                if output:
+                    output.write_line(stripped)
+                else:
+                    logger.info(stripped)
 
         try:
             proc = subprocess.Popen(
@@ -85,19 +100,33 @@ class ScriptRunner:
                 shell=shell,
             )
 
+            stderr_thread = threading.Thread(
+                target=_drain_stderr,
+                args=(proc.stderr, script_output, self.logger),
+                daemon=True,
+            )
+            stderr_thread.start()
+
             for line in iter(proc.stdout.readline, ""):
                 request = InteractionRequest.parse(line)
                 if request:
-                    response = interaction_handler.handle_prompt(request)
-                    proc.stdin.write(response.to_json_line() + "\n")
-                    proc.stdin.flush()
+                    if request.type == InteractionType.OUTPUT:
+                        if not request.message:
+                            continue
+                        if script_output:
+                            script_output.write_line(request.message)
+                        else:
+                            self.logger.info(request.message)
+                    else:
+                        response = interaction_handler.handle_prompt(request)
+                        proc.stdin.write(response.to_json_line() + "\n")
+                        proc.stdin.flush()
+                elif script_output:
+                    script_output.write_line(line.rstrip())
                 else:
                     self.logger.info(line.rstrip())
 
-            stderr = proc.stderr.read()
-            if stderr:
-                self.logger.info(f"Script stderr output:\n{stderr}")
-
+            stderr_thread.join(timeout=5)
             proc.wait(timeout=DEFAULT_TIMEOUT)
             return proc.returncode == 0
 
@@ -124,6 +153,7 @@ class ScriptRunner:
         script_path: str,
         arguments: List[str] = None,
         interaction_handler: InteractionHandler | None = None,
+        script_output: ScriptOutput | None = None,
     ) -> bool:
         """
         Run a Python script with its virtual environment or a batch file.
@@ -132,6 +162,7 @@ class ScriptRunner:
             script_path: Path to the Python script or batch file
             arguments: List of command line arguments for the script
             interaction_handler: Optional handler for interactive prompts
+            script_output: Optional output handler for direct console display
 
         Returns:
             bool: True if script executed successfully, False otherwise
@@ -174,6 +205,7 @@ class ScriptRunner:
                         env=self._build_env(),
                         shell=True,
                         interaction_handler=interaction_handler,
+                        script_output=script_output,
                     )
                 try:
                     process = subprocess.run(
@@ -216,6 +248,7 @@ class ScriptRunner:
                         env=self._build_env(clean_uv=True),
                         shell=False,
                         interaction_handler=interaction_handler,
+                        script_output=script_output,
                     )
                 try:
                     process = subprocess.run(
@@ -265,6 +298,7 @@ class ScriptRunner:
                         env=self._build_env(),
                         shell=False,
                         interaction_handler=interaction_handler,
+                        script_output=script_output,
                     )
                 try:
                     process = subprocess.run(
@@ -387,6 +421,7 @@ class ScriptRunner:
         command: str,
         arguments: List[str] = None,
         interaction_handler: InteractionHandler | None = None,
+        script_output: ScriptOutput | None = None,
     ) -> bool:
         """
         Run a uv CLI command (entry point) in a project directory.
@@ -396,6 +431,7 @@ class ScriptRunner:
             command: The uv command/entry point name
             arguments: List of command line arguments for the command
             interaction_handler: Optional handler for interactive prompts
+            script_output: Optional output handler for direct console display
 
         Returns:
             bool: True if command executed successfully, False otherwise
@@ -432,6 +468,7 @@ class ScriptRunner:
                     env=self._build_env(clean_uv=True),
                     shell=False,
                     interaction_handler=interaction_handler,
+                    script_output=script_output,
                 )
 
             try:

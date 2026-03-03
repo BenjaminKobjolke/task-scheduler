@@ -15,7 +15,7 @@ from .script_runner import ScriptRunner
 from .status_page import StatusPage
 
 if TYPE_CHECKING:
-    from .interaction import InteractionHandler
+    from .interaction import InteractionHandler, ScriptOutput
 
 
 class TaskScheduler:
@@ -211,6 +211,7 @@ class TaskScheduler:
         task_type: str = TaskTypes.SCRIPT,
         command: Optional[str] = None,
         interaction_handler: InteractionHandler | None = None,
+        script_output: ScriptOutput | None = None,
     ) -> bool:
         """
         Process a single job.
@@ -223,17 +224,25 @@ class TaskScheduler:
             task_type: Type of task ('script' or 'uv_command')
             command: Command name for uv_command tasks
             interaction_handler: Optional handler for interactive prompts
+            script_output: Optional output handler for direct console display
 
         Returns:
             bool: True if execution succeeded, False otherwise
         """
         if task_type == TaskTypes.UV_COMMAND and command:
             success = self.script_runner.run_uv_command(
-                script_path, command, arguments, interaction_handler=interaction_handler
+                script_path,
+                command,
+                arguments,
+                interaction_handler=interaction_handler,
+                script_output=script_output,
             )
         else:
             success = self.script_runner.run_script(
-                script_path, arguments, interaction_handler=interaction_handler
+                script_path,
+                arguments,
+                interaction_handler=interaction_handler,
+                script_output=script_output,
             )
 
         if success:
@@ -533,6 +542,7 @@ class TaskScheduler:
         self,
         task_id: int,
         interaction_handler: InteractionHandler | None = None,
+        script_output: ScriptOutput | None = None,
     ) -> bool:
         """
         Run a specific task by its ID.
@@ -540,6 +550,7 @@ class TaskScheduler:
         Args:
             task_id: ID of the task to run
             interaction_handler: Optional handler for interactive prompts
+            script_output: Optional output handler for direct console display
 
         Returns:
             bool: True if execution succeeded, False otherwise
@@ -565,6 +576,7 @@ class TaskScheduler:
                 task.get("task_type", TaskTypes.SCRIPT),
                 task.get("command"),
                 interaction_handler=interaction_handler,
+                script_output=script_output,
             )
 
         except Exception as e:

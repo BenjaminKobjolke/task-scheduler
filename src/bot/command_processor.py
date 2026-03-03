@@ -9,7 +9,7 @@ from bot_commander import BotMessage, BotResponse, Commander
 from .constants import Commands, Messages
 from .conversation import AddWizard, DeleteConfirmation, EditWizard
 from .formatters import format_execution_history_compact, format_task_list_compact
-from .interaction_handler import BotInteractionHandler
+from .interaction_handler import BotInteractionHandler, BotScriptOutput
 from src.config import Config
 from src.logger import Logger
 from src.scheduler import TaskScheduler
@@ -152,16 +152,20 @@ class TaskCommandProcessor(Commander):
     def _run_task_async(self, user_id: str, task_id: int, task_name: str) -> None:
         """Execute a task in a background thread and notify the user."""
         handler: BotInteractionHandler | None = None
+        script_output: BotScriptOutput | None = None
         try:
             if self._notifier:
                 timeout = Config().get_interaction_timeout()
                 handler = BotInteractionHandler(
                     user_id=user_id, notifier=self._notifier, timeout=timeout
                 )
+                script_output = BotScriptOutput(
+                    user_id=user_id, notifier=self._notifier
+                )
                 self._active_handlers[user_id] = handler
 
             success = self._scheduler.run_task(
-                task_id, interaction_handler=handler
+                task_id, interaction_handler=handler, script_output=script_output
             )
             if success:
                 text = Messages.TASK_EXECUTED_SUCCESS.format(task_name, task_id)

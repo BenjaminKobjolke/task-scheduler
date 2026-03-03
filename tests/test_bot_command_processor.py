@@ -9,6 +9,7 @@ from bot_commander import BotMessage
 
 from src.bot.command_processor import BotConfig, TaskCommandProcessor
 from src.bot.constants import Commands, Messages
+from src.bot.interaction_handler import BotScriptOutput
 from src.database import Database
 from src.scheduler import TaskScheduler
 
@@ -292,6 +293,23 @@ class TestRunCommand:
         notifier.assert_called_once()
         call_text = notifier.call_args[0][1]
         assert "99" in call_text
+
+    def test_run_async_passes_bot_script_output(
+        self, processor: TaskCommandProcessor, scheduler_mock: MagicMock
+    ) -> None:
+        """_run_task_async passes a BotScriptOutput to scheduler.run_task()."""
+        notifier = MagicMock()
+        processor.set_notifier(notifier)
+        task = _make_task(task_id=1, name="Backup")
+        scheduler_mock.list_tasks.return_value = [task]
+        scheduler_mock.run_task.return_value = True
+        processor.handle(BotMessage(user_id="user1", text="/run 1"))
+        time.sleep(0.5)
+        scheduler_mock.run_task.assert_called_once()
+        call_kwargs = scheduler_mock.run_task.call_args
+        script_output = call_kwargs.kwargs.get("script_output")
+        assert script_output is not None
+        assert isinstance(script_output, BotScriptOutput)
 
 
 # -- History command tests --

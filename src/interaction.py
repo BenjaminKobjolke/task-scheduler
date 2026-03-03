@@ -16,6 +16,7 @@ class InteractionType(str, Enum):
     CONFIRM = "confirm"
     INPUT = "input"
     CHOICE = "choice"
+    OUTPUT = "output"
 
 
 _VALID_TYPES = {t.value for t in InteractionType}
@@ -53,9 +54,19 @@ class InteractionRequest:
         msg_id = data.get("id")
         message = data.get("message")
 
-        if not raw_type or not msg_id or not message:
-            return None
         if raw_type not in _VALID_TYPES:
+            return None
+
+        # Output messages are display-only — id is not required
+        if raw_type == InteractionType.OUTPUT.value:
+            return InteractionRequest(
+                type=InteractionType.OUTPUT,
+                id=msg_id or "",
+                message=message or "",
+            )
+
+        # Interactive prompt types require both id and message
+        if not raw_type or not msg_id or not message:
             return None
 
         return InteractionRequest(
@@ -90,6 +101,19 @@ class InteractionHandler(Protocol):
     """Protocol for handling interactive prompts from scripts."""
 
     def handle_prompt(self, request: InteractionRequest) -> InteractionResponse: ...
+
+
+class ScriptOutput(Protocol):
+    """Protocol for displaying script output during execution."""
+
+    def write_line(self, line: str) -> None: ...
+
+
+class ConsoleScriptOutput:
+    """Writes script output directly to the terminal."""
+
+    def write_line(self, line: str) -> None:
+        print(line, flush=True)
 
 
 class InteractionTimeoutError(Exception):

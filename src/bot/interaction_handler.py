@@ -8,6 +8,17 @@ from collections.abc import Callable
 from src.interaction import InteractionRequest, InteractionResponse, InteractionType
 
 
+class BotScriptOutput:
+    """Sends script output lines to the chat user."""
+
+    def __init__(self, user_id: str, notifier: Callable[[str, str], None]) -> None:
+        self._user_id = user_id
+        self._notifier = notifier
+
+    def write_line(self, line: str) -> None:
+        self._notifier(self._user_id, line)
+
+
 class BotInteractionHandler:
     """Handles interactive prompts by sending them to a chat user and waiting for replies."""
 
