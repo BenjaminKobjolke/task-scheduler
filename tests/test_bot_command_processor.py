@@ -193,7 +193,7 @@ class TestRunCommand:
         task = _make_task(task_id=1, name="Backup")
         scheduler_mock.list_tasks.return_value = [task]
         # Block run_task so the thread doesn't finish before we assert
-        scheduler_mock.run_task.side_effect = lambda _: time.sleep(0.5)
+        scheduler_mock.run_task.side_effect = lambda *a, **kw: time.sleep(0.5)
         msg = BotMessage(user_id="user1", text="/run 1")
         response = processor.handle(msg)
         assert response.text == Messages.TASK_RUNNING.format("Backup", 1)
@@ -205,7 +205,7 @@ class TestRunCommand:
         task = _make_task(task_id=1, name="Backup")
         scheduler_mock.list_tasks.return_value = [task]
         done = threading.Event()
-        scheduler_mock.run_task.side_effect = lambda _: done.set() or True
+        scheduler_mock.run_task.side_effect = lambda *a, **kw: done.set() or True
         processor.handle(BotMessage(user_id="user1", text="/run 1"))
         assert done.wait(timeout=2), "Background thread did not run"
 

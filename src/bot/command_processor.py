@@ -9,6 +9,8 @@ from bot_commander import BotMessage, BotResponse, Commander
 from .constants import Commands, Messages
 from .conversation import AddWizard, DeleteConfirmation, EditWizard
 from .formatters import format_execution_history_compact, format_task_list_compact
+from .interaction_handler import BotInteractionHandler
+from src.config import Config
 from src.logger import Logger
 from src.scheduler import TaskScheduler
 
@@ -36,6 +38,7 @@ class TaskCommandProcessor(Commander):
         self._bot_config = bot_config
         self._logger = Logger("TaskCommandProcessor")
         self._notifier: Callable[[str, str], None] | None = None
+        self._active_handlers: dict[str, BotInteractionHandler] = {}
 
         # Register commands
         self.register_command(Commands.HELP, self._cmd_help)
@@ -76,6 +79,16 @@ class TaskCommandProcessor(Commander):
         """Normalize input to support aliases and slash-optional commands."""
         user_id = message.user_id
         text = message.text.strip()
+
+        # Intercept messages for users with active interactive handlers
+        if user_id in self._active_handlers:
+            # Allow /cancel to abort the interaction
+            cmd = text.split(maxsplit=1)[0].lower().lstrip("/")
+            resolved = Commands.ALIASES.get(cmd, cmd)
+            if resolved != "cancel":
+                self._active_handlers[user_id].resolve(text)
+                return BotResponse(text="")
+
         # Only normalize when no active conversation (conversation input is free-form)
         if text and user_id not in self._conversations:
             parts = text.split(maxsplit=1)
@@ -138,14 +151,26 @@ class TaskCommandProcessor(Commander):
 
     def _run_task_async(self, user_id: str, task_id: int, task_name: str) -> None:
         """Execute a task in a background thread and notify the user."""
+        handler: BotInteractionHandler | None = None
         try:
-            success = self._scheduler.run_task(task_id)
+            if self._notifier:
+                timeout = Config().get_interaction_timeout()
+                handler = BotInteractionHandler(
+                    user_id=user_id, notifier=self._notifier, timeout=timeout
+                )
+                self._active_handlers[user_id] = handler
+
+            success = self._scheduler.run_task(
+                task_id, interaction_handler=handler
+            )
             if success:
                 text = Messages.TASK_EXECUTED_SUCCESS.format(task_name, task_id)
             else:
                 text = Messages.TASK_EXECUTED_FAILURE.format(task_name, task_id)
         except Exception as e:
             text = Messages.TASK_EXECUTION_ERROR.format(task_id, str(e))
+        finally:
+            self._active_handlers.pop(user_id, None)
         if self._notifier:
             self._notifier(user_id, text)
 

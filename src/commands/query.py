@@ -3,6 +3,7 @@ import sys
 from ..cli_output import CliOutput
 from ..config import Config
 from ..formatters import format_execution_history, format_task_list
+from ..interaction import CliInteractionHandler
 from ..scheduler import TaskScheduler
 from ..status_page import StatusPage
 
@@ -33,7 +34,8 @@ def handle_run_id(scheduler: TaskScheduler, cli: CliOutput, task_id: int) -> Non
 
     cli.info(f"Running task {task['name']} (ID: {task['id']})")
     try:
-        scheduler.run_task(task["id"])
+        handler = CliInteractionHandler()
+        scheduler.run_task(task["id"], interaction_handler=handler)
     except Exception as e:
         cli.error(f"Error running task {task['name']} (ID: {task['id']}): {str(e)}")
         sys.exit(1)

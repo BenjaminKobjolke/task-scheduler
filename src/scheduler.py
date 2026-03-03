@@ -1,14 +1,21 @@
-from typing import Dict, List, Optional
+from __future__ import annotations
+
 import hashlib
 import os
+from datetime import datetime, time, timedelta
+from typing import TYPE_CHECKING, Dict, List, Optional
+
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from datetime import datetime, timedelta, time
+
+from .constants import Defaults, Paths, TaskTypes
+from .database import Database
 from .logger import Logger
 from .script_runner import ScriptRunner
-from .database import Database
 from .status_page import StatusPage
-from .constants import Paths, Defaults, TaskTypes
+
+if TYPE_CHECKING:
+    from .interaction import InteractionHandler
 
 
 class TaskScheduler:
@@ -203,6 +210,7 @@ class TaskScheduler:
         arguments: List[str],
         task_type: str = TaskTypes.SCRIPT,
         command: Optional[str] = None,
+        interaction_handler: InteractionHandler | None = None,
     ) -> bool:
         """
         Process a single job.
@@ -214,14 +222,19 @@ class TaskScheduler:
             arguments: Arguments for the script/command
             task_type: Type of task ('script' or 'uv_command')
             command: Command name for uv_command tasks
+            interaction_handler: Optional handler for interactive prompts
 
         Returns:
             bool: True if execution succeeded, False otherwise
         """
         if task_type == TaskTypes.UV_COMMAND and command:
-            success = self.script_runner.run_uv_command(script_path, command, arguments)
+            success = self.script_runner.run_uv_command(
+                script_path, command, arguments, interaction_handler=interaction_handler
+            )
         else:
-            success = self.script_runner.run_script(script_path, arguments)
+            success = self.script_runner.run_script(
+                script_path, arguments, interaction_handler=interaction_handler
+            )
 
         if success:
             self.logger.info(f"Successfully executed task '{name}'")
@@ -516,12 +529,17 @@ class TaskScheduler:
 
         return tasks
 
-    def run_task(self, task_id: int) -> bool:
+    def run_task(
+        self,
+        task_id: int,
+        interaction_handler: InteractionHandler | None = None,
+    ) -> bool:
         """
         Run a specific task by its ID.
 
         Args:
             task_id: ID of the task to run
+            interaction_handler: Optional handler for interactive prompts
 
         Returns:
             bool: True if execution succeeded, False otherwise
@@ -546,6 +564,7 @@ class TaskScheduler:
                 task["arguments"],
                 task.get("task_type", TaskTypes.SCRIPT),
                 task.get("command"),
+                interaction_handler=interaction_handler,
             )
 
         except Exception as e:

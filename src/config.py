@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from .bot.command_processor import BotConfig
 from .constants import Bot as BotConstants
 from .constants import Config as ConfigConstants
+from .constants import Interactive as InteractiveConstants
 
 
 class Config:
@@ -72,6 +73,10 @@ class Config:
             BotConstants.KEY_ALLOW_ADD: BotConstants.DEFAULT_ALLOW_ADD,
             BotConstants.KEY_ALLOW_EDIT: BotConstants.DEFAULT_ALLOW_EDIT,
             BotConstants.KEY_ALLOW_DELETE: BotConstants.DEFAULT_ALLOW_DELETE,
+        }
+
+        self.config[InteractiveConstants.SECTION] = {
+            InteractiveConstants.KEY_TIMEOUT: str(InteractiveConstants.DEFAULT_TIMEOUT),
         }
 
         with open(self.config_path, "w") as configfile:
@@ -325,6 +330,14 @@ class Config:
             allow_add=self.is_bot_command_allowed(BotConstants.KEY_ALLOW_ADD),
             allow_edit=self.is_bot_command_allowed(BotConstants.KEY_ALLOW_EDIT),
             allow_delete=self.is_bot_command_allowed(BotConstants.KEY_ALLOW_DELETE),
+        )
+
+    def get_interaction_timeout(self) -> int:
+        """Get the interactive prompt timeout in seconds."""
+        return self.config.getint(
+            InteractiveConstants.SECTION,
+            InteractiveConstants.KEY_TIMEOUT,
+            fallback=InteractiveConstants.DEFAULT_TIMEOUT,
         )
 
     def _ensure_section(self, section: str):
