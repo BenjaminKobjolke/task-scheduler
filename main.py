@@ -235,8 +235,8 @@ if __name__ == "__main__":
 
         # Initialize logger and scheduler
         logger = Logger("Main")
-        scheduler = TaskScheduler()
         cli = CliOutput()
+        scheduler = TaskScheduler()
 
         if args.list is not None:
             handle_list(scheduler, cli, args.list)
@@ -346,5 +346,9 @@ if __name__ == "__main__":
             sys.exit(0)
 
     except Exception as e:
-        logger.error(f"Error: {str(e)}", exc_info=True)
+        print(f"Error: {e}", file=sys.stderr)
+        if "cli" in dir():
+            cli.error(f"Error: {e}")
+        elif "logger" in dir():
+            logger.error(f"Error: {str(e)}", exc_info=True)
         sys.exit(1)
