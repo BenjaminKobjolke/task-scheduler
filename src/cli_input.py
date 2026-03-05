@@ -46,7 +46,7 @@ def _get_script_path(
     while True:
         prompt_text = "\nScript path or uv project directory (Use Tab for suggestions)"
         if existing_task:
-            prompt_text += f" [{existing_task['script_path']}]"
+            prompt_text += "\n(Enter = keep current)"
         prompt_text += ":"
         print(prompt_text)
 
@@ -57,8 +57,8 @@ def _get_script_path(
             default=existing_task["script_path"] if existing_task else "",
         ).strip()
 
-        # Keep existing value if empty input
-        if existing_task and not path_input:
+        # Keep existing value if empty or unchanged
+        if existing_task and (not path_input or path_input == existing_task["script_path"]):
             return (
                 existing_task["script_path"],
                 existing_task.get("task_type", TaskTypes.SCRIPT),
@@ -170,35 +170,34 @@ def get_task_input(existing_task: Optional[Dict[str, Any]] = None) -> Dict[str, 
         Dictionary with task details: script_path, name, interval, arguments,
         task_type, command, start_time
     """
-    print("\nAdding new task interactively:")
-
     kb = _create_path_key_bindings()
     path_completer = PathCompleter(get_paths=lambda: ["."], expanduser=True)
     completer = FuzzyCompleter(path_completer)
     session = PromptSession()
     script_runner = ScriptRunner()
 
-    # If editing, show current values
     if existing_task:
         task_type = existing_task.get("task_type", TaskTypes.SCRIPT)
         print("\nEditing task (press Enter to keep current value):")
         print("Current values:")
-        print(f"Name: {existing_task['name']}")
+        print(f"  Name: {existing_task['name']}")
         if task_type == TaskTypes.UV_COMMAND:
-            print("Type: uv command")
-            print(f"Project: {existing_task['script_path']}")
-            print(f"Command: {existing_task.get('command', 'N/A')}")
+            print("  Type: uv command")
+            print(f"  Project: {existing_task['script_path']}")
+            print(f"  Command: {existing_task.get('command', 'N/A')}")
         else:
-            print("Type: script")
-            print(f"Script: {existing_task['script_path']}")
+            print("  Type: script")
+            print(f"  Script: {existing_task['script_path']}")
         interval = existing_task["interval"]
         interval_display = Defaults.MANUAL_ONLY_LABEL if interval == 0 else f"{interval} minute(s)"
-        print(f"Interval: {interval_display}")
+        print(f"  Interval: {interval_display}")
         if existing_task.get("start_time"):
-            print(f"Start time: {existing_task['start_time']}")
+            print(f"  Start time: {existing_task['start_time']}")
         print(
-            f"Arguments: {' '.join(existing_task['arguments']) if existing_task['arguments'] else 'None'}"
+            f"  Arguments: {' '.join(existing_task['arguments']) if existing_task['arguments'] else 'None'}"
         )
+    else:
+        print("\nAdding new task interactively:")
 
     # Get script path
     script_path, task_type, command = _get_script_path(
@@ -239,7 +238,7 @@ def _get_task_name(
     default_name = command if command else ""
     prompt_text = "\nTask name"
     if existing_task:
-        prompt_text += f" [{existing_task['name']}]"
+        prompt_text += f" (Enter = keep '{existing_task['name']}')"
     elif default_name:
         prompt_text += f" [{default_name}]"
     prompt_text += ": "
@@ -261,7 +260,7 @@ def _get_interval(existing_task: Optional[Dict[str, Any]]) -> int:
     while True:
         prompt_text = "\nInterval in minutes (0 = manual only)"
         if existing_task:
-            prompt_text += f" [{existing_task['interval']}]"
+            prompt_text += f" (Enter = keep {existing_task['interval']})"
         prompt_text += ": "
 
         interval_input = input(prompt_text).strip()
@@ -283,7 +282,7 @@ def _get_start_time(existing_task: Optional[Dict[str, Any]]) -> Optional[str]:
     while True:
         prompt_text = "\nStart time (optional, HH:MM format for aligned scheduling)"
         if existing_task and existing_task.get("start_time"):
-            prompt_text += f" [{existing_task['start_time']}]"
+            prompt_text += f" (Enter = keep '{existing_task['start_time']}')"
         prompt_text += ": "
 
         start_time_input = input(prompt_text).strip()
@@ -305,10 +304,12 @@ def _get_arguments(
     existing_task: Optional[Dict[str, Any]],
 ) -> Optional[list]:
     """Get optional arguments from user input."""
-    print("\nEnter arguments (press Enter twice to finish):")
-    print('Example: --source "path/to/source" --target "path/to/target"')
     if existing_task and existing_task["arguments"]:
-        print(f"Current arguments: {' '.join(existing_task['arguments'])}")
+        print("\nArguments (Enter = keep current, or type new args, Enter twice to finish):")
+        print(f"Current: {' '.join(existing_task['arguments'])}")
+    else:
+        print("\nEnter arguments (press Enter twice to finish):")
+        print('Example: --source "path/to/source" --target "path/to/target"')
 
     args = None
     arg_lines = []
