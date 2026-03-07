@@ -34,9 +34,20 @@ class BotInteractionHandler:
         self._pending_event: threading.Event = threading.Event()
         self._pending_response: str | None = None
         self._lock = threading.Lock()
+        self._cancelled: bool = False
+
+    def cancel(self) -> None:
+        """Cancel the interaction, unblocking any waiting handle_prompt."""
+        self._cancelled = True
+        self._pending_event.set()
 
     def handle_prompt(self, request: InteractionRequest) -> InteractionResponse:
         """Send prompt to user via chat, wait for reply, return parsed response."""
+        if self._cancelled:
+            return InteractionResponse(
+                id=request.id, value=None, error="Cancelled by user"
+            )
+
         text = self._format_for_chat(request)
         self._notifier(self._user_id, text)
 
@@ -45,6 +56,11 @@ class BotInteractionHandler:
             self._pending_response = None
 
         got_reply = self._pending_event.wait(timeout=self._timeout)
+
+        if self._cancelled:
+            return InteractionResponse(
+                id=request.id, value=None, error="Cancelled by user"
+            )
 
         if got_reply and self._pending_response is not None:
             return self._parse_user_reply(request, self._pending_response)

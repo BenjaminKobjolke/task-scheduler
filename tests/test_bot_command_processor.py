@@ -9,7 +9,7 @@ from bot_commander import BotMessage
 
 from src.bot.command_processor import BotConfig, TaskCommandProcessor
 from src.bot.constants import Commands, Messages
-from src.bot.interaction_handler import BotScriptOutput
+from src.bot.interaction_handler import BotInteractionHandler, BotScriptOutput
 from src.database import Database
 from src.scheduler import TaskScheduler
 
@@ -977,3 +977,82 @@ class TestCommandAliases:
         msg = BotMessage(user_id="user1", text="history 5")
         processor.handle(msg)
         scheduler_mock.db.get_recent_executions.assert_called_once_with(5)
+
+
+# -- Cancel during active interactive handler tests --
+
+
+class TestCancelDuringInteractiveHandler:
+    """Tests for /cancel and exit during an active interactive script prompt."""
+
+    def test_cancel_during_active_handler_returns_message(
+        self, processor: TaskCommandProcessor
+    ) -> None:
+        """Sending /cancel while an interactive handler is active returns cancel message."""
+        notifier = MagicMock()
+        processor.set_notifier(notifier)
+        handler = BotInteractionHandler(
+            user_id="user1", notifier=notifier, timeout=30
+        )
+        processor._active_handlers["user1"] = handler
+
+        response = processor.handle(BotMessage(user_id="user1", text="/cancel"))
+        assert response.text == Messages.INTERACTION_CANCELLED
+
+    def test_cancel_during_active_handler_removes_handler(
+        self, processor: TaskCommandProcessor
+    ) -> None:
+        """After /cancel, the active handler is removed."""
+        notifier = MagicMock()
+        processor.set_notifier(notifier)
+        handler = BotInteractionHandler(
+            user_id="user1", notifier=notifier, timeout=30
+        )
+        processor._active_handlers["user1"] = handler
+
+        processor.handle(BotMessage(user_id="user1", text="/cancel"))
+        assert "user1" not in processor._active_handlers
+
+    def test_cancel_during_active_handler_calls_cancel(
+        self, processor: TaskCommandProcessor
+    ) -> None:
+        """Sending /cancel calls handler.cancel() to unblock the waiting prompt."""
+        notifier = MagicMock()
+        processor.set_notifier(notifier)
+        handler = BotInteractionHandler(
+            user_id="user1", notifier=notifier, timeout=30
+        )
+        processor._active_handlers["user1"] = handler
+
+        processor.handle(BotMessage(user_id="user1", text="/cancel"))
+        # After cancel, the handler's cancelled flag should be set
+        assert handler._cancelled is True
+
+    def test_exit_during_active_handler_cancels(
+        self, processor: TaskCommandProcessor
+    ) -> None:
+        """Typing 'exit' during an active interactive handler triggers cancellation."""
+        notifier = MagicMock()
+        processor.set_notifier(notifier)
+        handler = BotInteractionHandler(
+            user_id="user1", notifier=notifier, timeout=30
+        )
+        processor._active_handlers["user1"] = handler
+
+        response = processor.handle(BotMessage(user_id="user1", text="exit"))
+        assert response.text == Messages.INTERACTION_CANCELLED
+        assert "user1" not in processor._active_handlers
+
+    def test_cancel_alias_c_during_active_handler(
+        self, processor: TaskCommandProcessor
+    ) -> None:
+        """Short alias 'c' cancels during active interactive handler."""
+        notifier = MagicMock()
+        processor.set_notifier(notifier)
+        handler = BotInteractionHandler(
+            user_id="user1", notifier=notifier, timeout=30
+        )
+        processor._active_handlers["user1"] = handler
+
+        response = processor.handle(BotMessage(user_id="user1", text="c"))
+        assert response.text == Messages.INTERACTION_CANCELLED

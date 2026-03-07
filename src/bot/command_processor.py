@@ -82,12 +82,14 @@ class TaskCommandProcessor(Commander):
 
         # Intercept messages for users with active interactive handlers
         if user_id in self._active_handlers:
-            # Allow /cancel to abort the interaction
             cmd = text.split(maxsplit=1)[0].lower().lstrip("/")
             resolved = Commands.ALIASES.get(cmd, cmd)
-            if resolved != "cancel":
-                self._active_handlers[user_id].resolve(text)
-                return BotResponse(text="")
+            if resolved == "cancel":
+                self._active_handlers[user_id].cancel()
+                self._active_handlers.pop(user_id, None)
+                return BotResponse(text=Messages.INTERACTION_CANCELLED)
+            self._active_handlers[user_id].resolve(text)
+            return BotResponse(text="")
 
         # Only normalize when no active conversation (conversation input is free-form)
         if text and user_id not in self._conversations:

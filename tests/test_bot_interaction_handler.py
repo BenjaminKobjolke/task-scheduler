@@ -154,6 +154,52 @@ class TestBotInteractionHandlerTimeout:
         assert "Timeout" in resp.error
 
 
+class TestBotInteractionHandlerCancel:
+    """Tests for cancel behavior."""
+
+    def test_cancel_unblocks_handle_prompt_with_error(self, notifier):
+        """cancel() immediately unblocks a waiting handle_prompt with error."""
+        handler = BotInteractionHandler(
+            user_id="u1", notifier=notifier, timeout=10
+        )
+        req = InteractionRequest(
+            type=InteractionType.CONFIRM, id="q1", message="Deploy?"
+        )
+
+        def cancel_after_brief_wait():
+            import time
+            time.sleep(0.1)
+            handler.cancel()
+
+        t = threading.Thread(target=cancel_after_brief_wait, daemon=True)
+        t.start()
+
+        resp = handler.handle_prompt(req)
+        t.join(timeout=2)
+
+        assert resp.id == "q1"
+        assert resp.value is None
+        assert resp.error is not None
+        assert "Cancelled" in resp.error
+
+    def test_subsequent_prompt_after_cancel_returns_error_immediately(self, notifier):
+        """After cancel(), any further handle_prompt calls return error immediately."""
+        handler = BotInteractionHandler(
+            user_id="u1", notifier=notifier, timeout=10
+        )
+        handler.cancel()
+
+        req = InteractionRequest(
+            type=InteractionType.INPUT, id="q2", message="Version:"
+        )
+        resp = handler.handle_prompt(req)
+
+        assert resp.id == "q2"
+        assert resp.value is None
+        assert resp.error is not None
+        assert "Cancelled" in resp.error
+
+
 class TestBotScriptOutput:
     """Tests for BotScriptOutput — sends lines to chat user via notifier."""
 

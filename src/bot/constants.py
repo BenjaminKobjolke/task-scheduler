@@ -23,6 +23,7 @@ class Commands:
         "d": "delete",
         "h": "help",
         "c": "cancel",
+        "exit": "cancel",
     }
 
 
@@ -54,6 +55,7 @@ class Messages:
     TASK_DELETED = "Task '{}' (ID: {}) deleted."
     DELETE_CANCELLED = "Delete cancelled."
     OPERATION_CANCELLED = "Operation cancelled."
+    INTERACTION_CANCELLED = "Script interaction cancelled."
     NO_TASKS = "No tasks scheduled."
     NO_HISTORY = "No execution history found."
     INVALID_TASK_ID = "Invalid task ID. Usage: {} <id>"
