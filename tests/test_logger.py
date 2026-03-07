@@ -2,6 +2,7 @@
 
 import logging
 import tempfile
+from logging.handlers import RotatingFileHandler
 
 import pytest
 from unittest.mock import MagicMock, patch
@@ -53,7 +54,7 @@ class TestConsoleHandler:
             and not isinstance(h, logging.FileHandler)
         ]
         assert len(console_handlers) == 0
-        assert any(isinstance(h, logging.FileHandler) for h in logger.logger.handlers)
+        assert any(isinstance(h, RotatingFileHandler) for h in logger.logger.handlers)
 
     def test_console_handler_when_enabled(self, temp_logs_dir):
         """Console handler SHOULD be added when console_logging is true."""
@@ -73,7 +74,7 @@ class TestConsoleHandler:
             if isinstance(h, _SafeStreamHandler)
         ]
         assert len(console_handlers) == 1
-        assert any(isinstance(h, logging.FileHandler) for h in logger.logger.handlers)
+        assert any(isinstance(h, RotatingFileHandler) for h in logger.logger.handlers)
 
 
 class TestRootLoggerSuppression:
@@ -193,7 +194,7 @@ class TestBotLogFile:
         # Check that file handler points to bot_ prefixed file
         file_handlers = [
             h for h in logger.logger.handlers
-            if isinstance(h, logging.FileHandler)
+            if isinstance(h, RotatingFileHandler)
         ]
         assert len(file_handlers) == 1
         assert "bot_" in file_handlers[0].baseFilename
@@ -213,7 +214,7 @@ class TestBotLogFile:
 
         file_handlers = [
             h for h in logger.logger.handlers
-            if isinstance(h, logging.FileHandler)
+            if isinstance(h, RotatingFileHandler)
         ]
         assert len(file_handlers) == 1
         assert "scheduler_" in file_handlers[0].baseFilename
@@ -239,7 +240,7 @@ class TestSetupBotLibraryLogging:
         lib_logger = logging.getLogger("bot_commander")
         file_handlers = [
             h for h in lib_logger.handlers
-            if isinstance(h, logging.FileHandler)
+            if isinstance(h, RotatingFileHandler)
         ]
         assert len(file_handlers) == 1
         assert "bot_" in file_handlers[0].baseFilename
@@ -251,7 +252,7 @@ class TestSetupBotLibraryLogging:
         lib_logger = logging.getLogger("xmpp_bot")
         file_handlers = [
             h for h in lib_logger.handlers
-            if isinstance(h, logging.FileHandler)
+            if isinstance(h, RotatingFileHandler)
         ]
         assert len(file_handlers) == 1
         assert "bot_" in file_handlers[0].baseFilename
@@ -265,7 +266,7 @@ class TestSetupBotLibraryLogging:
         assert child_logger.parent is not None
         parent_file_handlers = [
             h for h in child_logger.parent.handlers
-            if isinstance(h, logging.FileHandler)
+            if isinstance(h, RotatingFileHandler)
         ]
         assert len(parent_file_handlers) >= 1
 
@@ -277,6 +278,6 @@ class TestSetupBotLibraryLogging:
         lib_logger = logging.getLogger("bot_commander")
         file_handlers = [
             h for h in lib_logger.handlers
-            if isinstance(h, logging.FileHandler)
+            if isinstance(h, RotatingFileHandler)
         ]
         assert len(file_handlers) == 1

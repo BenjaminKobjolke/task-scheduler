@@ -1,6 +1,7 @@
 import logging
 import os
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
 from typing import List, Optional
 
 from .config import Config
@@ -94,7 +95,9 @@ def setup_bot_library_logging(logs_dir: str = Paths.LOGS_DIR) -> None:
         if any(isinstance(h, logging.FileHandler) for h in lib_logger.handlers):
             continue
         lib_logger.setLevel(logging.DEBUG)
-        handler = logging.FileHandler(log_file, encoding="utf-8")
+        handler = RotatingFileHandler(
+            log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+        )
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(formatter)
         lib_logger.addHandler(handler)
@@ -136,7 +139,9 @@ class Logger:
 
         # File handler
         log_file = f"{Paths.LOGS_DIR}/{self._log_file_prefix}_{datetime.now().strftime('%Y%m%d')}.log"
-        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler = RotatingFileHandler(
+            log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+        )
         file_handler.setLevel(level)
 
         # Formatter
