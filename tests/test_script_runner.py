@@ -265,8 +265,8 @@ class TestDiscoverEntryPoints:
 class TestBuildEnv:
     """Tests for _build_env method."""
 
-    def test_build_env_sets_task_scheduler(self, runner):
-        """Verify TASK_SCHEDULER is set to '1' in returned env."""
+    def test_build_env_sets_interactive(self, runner):
+        """Verify INTERACTIVE is set to '1' in returned env."""
         env = runner._build_env()
         assert env[Interactive.ENV_MARKER] == "1"
 

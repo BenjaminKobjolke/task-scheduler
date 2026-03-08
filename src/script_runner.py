@@ -33,7 +33,7 @@ class ScriptRunner:
     def _build_env(self, clean_uv: bool = False) -> dict:
         """Build environment for subprocess execution.
 
-        Sets the TASK_SCHEDULER marker so child scripts can detect
+        Sets the INTERACTIVE marker so child scripts can detect
         they are running under the scheduler. Optionally removes
         VIRTUAL_ENV for uv-managed projects.
 
