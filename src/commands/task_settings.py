@@ -50,6 +50,7 @@ def handle_set_start_time(
             task_type=task.get("task_type", TaskTypes.SCRIPT),
             command=task.get("command"),
             start_time=new_start_time,
+            launch_new_process=task.get("launch_new_process", False),
         )
         if new_start_time:
             cli.info(
@@ -90,6 +91,10 @@ def handle_set_interval(
 
     # Clear start_time when interval is 0 (manual-only)
     start_time = None if new_interval == 0 else task.get("start_time")
+    # Clear launch_new_process when interval is non-zero
+    launch_new_process = (
+        False if new_interval != 0 else task.get("launch_new_process", False)
+    )
 
     try:
         scheduler.edit_task(
@@ -101,6 +106,7 @@ def handle_set_interval(
             task_type=task.get("task_type", TaskTypes.SCRIPT),
             command=task.get("command"),
             start_time=start_time,
+            launch_new_process=launch_new_process,
         )
         if new_interval == 0:
             cli.info(
@@ -157,6 +163,7 @@ def handle_rename(
             task_type=task.get("task_type", TaskTypes.SCRIPT),
             command=task.get("command"),
             start_time=task.get("start_time"),
+            launch_new_process=task.get("launch_new_process", False),
         )
         cli.info(f"Task '{old_name}' (ID: {task_id}) renamed to '{new_name}'")
     except ValueError as e:
@@ -210,6 +217,7 @@ def handle_set_arguments(
             task_type=task.get("task_type", TaskTypes.SCRIPT),
             command=task.get("command"),
             start_time=task.get("start_time"),
+            launch_new_process=task.get("launch_new_process", False),
         )
         if new_arguments:
             cli.info(

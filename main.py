@@ -198,6 +198,12 @@ Note:
     )
 
     parser.add_argument(
+        "--launch-new-process",
+        action="store_true",
+        help="Launch task in a new console window (only for manual tasks with interval 0)"
+    )
+
+    parser.add_argument(
         "--ftp-sync",
         action="store_true",
         help="Manually trigger FTP sync of the status page"

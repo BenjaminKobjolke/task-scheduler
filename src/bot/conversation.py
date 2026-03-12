@@ -24,8 +24,9 @@ class AddWizard:
         2 - task name
         3 - interval in minutes
         4 - start time (HH:MM or skip)
-        5 - arguments (space-separated or skip)
-        6 - confirmation (yes / anything else)
+        5 - launch_new_process (only when interval == 0)
+        6 - arguments (space-separated or skip)
+        7 - confirmation (yes / anything else)
     """
 
     @staticmethod
@@ -56,8 +57,10 @@ class AddWizard:
         if step == 4:
             return _add_step_start_time(state, text)
         if step == 5:
-            return _add_step_arguments(state, text)
+            return _add_step_launch_new_process(state, text)
         if step == 6:
+            return _add_step_arguments(state, text)
+        if step == 7:
             return _add_step_confirm(state, text)
 
         return None, BotResponse(text=Messages.OPERATION_CANCELLED)
@@ -72,8 +75,9 @@ class EditWizard:
         2 - task name
         3 - interval in minutes
         4 - start time
-        5 - arguments
-        6 - confirmation
+        5 - launch_new_process (only when interval == 0)
+        6 - arguments
+        7 - confirmation
     """
 
     @staticmethod
@@ -115,8 +119,10 @@ class EditWizard:
         if step == 4:
             return _edit_step_start_time(state, text)
         if step == 5:
-            return _edit_step_arguments(state, text)
+            return _edit_step_launch_new_process(state, text)
         if step == 6:
+            return _edit_step_arguments(state, text)
+        if step == 7:
             return _edit_step_confirm(state, text)
 
         return None, BotResponse(text=Messages.OPERATION_CANCELLED)
@@ -196,10 +202,11 @@ def _add_step_interval(
             return state, BotResponse(text=Messages.WIZARD_INVALID_INTERVAL)
         state.data["interval"] = interval
         if interval == 0:
-            # Manual-only: skip start_time, go straight to arguments
+            # Manual-only: skip start_time, go to launch_new_process
             state.data["start_time"] = None
             state.step = 5
-            return state, BotResponse(text=Messages.WIZARD_ADD_ARGUMENTS)
+            return state, BotResponse(text=Messages.WIZARD_ADD_LAUNCH_NEW_PROCESS)
+        state.data["launch_new_process"] = False
         state.step = 4
         return state, BotResponse(text=Messages.WIZARD_ADD_START_TIME)
     except ValueError:
@@ -215,7 +222,18 @@ def _add_step_start_time(
         if not is_valid_time(text):
             return state, BotResponse(text=Messages.WIZARD_INVALID_TIME)
         state.data["start_time"] = text
-    state.step = 5
+    state.step = 6
+    return state, BotResponse(text=Messages.WIZARD_ADD_ARGUMENTS)
+
+
+def _add_step_launch_new_process(
+    state: ConversationState, text: str
+) -> tuple[ConversationState, BotResponse]:
+    if text.lower() in ("yes", "y"):
+        state.data["launch_new_process"] = True
+    else:
+        state.data["launch_new_process"] = False
+    state.step = 6
     return state, BotResponse(text=Messages.WIZARD_ADD_ARGUMENTS)
 
 
@@ -226,7 +244,7 @@ def _add_step_arguments(
         state.data["arguments"] = None
     else:
         state.data["arguments"] = shlex.split(text)
-    state.step = 6
+    state.step = 7
     summary = format_add_summary(state.data)
     return state, BotResponse(text=Messages.WIZARD_ADD_CONFIRM.format(summary))
 
@@ -293,9 +311,12 @@ def _edit_step_interval(
         effective_interval = state.data["changes"].get("interval", original["interval"])
         if effective_interval == 0:
             state.step = 5
-            args = original.get("arguments", [])
-            args_display = " ".join(args) if args else ""
-            return state, BotResponse(text=Messages.WIZARD_EDIT_ARGUMENTS.format(args_display))
+            current_launch = original.get("launch_new_process", False)
+            return state, BotResponse(
+                text=Messages.WIZARD_EDIT_LAUNCH_NEW_PROCESS.format(
+                    "yes" if current_launch else "no"
+                )
+            )
         state.step = 4
         return state, BotResponse(
             text=Messages.WIZARD_EDIT_START_TIME.format(original.get("start_time", ""))
@@ -307,12 +328,17 @@ def _edit_step_interval(
             return state, BotResponse(text=Messages.WIZARD_INVALID_INTERVAL)
         state.data["changes"]["interval"] = interval
         if interval == 0:
-            # Manual-only: clear start_time and skip to arguments
+            # Manual-only: clear start_time and go to launch_new_process
             state.data["changes"]["start_time"] = None
             state.step = 5
-            args = original.get("arguments", [])
-            args_display = " ".join(args) if args else ""
-            return state, BotResponse(text=Messages.WIZARD_EDIT_ARGUMENTS.format(args_display))
+            current_launch = original.get("launch_new_process", False)
+            return state, BotResponse(
+                text=Messages.WIZARD_EDIT_LAUNCH_NEW_PROCESS.format(
+                    "yes" if current_launch else "no"
+                )
+            )
+        # Non-zero interval: clear launch_new_process
+        state.data["changes"]["launch_new_process"] = False
         state.step = 4
         return state, BotResponse(
             text=Messages.WIZARD_EDIT_START_TIME.format(original.get("start_time", ""))
@@ -334,7 +360,23 @@ def _edit_step_start_time(
             return state, BotResponse(text=Messages.WIZARD_INVALID_TIME)
         state.data["changes"]["start_time"] = text
 
-    state.step = 5
+    state.step = 6
+    args = original.get("arguments", [])
+    args_display = " ".join(args) if args else ""
+    return state, BotResponse(text=Messages.WIZARD_EDIT_ARGUMENTS.format(args_display))
+
+
+def _edit_step_launch_new_process(
+    state: ConversationState, text: str
+) -> tuple[ConversationState, BotResponse]:
+    original = state.data["original"]
+    if text.lower() in ("yes", "y"):
+        state.data["changes"]["launch_new_process"] = True
+    elif text.lower() in ("no", "n"):
+        state.data["changes"]["launch_new_process"] = False
+    # skip => no change
+
+    state.step = 6
     args = original.get("arguments", [])
     args_display = " ".join(args) if args else ""
     return state, BotResponse(text=Messages.WIZARD_EDIT_ARGUMENTS.format(args_display))
@@ -353,7 +395,7 @@ def _edit_step_arguments(
     else:
         changes["arguments"] = shlex.split(text)
 
-    state.step = 6
+    state.step = 7
     if not changes:
         return state, BotResponse(text=Messages.WIZARD_EDIT_NO_CHANGES)
 

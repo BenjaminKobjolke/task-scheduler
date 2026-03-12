@@ -390,15 +390,15 @@ class TestAddCommand:
         response = processor.handle(BotMessage(user_id="user1", text="60"))
         assert response.text == Messages.WIZARD_ADD_START_TIME
 
-        # Step 4: Start time
+        # Step 4: Start time (skip -> goes to arguments at step 6)
         response = processor.handle(BotMessage(user_id="user1", text="skip"))
         assert response.text == Messages.WIZARD_ADD_ARGUMENTS
 
-        # Step 5: Arguments
+        # Step 6: Arguments
         response = processor.handle(BotMessage(user_id="user1", text="skip"))
         assert "confirm" in response.text.lower() or "yes" in response.text.lower()
 
-        # Step 6: Confirm
+        # Step 7: Confirm
         response = processor.handle(BotMessage(user_id="user1", text="yes"))
         assert "My Backup" in response.text
         assert "42" in response.text
@@ -411,6 +411,7 @@ class TestAddCommand:
             task_type="script",
             command=None,
             start_time=None,
+            launch_new_process=False,
         )
 
     def test_add_wizard_cancel_at_confirm(

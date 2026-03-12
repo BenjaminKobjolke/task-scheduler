@@ -69,6 +69,7 @@ class Messages:
     WIZARD_ADD_NAME = "Enter a name for this task:"
     WIZARD_ADD_INTERVAL = "Enter interval in minutes (0 = manual only):"
     WIZARD_ADD_START_TIME = "Enter start time (HH:MM) or 'skip' (s):"
+    WIZARD_ADD_LAUNCH_NEW_PROCESS = "Launch in new console window? (yes/no/skip):"
     WIZARD_ADD_ARGUMENTS = "Enter arguments (space-separated) or 'skip' (s):"
     WIZARD_ADD_CONFIRM = (
         "Please confirm:\n{}\n\nReply 'y' or 'yes' to add. Anything else cancels."
@@ -88,6 +89,10 @@ class Messages:
     WIZARD_EDIT_START_TIME = (
         "Start time [{}]:\n"
         "Enter time (HH:MM), 'none' to clear, or 'skip' (s) to keep current."
+    )
+    WIZARD_EDIT_LAUNCH_NEW_PROCESS = (
+        "Launch in new console [{}]:\n"
+        "Enter 'yes', 'no', or 'skip' (s) to keep current."
     )
     WIZARD_EDIT_ARGUMENTS = (
         "Arguments [{}]:\n"

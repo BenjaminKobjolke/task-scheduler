@@ -323,7 +323,7 @@ class TestAddWizardManualOnly:
     """Tests for AddWizard with interval 0 (manual-only)."""
 
     def test_interval_zero_skips_start_time(self):
-        """Interval 0 should skip start_time step and go to arguments."""
+        """Interval 0 should skip start_time step and go to launch_new_process."""
         state, _ = AddWizard.start()
         state, _ = AddWizard.advance(state, "backup.py")
         assert state is not None
@@ -334,10 +334,10 @@ class TestAddWizardManualOnly:
         assert new_state.data["interval"] == 0
         assert new_state.data["start_time"] is None
         assert new_state.step == 5
-        assert response.text == Messages.WIZARD_ADD_ARGUMENTS
+        assert response.text == Messages.WIZARD_ADD_LAUNCH_NEW_PROCESS
 
     def test_full_manual_only_flow(self):
-        """Full flow for manual-only task: path -> name -> interval(0) -> args -> confirm."""
+        """Full flow for manual-only task: path -> name -> interval(0) -> launch(no) -> args -> confirm."""
         state, _ = AddWizard.start()
         state, _ = AddWizard.advance(state, "backup.py")
         assert state is not None
@@ -345,7 +345,9 @@ class TestAddWizardManualOnly:
         assert state is not None
         state, _ = AddWizard.advance(state, "0")
         assert state is not None
-        state, _ = AddWizard.advance(state, "skip")
+        state, _ = AddWizard.advance(state, "no")  # launch_new_process
+        assert state is not None
+        state, _ = AddWizard.advance(state, "skip")  # arguments
         assert state is not None
 
         assert state.data["interval"] == 0
@@ -383,6 +385,7 @@ class TestEditWizardManualOnly:
             "task_type": "script",
             "command": None,
             "start_time": "09:00",
+            "launch_new_process": False,
         }
         state, _ = EditWizard.start(task)
         state, _ = EditWizard.advance(state, "skip")  # script_path
@@ -393,7 +396,7 @@ class TestEditWizardManualOnly:
         assert new_state is not None
         assert new_state.data["changes"]["interval"] == 0
         assert new_state.data["changes"]["start_time"] is None
-        assert new_state.step == 5  # skipped start_time, went to arguments
+        assert new_state.step == 5  # skipped start_time, went to launch_new_process
 
     def test_edit_skip_interval_when_original_zero(self):
         """Skipping interval on a manual-only task should skip start_time too."""
@@ -406,6 +409,7 @@ class TestEditWizardManualOnly:
             "task_type": "script",
             "command": None,
             "start_time": None,
+            "launch_new_process": False,
         }
         state, _ = EditWizard.start(task)
         state, _ = EditWizard.advance(state, "skip")  # script_path
@@ -414,7 +418,7 @@ class TestEditWizardManualOnly:
         assert state is not None
         new_state, response = EditWizard.advance(state, "skip")  # interval (keep 0)
         assert new_state is not None
-        # Should skip start_time since effective interval is still 0
+        # Should skip start_time since effective interval is still 0, go to launch_new_process
         assert new_state.step == 5
 
     def test_edit_negative_interval_still_invalid(self):

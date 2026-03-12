@@ -23,6 +23,8 @@ def _log_task_details(cli: CliOutput, task_details: dict) -> None:
     cli.info(f"Interval: {interval_display}")
     if task_details.get("start_time"):
         cli.info(f"Start time: {task_details['start_time']}")
+    if task_details.get("launch_new_process"):
+        cli.info("Launch mode: new console")
     if task_details.get("arguments"):
         cli.info(f"Arguments: {' '.join(task_details['arguments'])}")
 
@@ -39,6 +41,7 @@ def handle_add(scheduler: TaskScheduler, cli: CliOutput) -> None:
         task_type=task_details.get("task_type", TaskTypes.SCRIPT),
         command=task_details.get("command"),
         start_time=task_details.get("start_time"),
+        launch_new_process=task_details.get("launch_new_process", False),
     )
 
     cli.info("Task added successfully:")
@@ -69,6 +72,7 @@ def handle_edit(scheduler: TaskScheduler, cli: CliOutput, task_id: int) -> None:
             task_type=task_details.get("task_type", TaskTypes.SCRIPT),
             command=task_details.get("command"),
             start_time=task_details.get("start_time"),
+            launch_new_process=task_details.get("launch_new_process", False),
         )
         cli.info("Task updated successfully:")
         _log_task_details(cli, task_details)
@@ -131,6 +135,11 @@ def handle_script(scheduler: TaskScheduler, cli: CliOutput, args) -> None:
             )
             sys.exit(1)
 
+    launch_new_process = getattr(args, "launch_new_process", False)
+    if launch_new_process and args.interval != 0:
+        cli.error("--launch-new-process is only valid for manual tasks (interval 0).")
+        sys.exit(1)
+
     script_path = os.path.abspath(args.script)
     script_args = (
         args.script_args[1:]
@@ -139,7 +148,12 @@ def handle_script(scheduler: TaskScheduler, cli: CliOutput, args) -> None:
     )
 
     scheduler.add_task(
-        args.name, script_path, args.interval, script_args, start_time=start_time
+        args.name,
+        script_path,
+        args.interval,
+        script_args,
+        start_time=start_time,
+        launch_new_process=launch_new_process,
     )
 
     interval_display = Defaults.MANUAL_ONLY_LABEL if args.interval == 0 else f"{args.interval} minute(s)"
@@ -171,6 +185,7 @@ def handle_copy_task(scheduler: TaskScheduler, cli: CliOutput, task_id: int) -> 
             task_type=task.get("task_type", TaskTypes.SCRIPT),
             command=task.get("command"),
             start_time=task.get("start_time"),
+            launch_new_process=task.get("launch_new_process", False),
         )
         cli.info(
             f"Task '{task['name']}' (ID: {task['id']}) copied successfully as new task (ID: {new_task_id})"

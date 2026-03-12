@@ -25,6 +25,9 @@ def format_task_list_compact(tasks: List[Dict]) -> str:
         if task_type == TaskTypes.UV_COMMAND:
             line += " [uv]"
 
+        if task.get("launch_new_process"):
+            line += " [new console]"
+
         last_run_time = task.get("last_run_time")
         if last_run_time:
             status = "success" if task.get("last_run_success") else "failed"
@@ -59,6 +62,9 @@ def format_task_detail(task: Dict) -> str:
     start_time = task.get("start_time")
     if start_time:
         lines.append(f"Start time: {start_time}")
+
+    if task.get("launch_new_process"):
+        lines.append("Launch mode: new console")
 
     arguments = task.get("arguments", [])
     if arguments:
@@ -121,6 +127,9 @@ def format_add_summary(data: Dict) -> str:
     start_time = data.get("start_time")
     if start_time:
         lines.append(f"Start time: {start_time}")
+
+    if data.get("launch_new_process"):
+        lines.append("Launch mode: new console")
 
     arguments = data.get("arguments", "")
     if arguments:

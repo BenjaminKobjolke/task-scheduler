@@ -95,7 +95,8 @@ class TaskScheduler:
         data = (
             f"{task['name']}|{task['script_path']}|{task['interval']}|"
             f"{task.get('start_time')}|{task['arguments']}|"
-            f"{task.get('task_type')}|{task.get('command')}"
+            f"{task.get('task_type')}|{task.get('command')}|"
+            f"{task.get('launch_new_process', False)}"
         )
         return hashlib.md5(data.encode()).hexdigest()
 
@@ -348,6 +349,7 @@ class TaskScheduler:
         task_type: str = TaskTypes.SCRIPT,
         command: Optional[str] = None,
         start_time: Optional[str] = None,
+        launch_new_process: bool = False,
     ):
         """
         Add a new task to both database and scheduler.
@@ -360,11 +362,19 @@ class TaskScheduler:
             task_type: Type of task ('script' or 'uv_command')
             command: Command name for uv_command tasks
             start_time: Optional start time for aligned scheduling (HH:MM format)
+            launch_new_process: Whether to launch in a new console window (manual tasks only)
         """
         try:
             # Add to database first and get the task ID
             task_id = self.db.add_task(
-                name, script_path, interval, arguments, task_type, command, start_time
+                name,
+                script_path,
+                interval,
+                arguments,
+                task_type,
+                command,
+                start_time,
+                launch_new_process=launch_new_process,
             )
 
             # Schedule the task with the ID
@@ -446,6 +456,7 @@ class TaskScheduler:
         task_type: str = TaskTypes.SCRIPT,
         command: Optional[str] = None,
         start_time: Optional[str] = None,
+        launch_new_process: bool = False,
     ):
         """
         Edit an existing task in both database and scheduler.
@@ -459,11 +470,16 @@ class TaskScheduler:
             task_type: Type of task ('script' or 'uv_command')
             command: Command name for uv_command tasks
             start_time: Optional start time for aligned scheduling (HH:MM format)
+            launch_new_process: Whether to launch in a new console window (manual tasks only)
 
         Raises:
             ValueError: If task is not found or update fails
         """
         try:
+            # Force launch_new_process off for scheduled tasks
+            if interval != 0:
+                launch_new_process = False
+
             # Update in database first
             if not self.db.edit_task(
                 task_id,
@@ -474,6 +490,7 @@ class TaskScheduler:
                 task_type,
                 command,
                 start_time,
+                launch_new_process=launch_new_process,
             ):
                 raise ValueError(f"Task with ID {task_id} not found")
 
@@ -566,6 +583,21 @@ class TaskScheduler:
             if not task:
                 self.logger.error(f"Task with ID {task_id} not found")
                 raise ValueError(f"Task with ID {task_id} not found")
+
+            # Launch in new console if configured
+            if task.get("launch_new_process"):
+                self.logger.info(
+                    f"Launching task '{task['name']}' (ID: {task_id}) in new console window"
+                )
+                launched = self.script_runner.launch_in_new_console(
+                    task["script_path"],
+                    task["arguments"],
+                    task.get("task_type", TaskTypes.SCRIPT),
+                    task.get("command"),
+                )
+                self.db.add_task_execution(task_id, launched)
+                self._update_status_page()
+                return launched
 
             # Run the task and return result
             return self._process_job(

@@ -193,6 +193,8 @@ def get_task_input(existing_task: Optional[Dict[str, Any]] = None) -> Dict[str, 
         print(f"  Interval: {interval_display}")
         if existing_task.get("start_time"):
             print(f"  Start time: {existing_task['start_time']}")
+        if existing_task.get("launch_new_process"):
+            print("  Launch mode: new console")
         print(
             f"  Arguments: {' '.join(existing_task['arguments']) if existing_task['arguments'] else 'None'}"
         )
@@ -210,11 +212,13 @@ def get_task_input(existing_task: Optional[Dict[str, Any]] = None) -> Dict[str, 
     # Get interval
     interval = _get_interval(existing_task)
 
-    # Get start time (skip for manual-only tasks)
+    # Get start time and launch_new_process (skip based on interval)
     if interval == 0:
         start_time = None
+        launch_new_process = _get_launch_new_process(existing_task)
     else:
         start_time = _get_start_time(existing_task)
+        launch_new_process = False
 
     # Get arguments
     arguments = _get_arguments(session, kb, existing_task)
@@ -227,6 +231,7 @@ def get_task_input(existing_task: Optional[Dict[str, Any]] = None) -> Dict[str, 
         "task_type": task_type,
         "command": command,
         "start_time": start_time,
+        "launch_new_process": launch_new_process,
     }
 
 
@@ -296,6 +301,18 @@ def _get_start_time(existing_task: Optional[Dict[str, Any]]) -> Optional[str]:
             return start_time_input
         except ValueError:
             print("Error: Please enter time in HH:MM format (e.g., 09:00).")
+
+
+def _get_launch_new_process(existing_task: Optional[Dict[str, Any]]) -> bool:
+    """Get launch_new_process preference from user input."""
+    default = existing_task.get("launch_new_process", False) if existing_task else False
+    default_hint = "Y/n" if default else "y/N"
+    prompt_text = f"\nLaunch in new console window? ({default_hint}): "
+
+    answer = input(prompt_text).strip().lower()
+    if not answer:
+        return default
+    return answer in ("y", "yes")
 
 
 def _get_arguments(

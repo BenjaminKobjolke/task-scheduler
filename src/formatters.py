@@ -47,6 +47,9 @@ def format_task_list(tasks: List[Dict], show_next_run: bool = True) -> str:
         if start_time:
             lines.append(f"   Start time: {start_time}")
 
+        if task.get("launch_new_process"):
+            lines.append("   Launch mode: new console")
+
         lines.append(
             f"   Arguments: {' '.join(task['arguments']) if task['arguments'] else 'None'}"
         )

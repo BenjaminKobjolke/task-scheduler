@@ -140,9 +140,9 @@ class TestAddWizardScriptFlow:
         assert new_state is not None
         assert new_state.data["interval"] == 0
         assert new_state.data["start_time"] is None
-        # Should skip start_time step and go to arguments (step 5)
+        # Should skip start_time step and go to launch_new_process (step 5)
         assert new_state.step == 5
-        assert response.text == Messages.WIZARD_ADD_ARGUMENTS
+        assert response.text == Messages.WIZARD_ADD_LAUNCH_NEW_PROCESS
 
     def test_step3_invalid_interval_negative(self) -> None:
         state, _ = AddWizard.start()
@@ -160,7 +160,7 @@ class TestAddWizardScriptFlow:
         new_state, response = AddWizard.advance(state, "09:00")
         assert new_state is not None
         assert new_state.data["start_time"] == "09:00"
-        assert new_state.step == 5
+        assert new_state.step == 6
         assert response.text == Messages.WIZARD_ADD_ARGUMENTS
 
     def test_step4_skip_start_time(self) -> None:
@@ -168,7 +168,7 @@ class TestAddWizardScriptFlow:
         new_state, response = AddWizard.advance(state, "skip")
         assert new_state is not None
         assert new_state.data["start_time"] is None
-        assert new_state.step == 5
+        assert new_state.step == 6
 
     def test_step4_none_start_time(self) -> None:
         state = _build_add_state_at_step4()
@@ -218,45 +218,45 @@ class TestAddWizardScriptFlow:
         assert response.text == Messages.WIZARD_INVALID_TIME
 
     def test_step5_arguments(self) -> None:
-        state = _build_add_state_at_step5()
+        state = _build_add_state_at_step6()
         new_state, response = AddWizard.advance(state, "--verbose --dry-run")
         assert new_state is not None
         assert new_state.data["arguments"] == ["--verbose", "--dry-run"]
-        assert new_state.step == 6
+        assert new_state.step == 7
 
     def test_step5_skip_arguments(self) -> None:
-        state = _build_add_state_at_step5()
+        state = _build_add_state_at_step6()
         new_state, response = AddWizard.advance(state, "skip")
         assert new_state is not None
         assert new_state.data["arguments"] is None
-        assert new_state.step == 6
+        assert new_state.step == 7
 
     def test_step5_empty_arguments(self) -> None:
-        state = _build_add_state_at_step5()
+        state = _build_add_state_at_step6()
         new_state, response = AddWizard.advance(state, "")
         assert new_state is not None
         assert new_state.data["arguments"] is None
 
     def test_step5_shows_confirmation_summary(self) -> None:
-        state = _build_add_state_at_step5()
+        state = _build_add_state_at_step6()
         new_state, response = AddWizard.advance(state, "skip")
         assert new_state is not None
         assert "confirm" in response.text.lower() or "yes" in response.text.lower()
 
     def test_step6_confirm_yes_returns_none_state(self) -> None:
-        state = _build_add_state_at_step6()
+        state = _build_add_state_at_step7()
         new_state, response = AddWizard.advance(state, "yes")
         assert new_state is None
         assert response.text == CONFIRMED_SENTINEL
 
     def test_step6_confirm_no_cancels(self) -> None:
-        state = _build_add_state_at_step6()
+        state = _build_add_state_at_step7()
         new_state, response = AddWizard.advance(state, "no")
         assert new_state is None
         assert response.text == Messages.OPERATION_CANCELLED
 
     def test_step6_confirm_other_cancels(self) -> None:
-        state = _build_add_state_at_step6()
+        state = _build_add_state_at_step7()
         new_state, response = AddWizard.advance(state, "maybe")
         assert new_state is None
         assert response.text == Messages.OPERATION_CANCELLED
@@ -361,7 +361,7 @@ class TestAddWizardEdgeCases:
         assert new_state.data["script_path"] == ""
 
     def test_step5_quoted_arguments_parsed(self) -> None:
-        state = _build_add_state_at_step5()
+        state = _build_add_state_at_step6()
         new_state, response = AddWizard.advance(state, '--name "my task" --verbose')
         assert new_state is not None
         assert new_state.data["arguments"] == ["--name", "my task", "--verbose"]
@@ -379,13 +379,13 @@ class TestAddWizardEdgeCases:
         assert new_state.data["start_time"] is None
 
     def test_step5_case_insensitive_skip(self) -> None:
-        state = _build_add_state_at_step5()
+        state = _build_add_state_at_step6()
         new_state, _ = AddWizard.advance(state, "SKIP")
         assert new_state is not None
         assert new_state.data["arguments"] is None
 
     def test_step6_case_insensitive_yes(self) -> None:
-        state = _build_add_state_at_step6()
+        state = _build_add_state_at_step7()
         new_state, _ = AddWizard.advance(state, "Yes")
         assert new_state is None
 
@@ -510,7 +510,7 @@ class TestEditWizardScriptFlow:
         assert new_state is not None
         assert new_state.data["changes"]["interval"] == 0
         assert new_state.data["changes"]["start_time"] is None
-        # Should skip start_time step and go to arguments (step 5)
+        # Should skip start_time step and go to launch_new_process (step 5)
         assert new_state.step == 5
 
     def test_step4_change_start_time(self) -> None:
@@ -518,7 +518,7 @@ class TestEditWizardScriptFlow:
         new_state, response = EditWizard.advance(state, "10:30")
         assert new_state is not None
         assert new_state.data["changes"]["start_time"] == "10:30"
-        assert new_state.step == 5
+        assert new_state.step == 6
 
     def test_step4_skip_start_time(self) -> None:
         state = _build_edit_state_at_step4()
@@ -547,32 +547,32 @@ class TestEditWizardScriptFlow:
         assert response.text == Messages.WIZARD_INVALID_TIME
 
     def test_step5_change_arguments(self) -> None:
-        state = _build_edit_state_at_step5()
+        state = _build_edit_state_at_step6()
         new_state, response = EditWizard.advance(state, "--new-arg")
         assert new_state is not None
         assert new_state.data["changes"]["arguments"] == ["--new-arg"]
-        assert new_state.step == 6
+        assert new_state.step == 7
 
     def test_step5_skip_arguments(self) -> None:
-        state = _build_edit_state_at_step5()
+        state = _build_edit_state_at_step6()
         new_state, _ = EditWizard.advance(state, "skip")
         assert new_state is not None
         assert "arguments" not in new_state.data.get("changes", {})
 
     def test_step5_clear_arguments_with_none(self) -> None:
-        state = _build_edit_state_at_step5()
+        state = _build_edit_state_at_step6()
         new_state, _ = EditWizard.advance(state, "none")
         assert new_state is not None
         assert new_state.data["changes"]["arguments"] is None
 
     def test_step6_confirm_yes_returns_none(self) -> None:
-        state = _build_edit_state_at_step6()
+        state = _build_edit_state_at_step7()
         new_state, response = EditWizard.advance(state, "yes")
         assert new_state is None
         assert response.text == CONFIRMED_SENTINEL
 
     def test_step6_confirm_no_cancels(self) -> None:
-        state = _build_edit_state_at_step6()
+        state = _build_edit_state_at_step7()
         new_state, response = EditWizard.advance(state, "no")
         assert new_state is None
         assert response.text == Messages.OPERATION_CANCELLED
@@ -702,7 +702,7 @@ class TestEditWizardEdgeCases:
         assert "script_path" not in new_state.data.get("changes", {})
 
     def test_case_insensitive_yes(self) -> None:
-        state = _build_edit_state_at_step6()
+        state = _build_edit_state_at_step7()
         new_state, _ = EditWizard.advance(state, "Yes")
         assert new_state is None
 
@@ -819,18 +819,21 @@ def _build_add_state_at_step4() -> ConversationState:
     return state
 
 
-def _build_add_state_at_step5() -> ConversationState:
-    """Build an AddWizard state ready for step 5 (arguments)."""
+def _build_add_state_at_step6() -> ConversationState:
+    """Build an AddWizard state ready for step 6 (arguments).
+
+    Goes through: script -> name -> interval(60) -> start_time(skip) -> step 6.
+    """
     state = _build_add_state_at_step4()
-    state, _ = AddWizard.advance(state, "skip")
+    state, _ = AddWizard.advance(state, "skip")  # start_time
     assert state is not None
     return state
 
 
-def _build_add_state_at_step6() -> ConversationState:
-    """Build an AddWizard state ready for step 6 (confirm)."""
-    state = _build_add_state_at_step5()
-    state, _ = AddWizard.advance(state, "skip")
+def _build_add_state_at_step7() -> ConversationState:
+    """Build an AddWizard state ready for step 7 (confirm)."""
+    state = _build_add_state_at_step6()
+    state, _ = AddWizard.advance(state, "skip")  # arguments
     assert state is not None
     return state
 
@@ -854,16 +857,19 @@ def _build_edit_state_at_step4() -> ConversationState:
     return state
 
 
-def _build_edit_state_at_step5() -> ConversationState:
-    """Build an EditWizard state at step 5 (arguments)."""
+def _build_edit_state_at_step6() -> ConversationState:
+    """Build an EditWizard state at step 6 (arguments).
+
+    Goes through: script(skip) -> name(skip) -> interval(skip) -> start_time(skip) -> step 6.
+    """
     state = _build_edit_state_at_step4()
     state, _ = EditWizard.advance(state, "skip")  # start_time
     assert state is not None
     return state
 
 
-def _build_edit_state_at_step6() -> ConversationState:
-    """Build an EditWizard state at step 6 (confirm) with at least one change."""
+def _build_edit_state_at_step7() -> ConversationState:
+    """Build an EditWizard state at step 7 (confirm) with at least one change."""
     task = _make_sample_task()
     state, _ = EditWizard.start(task)
     state, _ = EditWizard.advance(state, "new_script.py")  # change script_path

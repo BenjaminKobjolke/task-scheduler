@@ -240,6 +240,7 @@ class TaskCommandProcessor(Commander):
                 task_type=data.get("task_type", "script"),
                 command=data.get("command"),
                 start_time=data.get("start_time"),
+                launch_new_process=data.get("launch_new_process", False),
             )
             return BotResponse(
                 text=Messages.WIZARD_ADD_SUCCESS.format(data["name"], task_id)
@@ -264,6 +265,10 @@ class TaskCommandProcessor(Commander):
                 task_type=original.get("task_type", "script"),
                 command=changes.get("command", original.get("command")),
                 start_time=changes.get("start_time", original.get("start_time")),
+                launch_new_process=changes.get(
+                    "launch_new_process",
+                    original.get("launch_new_process", False),
+                ),
             )
             return BotResponse(
                 text=Messages.WIZARD_EDIT_SUCCESS.format(

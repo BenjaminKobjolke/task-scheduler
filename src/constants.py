@@ -35,6 +35,7 @@ class Database:
     COL_EXECUTION_TIME = "execution_time"
     COL_SUCCESS = "success"
     COL_START_TIME = "start_time"
+    COL_LAUNCH_NEW_PROCESS = "launch_new_process"
 
 
 class Config:

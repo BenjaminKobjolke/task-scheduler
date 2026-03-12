@@ -62,6 +62,12 @@ class Database:
             self._migrate_add_column(
                 conn, DbConstants.TABLE_TASKS, DbConstants.COL_START_TIME, "TEXT"
             )
+            self._migrate_add_column(
+                conn,
+                DbConstants.TABLE_TASKS,
+                DbConstants.COL_LAUNCH_NEW_PROCESS,
+                "INTEGER DEFAULT 0",
+            )
 
     def _migrate_add_column(self, conn, table: str, column: str, definition: str):
         """Add a column to a table if it doesn't exist."""
@@ -82,6 +88,7 @@ class Database:
         task_type: str = TaskTypes.SCRIPT,
         command: Optional[str] = None,
         start_time: Optional[str] = None,
+        launch_new_process: bool = False,
     ) -> int:
         """
         Add a new task to the database.
@@ -108,7 +115,7 @@ class Database:
                 self.logger.debug(f"JSON stored in database: {json_args}")
 
             cursor = conn.execute(
-                "INSERT INTO tasks (name, script_path, arguments, interval, task_type, command, start_time) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO tasks (name, script_path, arguments, interval, task_type, command, start_time, launch_new_process) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     name,
                     script_path,
@@ -117,6 +124,7 @@ class Database:
                     task_type,
                     command,
                     start_time,
+                    int(launch_new_process),
                 ),
             )
             return cursor.lastrowid
@@ -140,6 +148,8 @@ class Database:
                 # Ensure backwards compatibility: default task_type to 'script' if None
                 if task.get("task_type") is None:
                     task["task_type"] = TaskTypes.SCRIPT
+
+                task["launch_new_process"] = bool(task.get("launch_new_process", 0))
 
                 # Log argument details if enabled
                 if self.logger.is_detailed_logging_enabled():
@@ -265,6 +275,7 @@ class Database:
         task_type: str = TaskTypes.SCRIPT,
         command: Optional[str] = None,
         start_time: Optional[str] = None,
+        launch_new_process: bool = False,
     ) -> bool:
         """
         Edit an existing task in the database.
@@ -294,7 +305,7 @@ class Database:
             cursor = conn.execute(
                 """
                 UPDATE tasks
-                SET name = ?, script_path = ?, arguments = ?, interval = ?, task_type = ?, command = ?, start_time = ?
+                SET name = ?, script_path = ?, arguments = ?, interval = ?, task_type = ?, command = ?, start_time = ?, launch_new_process = ?
                 WHERE id = ?
                 """,
                 (
@@ -305,6 +316,7 @@ class Database:
                     task_type,
                     command,
                     start_time,
+                    int(launch_new_process),
                     task_id,
                 ),
             )

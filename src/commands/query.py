@@ -32,14 +32,30 @@ def handle_run_id(scheduler: TaskScheduler, cli: CliOutput, task_id: int) -> Non
         cli.error(f"No task found with ID {task_id}")
         sys.exit(1)
 
-    cli.info(f"Running task {task['name']} (ID: {task['id']})")
-    try:
-        handler = CliInteractionHandler()
-        output = ConsoleScriptOutput()
-        scheduler.run_task(task["id"], interaction_handler=handler, script_output=output)
-    except Exception as e:
-        cli.error(f"Error running task {task['name']} (ID: {task['id']}): {str(e)}")
-        sys.exit(1)
+    if task.get("launch_new_process"):
+        cli.info(
+            f"Launching task {task['name']} (ID: {task['id']}) in new console window..."
+        )
+        try:
+            scheduler.run_task(task["id"])
+        except Exception as e:
+            cli.error(
+                f"Error launching task {task['name']} (ID: {task['id']}): {str(e)}"
+            )
+            sys.exit(1)
+    else:
+        cli.info(f"Running task {task['name']} (ID: {task['id']})")
+        try:
+            handler = CliInteractionHandler()
+            output = ConsoleScriptOutput()
+            scheduler.run_task(
+                task["id"], interaction_handler=handler, script_output=output
+            )
+        except Exception as e:
+            cli.error(
+                f"Error running task {task['name']} (ID: {task['id']}): {str(e)}"
+            )
+            sys.exit(1)
 
 
 def handle_ftp_sync(cli: CliOutput, config: Config) -> None:
