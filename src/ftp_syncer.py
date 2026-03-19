@@ -1,5 +1,6 @@
 """FTP synchronization for status page uploads."""
 
+import ftplib
 import os
 import sys
 
@@ -63,19 +64,25 @@ class FtpSyncer:
 
             syncer = UploadSynchronizer(local, remote, opts)
 
-            # ftpsync writes progress to sys.stdout directly;
-            # suppress it when console logging is disabled
-            if not self.config.is_console_logging_enabled():
-                devnull = open(os.devnull, "w")  # noqa: SIM115
-                old_stdout = sys.stdout
-                sys.stdout = devnull
-                try:
+            try:
+                # ftpsync writes progress to sys.stdout directly;
+                # suppress it when console logging is disabled
+                if not self.config.is_console_logging_enabled():
+                    devnull = open(os.devnull, "w")  # noqa: SIM115
+                    old_stdout = sys.stdout
+                    sys.stdout = devnull
+                    try:
+                        syncer.run()
+                    finally:
+                        sys.stdout = old_stdout
+                        devnull.close()
+                else:
                     syncer.run()
-                finally:
-                    sys.stdout = old_stdout
-                    devnull.close()
-            else:
-                syncer.run()
+            finally:
+                try:
+                    syncer.close()
+                except ftplib.error_perm:
+                    pass  # Lock file may not exist on server
 
             self.logger.info("FTP sync completed successfully")
             return True
