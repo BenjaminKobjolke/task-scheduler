@@ -83,6 +83,11 @@ class FtpSyncer:
                     syncer.close()
                 except ftplib.error_perm:
                     pass  # Lock file may not exist on server
+                # Prevent __del__ destructors on BaseSynchronizer and
+                # FTPTarget from attempting double close/unlock, which
+                # causes "550 .pyftpsync-lock.json: No such file" errors.
+                # Both __del__ paths ultimately call remote.close().
+                remote.close = lambda: None  # noqa: E731
 
             self.logger.info("FTP sync completed successfully")
             return True

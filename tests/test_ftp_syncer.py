@@ -97,3 +97,23 @@ class TestFtpSyncerClose:
 
         assert result is False
         mock_syncer.close.assert_called_once()
+
+    @patch("src.ftp_syncer.UploadSynchronizer", spec=True)
+    @patch("src.ftp_syncer.FTPTarget", spec=True)
+    @patch("src.ftp_syncer.FsTarget", spec=True)
+    def test_remote_close_neutralized_after_sync(
+        self, mock_fs, mock_ftp, mock_syncer_cls, ftp_settings
+    ):
+        """remote.close should be a no-op after sync to prevent __del__ errors."""
+        mock_syncer = MagicMock()
+        mock_remote = mock_ftp.return_value
+        mock_syncer_cls.return_value = mock_syncer
+
+        syncer_obj = FtpSyncer()
+        with patch.object(syncer_obj.config, "get_ftp_settings", return_value=ftp_settings):
+            with patch.object(syncer_obj.config, "is_console_logging_enabled", return_value=True):
+                syncer_obj.sync("/local/path")
+
+        # remote.close was replaced with a no-op lambda after explicit
+        # syncer.close(), so __del__ won't try to delete the lock file again
+        assert not isinstance(mock_remote.close, MagicMock)
