@@ -1,9 +1,5 @@
 """FTP synchronization for status page uploads."""
 
-import ftplib
-import os
-import sys
-
 from ftpsync.ftp_target import FTPTarget
 from ftpsync.synchronizers import UploadSynchronizer
 from ftpsync.targets import FsTarget
@@ -60,36 +56,18 @@ class FtpSyncer:
             opts = {
                 "resolve": "local",  # Local files win (overwrite remote)
                 "delete": False,  # Don't delete remote files not in local
+                "verbose": 0,  # Suppress pyftpsync stdout progress output
             }
 
+            # run() handles open/close internally via its own finally block
             syncer = UploadSynchronizer(local, remote, opts)
+            syncer.run()
 
-            try:
-                # ftpsync writes progress to sys.stdout directly;
-                # suppress it when console logging is disabled
-                if not self.config.is_console_logging_enabled():
-                    devnull = open(os.devnull, "w")  # noqa: SIM115
-                    old_stdout = sys.stdout
-                    sys.stdout = devnull
-                    try:
-                        syncer.run()
-                    finally:
-                        sys.stdout = old_stdout
-                        devnull.close()
-                else:
-                    syncer.run()
-            finally:
-                try:
-                    syncer.close()
-                except ftplib.error_perm:
-                    pass  # Lock file may not exist on server
-                # Prevent __del__ destructors on BaseSynchronizer and
-                # FTPTarget from attempting double close/unlock, which
-                # causes "550 .pyftpsync-lock.json: No such file" errors.
-                # Both __del__ paths ultimately call remote.close().
-                remote.close = lambda: None  # noqa: E731
-
-            self.logger.info("FTP sync completed successfully")
+            stats = syncer.get_stats()
+            self.logger.info(
+                f"FTP sync done: {stats['entries_touched']}/{stats['entries_seen']} "
+                f"entries in {stats.get('local_dirs', 0)} directories"
+            )
             return True
 
         except Exception as e:
