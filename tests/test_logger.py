@@ -8,7 +8,12 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 import src.config as config_module
-from src.logger import Logger, _SafeStreamHandler, setup_bot_library_logging
+from src.logger import (
+    Logger,
+    _SafeRotatingFileHandler,
+    _SafeStreamHandler,
+    setup_bot_library_logging,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -220,6 +225,44 @@ class TestBotLogFile:
         assert "scheduler_" in file_handlers[0].baseFilename
 
 
+class TestSafeRotatingFileHandler:
+    """Tests for _SafeRotatingFileHandler Windows rotation safety."""
+
+    def test_rotate_swallows_permission_error(self, temp_logs_dir):
+        """PermissionError during rotation should be silently caught."""
+        import os
+
+        log_file = os.path.join(temp_logs_dir, "test_perm.log")
+        handler = _SafeRotatingFileHandler(
+            log_file, maxBytes=5 * 1024 * 1024, backupCount=1, encoding="utf-8"
+        )
+        with patch.object(
+            RotatingFileHandler,
+            "rotate",
+            side_effect=PermissionError("[WinError 32] file in use"),
+        ):
+            # Should not raise
+            handler.rotate("source.log", "dest.log")
+        handler.close()
+
+    def test_rotate_propagates_other_errors(self, temp_logs_dir):
+        """Non-PermissionError exceptions should still propagate."""
+        import os
+
+        log_file = os.path.join(temp_logs_dir, "test_other.log")
+        handler = _SafeRotatingFileHandler(
+            log_file, maxBytes=5 * 1024 * 1024, backupCount=1, encoding="utf-8"
+        )
+        with patch.object(
+            RotatingFileHandler,
+            "rotate",
+            side_effect=OSError("disk full"),
+        ):
+            with pytest.raises(OSError, match="disk full"):
+                handler.rotate("source.log", "dest.log")
+        handler.close()
+
+
 class TestSetupBotLibraryLogging:
     """Tests for setup_bot_library_logging() routing library loggers to bot log file."""
 
@@ -281,3 +324,19 @@ class TestSetupBotLibraryLogging:
             if isinstance(h, RotatingFileHandler)
         ]
         assert len(file_handlers) == 1
+
+    def test_library_loggers_share_same_handler_instance(self, temp_logs_dir):
+        """bot_commander and xmpp_bot should share the same file handler."""
+        setup_bot_library_logging(temp_logs_dir)
+
+        bc_logger = logging.getLogger("bot_commander")
+        xb_logger = logging.getLogger("xmpp_bot")
+        bc_handlers = [
+            h for h in bc_logger.handlers if isinstance(h, RotatingFileHandler)
+        ]
+        xb_handlers = [
+            h for h in xb_logger.handlers if isinstance(h, RotatingFileHandler)
+        ]
+        assert len(bc_handlers) == 1
+        assert len(xb_handlers) == 1
+        assert bc_handlers[0] is xb_handlers[0]

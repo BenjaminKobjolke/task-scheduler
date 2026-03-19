@@ -10,6 +10,22 @@ from .constants import Paths
 _BOT_LIBRARY_LOGGERS = ("bot_commander", "xmpp_bot")
 
 
+class _SafeRotatingFileHandler(RotatingFileHandler):
+    """RotatingFileHandler that tolerates PermissionError during rotation.
+
+    On Windows, multiple handlers writing to the same log file cause
+    ``PermissionError: [WinError 32]`` when one handler tries to rename
+    the file while another still has it open.  This subclass catches the
+    error and continues writing to the current file.
+    """
+
+    def rotate(self, source: str, dest: str) -> None:
+        try:
+            super().rotate(source, dest)
+        except PermissionError:
+            pass
+
+
 class _SafeStreamHandler(logging.StreamHandler):
     """StreamHandler that replaces unencodable characters instead of failing.
 
@@ -89,17 +105,18 @@ def setup_bot_library_logging(logs_dir: str = Paths.LOGS_DIR) -> None:
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
+    handler = _SafeRotatingFileHandler(
+        log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
+    )
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(formatter)
+
     for name in _BOT_LIBRARY_LOGGERS:
         lib_logger = logging.getLogger(name)
         # Skip if a FileHandler already exists on this logger
         if any(isinstance(h, logging.FileHandler) for h in lib_logger.handlers):
             continue
         lib_logger.setLevel(logging.DEBUG)
-        handler = RotatingFileHandler(
-            log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
-        )
-        handler.setLevel(logging.DEBUG)
-        handler.setFormatter(formatter)
         lib_logger.addHandler(handler)
 
 
@@ -139,7 +156,7 @@ class Logger:
 
         # File handler
         log_file = f"{Paths.LOGS_DIR}/{self._log_file_prefix}_{datetime.now().strftime('%Y%m%d')}.log"
-        file_handler = RotatingFileHandler(
+        file_handler = _SafeRotatingFileHandler(
             log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8"
         )
         file_handler.setLevel(level)
