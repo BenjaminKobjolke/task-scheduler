@@ -100,6 +100,35 @@ class TestFtpSyncerStats:
     @patch("src.ftp_syncer.UploadSynchronizer", spec=True)
     @patch("src.ftp_syncer.FTPTarget", spec=True)
     @patch("src.ftp_syncer.FsTarget", spec=True)
+    def test_targets_neutralized_after_run(
+        self, mock_fs_cls, mock_ftp_cls, mock_syncer_cls, ftp_settings
+    ):
+        """After run(), targets must be neutralized to prevent __del__ errors."""
+        mock_remote = MagicMock()
+        mock_ftp_cls.return_value = mock_remote
+        mock_local = MagicMock()
+        mock_fs_cls.return_value = mock_local
+
+        mock_syncer = MagicMock()
+        mock_syncer.get_stats.return_value = {
+            "entries_touched": 0,
+            "entries_seen": 0,
+            "local_dirs": 0,
+        }
+        mock_syncer_cls.return_value = mock_syncer
+
+        syncer_obj = FtpSyncer()
+        with patch.object(syncer_obj.config, "get_ftp_settings", return_value=ftp_settings):
+            syncer_obj.sync("/local/path")
+
+        assert mock_remote.lock_data is False
+        assert mock_remote.connected is False
+        assert mock_remote.ftp_socket_connected is False
+        assert mock_local.connected is False
+
+    @patch("src.ftp_syncer.UploadSynchronizer", spec=True)
+    @patch("src.ftp_syncer.FTPTarget", spec=True)
+    @patch("src.ftp_syncer.FsTarget", spec=True)
     def test_run_failure_returns_false(
         self, mock_fs, mock_ftp, mock_syncer_cls, ftp_settings
     ):

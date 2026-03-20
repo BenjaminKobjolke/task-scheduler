@@ -63,6 +63,15 @@ class FtpSyncer:
             syncer = UploadSynchronizer(local, remote, opts)
             syncer.run()
 
+            # Prevent pyftpsync __del__ double-close errors.
+            # run() calls close() internally, but if _unlock() fails during
+            # that close, __del__ will retry and produce noisy 550 errors.
+            # Neutralize both targets so __del__ skips all cleanup.
+            remote.lock_data = False
+            remote.connected = False
+            remote.ftp_socket_connected = False
+            local.connected = False
+
             stats = syncer.get_stats()
             self.logger.info(
                 f"FTP sync done: {stats['entries_touched']}/{stats['entries_seen']} "
