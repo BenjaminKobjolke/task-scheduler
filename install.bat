@@ -1,3 +1,3 @@
 @echo off
-uv sync
+uv sync --all-extras
 echo Installation complete!
