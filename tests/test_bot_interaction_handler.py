@@ -3,6 +3,7 @@
 import threading
 
 import pytest
+from bot_commander import BufferedNotifier
 
 from src.bot.interaction_handler import BotInteractionHandler, BotScriptOutput
 from src.interaction import InteractionRequest, InteractionType
@@ -201,32 +202,51 @@ class TestBotInteractionHandlerCancel:
 
 
 class TestBotScriptOutput:
-    """Tests for BotScriptOutput — sends lines to chat user via notifier."""
+    """Tests for BotScriptOutput — sends lines via BufferedNotifier."""
 
-    def test_write_line_calls_notifier(self, notifier):
-        """write_line() sends the line to the correct user via the notifier."""
-        output = BotScriptOutput(user_id="u1", notifier=notifier)
+    def test_write_line_sends_via_buffered_notifier(self, notifier):
+        """write_line() sends the line through the BufferedNotifier."""
+        buffered = BufferedNotifier(send_fn=notifier, interval=10.0)
+        output = BotScriptOutput(user_id="u1", buffered_notifier=buffered)
         output.write_line("Processing item 5 of 10")
 
+        # First message is sent immediately by BufferedNotifier
         assert len(notifier.messages) == 1
         assert notifier.messages[0] == ("u1", "Processing item 5 of 10")
 
-    def test_write_line_multiple_calls(self, notifier):
-        """Multiple write_line() calls each produce a separate notifier call."""
-        output = BotScriptOutput(user_id="u1", notifier=notifier)
+    def test_rapid_writes_are_batched(self, notifier):
+        """Rapid write_line() calls are batched by BufferedNotifier."""
+        buffered = BufferedNotifier(send_fn=notifier, interval=10.0)
+        output = BotScriptOutput(user_id="u1", buffered_notifier=buffered)
         output.write_line("Line 1")
         output.write_line("Line 2")
         output.write_line("Line 3")
 
-        assert len(notifier.messages) == 3
+        # First line sent immediately; lines 2-3 buffered
+        assert len(notifier.messages) == 1
         assert notifier.messages[0] == ("u1", "Line 1")
-        assert notifier.messages[1] == ("u1", "Line 2")
-        assert notifier.messages[2] == ("u1", "Line 3")
+
+        # Flush sends the rest as a single combined message
+        output.close()
+        assert len(notifier.messages) == 2
+        assert notifier.messages[1] == ("u1", "Line 2\nLine 3")
+
+    def test_close_flushes_remaining(self, notifier):
+        """close() flushes buffered output for this user."""
+        buffered = BufferedNotifier(send_fn=notifier, interval=10.0)
+        output = BotScriptOutput(user_id="u1", buffered_notifier=buffered)
+        output.write_line("First")
+        output.write_line("Buffered")
+        output.close()
+
+        assert len(notifier.messages) == 2
+        assert notifier.messages[1] == ("u1", "Buffered")
 
     def test_write_line_preserves_user_id(self, notifier):
         """Each BotScriptOutput instance uses its own user_id."""
-        output_a = BotScriptOutput(user_id="alice", notifier=notifier)
-        output_b = BotScriptOutput(user_id="bob", notifier=notifier)
+        buffered = BufferedNotifier(send_fn=notifier, interval=10.0)
+        output_a = BotScriptOutput(user_id="alice", buffered_notifier=buffered)
+        output_b = BotScriptOutput(user_id="bob", buffered_notifier=buffered)
 
         output_a.write_line("Hello from Alice")
         output_b.write_line("Hello from Bob")

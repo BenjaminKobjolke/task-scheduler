@@ -4,7 +4,7 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from bot_commander import BotMessage, BotResponse, Commander
+from bot_commander import BotMessage, BotResponse, BufferedNotifier, Commander
 
 from .constants import Commands, Messages
 from .conversation import AddWizard, DeleteConfirmation, EditWizard
@@ -161,14 +161,17 @@ class TaskCommandProcessor(Commander):
                 handler = BotInteractionHandler(
                     user_id=user_id, notifier=self._notifier, timeout=timeout
                 )
+                buffered = BufferedNotifier(send_fn=self._notifier)
                 script_output = BotScriptOutput(
-                    user_id=user_id, notifier=self._notifier
+                    user_id=user_id, buffered_notifier=buffered
                 )
                 self._active_handlers[user_id] = handler
 
             success = self._scheduler.run_task(
                 task_id, interaction_handler=handler, script_output=script_output
             )
+            if script_output:
+                script_output.close()
             if success:
                 text = Messages.TASK_EXECUTED_SUCCESS.format(task_name, task_id)
             else:
@@ -177,6 +180,8 @@ class TaskCommandProcessor(Commander):
             text = Messages.TASK_EXECUTION_ERROR.format(task_id, str(e))
         finally:
             self._active_handlers.pop(user_id, None)
+            if script_output:
+                script_output.close()
         if self._notifier:
             self._notifier(user_id, text)
 

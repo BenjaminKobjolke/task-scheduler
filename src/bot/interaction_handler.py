@@ -5,18 +5,28 @@ from __future__ import annotations
 import threading
 from collections.abc import Callable
 
+from bot_commander import BufferedNotifier
+
 from src.interaction import InteractionRequest, InteractionResponse, InteractionType
 
 
 class BotScriptOutput:
-    """Sends script output lines to the chat user."""
+    """Sends script output lines to the chat user with rate-limited batching.
 
-    def __init__(self, user_id: str, notifier: Callable[[str, str], None]) -> None:
+    Uses :class:`BufferedNotifier` to prevent rapid output from
+    overwhelming the chat connection.
+    """
+
+    def __init__(self, user_id: str, buffered_notifier: BufferedNotifier) -> None:
         self._user_id = user_id
-        self._notifier = notifier
+        self._notifier = buffered_notifier
 
     def write_line(self, line: str) -> None:
-        self._notifier(self._user_id, line)
+        self._notifier.send(self._user_id, line)
+
+    def close(self) -> None:
+        """Flush any remaining buffered output for this user."""
+        self._notifier.flush(self._user_id)
 
 
 class BotInteractionHandler:

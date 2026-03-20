@@ -108,12 +108,17 @@ class ScriptOutput(Protocol):
 
     def write_line(self, line: str) -> None: ...
 
+    def close(self) -> None: ...
+
 
 class ConsoleScriptOutput:
     """Writes script output directly to the terminal."""
 
     def write_line(self, line: str) -> None:
         print(line, flush=True)
+
+    def close(self) -> None:
+        pass
 
 
 class InteractionTimeoutError(Exception):
