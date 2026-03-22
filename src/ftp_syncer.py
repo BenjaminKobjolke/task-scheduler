@@ -61,16 +61,15 @@ class FtpSyncer:
 
             # run() handles open/close internally via its own finally block
             syncer = UploadSynchronizer(local, remote, opts)
-            syncer.run()
-
-            # Prevent pyftpsync __del__ double-close errors.
-            # run() calls close() internally, but if _unlock() fails during
-            # that close, __del__ will retry and produce noisy 550 errors.
-            # Neutralize both targets so __del__ skips all cleanup.
-            remote.lock_data = False
-            remote.connected = False
-            remote.ftp_socket_connected = False
-            local.connected = False
+            try:
+                syncer.run()
+            finally:
+                # Prevent pyftpsync __del__ double-close errors by replacing
+                # close methods with no-ops. This works even when run() raises
+                # (e.g., from _unlock() 550 error in its finally block).
+                remote.close = lambda: None  # type: ignore[assignment]
+                local.close = lambda: None  # type: ignore[assignment]
+                syncer.close = lambda: None  # type: ignore[assignment]
 
             stats = syncer.get_stats()
             self.logger.info(

@@ -3,7 +3,7 @@
 import threading
 
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from bot_commander import BotManager
 
@@ -128,19 +128,47 @@ class TestReconnect:
         assert monitor.reconnect_attempts == 0
 
 
+class TestIsConnected:
+    """Tests for BotHealthMonitor.is_connected()."""
+
+    def test_returns_true_when_bot_connected(self, monitor: BotHealthMonitor) -> None:
+        """is_connected() returns True when XmppBot reports connected."""
+        mock_bot = MagicMock()
+        mock_bot.is_connected = True
+        with patch("src.bot_health.XmppBot", create=True) as mock_cls:
+            mock_cls.get_instance.return_value = mock_bot
+            assert monitor.is_connected() is True
+
+    def test_returns_false_when_bot_disconnected(
+        self, monitor: BotHealthMonitor
+    ) -> None:
+        """is_connected() returns False when XmppBot reports disconnected."""
+        mock_bot = MagicMock()
+        mock_bot.is_connected = False
+        with patch("src.bot_health.XmppBot", create=True) as mock_cls:
+            mock_cls.get_instance.return_value = mock_bot
+            assert monitor.is_connected() is False
+
+    def test_returns_false_when_import_fails(self, monitor: BotHealthMonitor) -> None:
+        """is_connected() returns False when xmpp_bot is not installed."""
+        with patch("src.bot_health.XmppBot", create=True, new=None):
+            # When XmppBot is None, accessing get_instance raises
+            assert monitor.is_connected() is False
+
+
 class TestCheckHealth:
     """Tests for BotHealthMonitor.check_health()."""
 
-    def test_no_action_when_alive(
+    def test_no_action_when_alive_and_connected(
         self,
         monitor: BotHealthMonitor,
         mock_bot_manager: MagicMock,
         mock_logger: MagicMock,
     ) -> None:
-        """check_health() should do nothing when bot is alive."""
+        """check_health() should do nothing when bot is alive and connected."""
         mock_bot_manager._adapter._thread.is_alive.return_value = True
-
-        monitor.check_health()
+        with patch.object(monitor, "is_connected", return_value=True):
+            monitor.check_health()
 
         mock_bot_manager.shutdown.assert_not_called()
         mock_bot_manager.start.assert_not_called()
@@ -151,14 +179,43 @@ class TestCheckHealth:
         mock_bot_manager: MagicMock,
         mock_logger: MagicMock,
     ) -> None:
-        """check_health() should attempt reconnect when bot is dead."""
+        """check_health() should attempt reconnect when bot thread is dead."""
         mock_bot_manager._adapter._thread.is_alive.return_value = False
-
-        monitor.check_health()
+        with patch.object(monitor, "is_connected", return_value=False):
+            monitor.check_health()
 
         mock_logger.warning.assert_called()
         mock_bot_manager.shutdown.assert_called_once()
         mock_bot_manager.start.assert_called_once()
+
+    def test_reconnects_when_alive_but_disconnected(
+        self,
+        monitor: BotHealthMonitor,
+        mock_bot_manager: MagicMock,
+        mock_logger: MagicMock,
+    ) -> None:
+        """check_health() should reconnect when thread alive but bot disconnected."""
+        mock_bot_manager._adapter._thread.is_alive.return_value = True
+        with patch.object(monitor, "is_connected", return_value=False):
+            monitor.check_health()
+
+        mock_logger.warning.assert_called()
+        mock_bot_manager.shutdown.assert_called_once()
+        mock_bot_manager.start.assert_called_once()
+
+    def test_resets_attempts_when_healthy(
+        self,
+        monitor: BotHealthMonitor,
+        mock_bot_manager: MagicMock,
+        mock_logger: MagicMock,
+    ) -> None:
+        """check_health() should reset reconnect_attempts when bot is fully healthy."""
+        monitor.reconnect_attempts = 3
+        mock_bot_manager._adapter._thread.is_alive.return_value = True
+        with patch.object(monitor, "is_connected", return_value=True):
+            monitor.check_health()
+
+        assert monitor.reconnect_attempts == 0
 
     def test_stops_after_max_attempts(
         self,
@@ -169,8 +226,8 @@ class TestCheckHealth:
         """check_health() should stop reconnecting after max attempts."""
         monitor.reconnect_attempts = Bot.MAX_RECONNECT_ATTEMPTS
         mock_bot_manager._adapter._thread.is_alive.return_value = False
-
-        monitor.check_health()
+        with patch.object(monitor, "is_connected", return_value=False):
+            monitor.check_health()
 
         mock_bot_manager.shutdown.assert_not_called()
         mock_bot_manager.start.assert_not_called()

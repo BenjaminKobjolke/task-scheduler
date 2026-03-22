@@ -5,6 +5,11 @@ from bot_commander import BotManager
 from .constants import Bot
 from .logger import Logger
 
+try:
+    from xmpp_bot import XmppBot
+except ImportError:
+    XmppBot = None  # type: ignore[assignment, misc]
+
 
 class BotHealthMonitor:
     """Monitors bot thread health and attempts reconnection when the bot dies.
@@ -32,6 +37,18 @@ class BotHealthMonitor:
             return False
         return thread.is_alive()
 
+    def is_connected(self) -> bool:
+        """Check whether the bot is actually connected to the server.
+
+        Returns:
+            True if the XmppBot singleton reports connected, False otherwise.
+            Returns False when xmpp-bot is not installed (e.g. telegram-only).
+        """
+        try:
+            return XmppBot.get_instance().is_connected  # type: ignore[union-attr]
+        except Exception:
+            return False
+
     def reconnect(self) -> bool:
         """Shut down and restart the bot.
 
@@ -54,18 +71,18 @@ class BotHealthMonitor:
             self._logger.warning("Bot start() returned False during reconnect")
             return False
         except Exception as exc:
-            self._logger.error(
-                f"Bot reconnect failed: {exc}", exc_info=True
-            )
+            self._logger.error(f"Bot reconnect failed: {exc}", exc_info=True)
             return False
 
     def check_health(self) -> None:
         """Run a single health check cycle.
 
-        If the bot thread is dead and we haven't exhausted reconnect attempts,
-        try to reconnect.  If max attempts are reached, log an error.
+        Checks both thread liveness AND connection state. A thread that is
+        alive but disconnected also triggers reconnection.
         """
-        if self.is_alive():
+        if self.is_alive() and self.is_connected():
+            if self.reconnect_attempts > 0:
+                self.reconnect_attempts = 0
             return
 
         if self.reconnect_attempts >= Bot.MAX_RECONNECT_ATTEMPTS:
@@ -75,5 +92,10 @@ class BotHealthMonitor:
             )
             return
 
-        self._logger.warning("Bot thread is no longer alive — attempting reconnect")
+        if not self.is_alive():
+            self._logger.warning("Bot thread is no longer alive — attempting reconnect")
+        else:
+            self._logger.warning(
+                "Bot thread alive but disconnected — attempting reconnect"
+            )
         self.reconnect()
