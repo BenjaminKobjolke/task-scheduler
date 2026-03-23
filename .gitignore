@@ -15,3 +15,5 @@ nul
 /config.ini
 /code_analysis_results
 .mcp.json
+docs/plans
+tmp/
