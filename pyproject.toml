@@ -25,7 +25,7 @@ packages = ["src"]
 
 [tool.uv.sources]
 xmpp-bot = { git = "https://github.com/BenjaminKobjolke/xmpp-bot.git" }
-bot-commander = { git = "https://github.com/BenjaminKobjolke/bot-commander.git" }
+bot-commander = { path = "D:/GIT/BenjaminKobjolke/bot-commander", editable = true }
 
 [dependency-groups]
 dev = [
