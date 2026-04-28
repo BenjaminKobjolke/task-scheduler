@@ -440,25 +440,45 @@ class ScriptRunner:
         entries: list[tuple[str, str]] = []
         seen_commands: set[str] = set()
 
-        # 1. Project name from pyproject.toml
+        pyproject_data: dict = {}
         pyproject_path = os.path.join(project_dir, Paths.PYPROJECT_TOML)
         if os.path.exists(pyproject_path):
             try:
                 with open(pyproject_path, "rb") as f:
-                    data = tomllib.load(f)
-                project_name = data.get("project", {}).get("name", "")
-                if project_name:
-                    module_name = project_name.replace("-", "_")
-                    pkg_dir = os.path.join(project_dir, module_name)
-                    init_path = os.path.join(pkg_dir, Paths.INIT_PY)
-                    if os.path.isdir(pkg_dir) and os.path.exists(init_path):
-                        cmd = f"python -m {module_name}"
-                        entries.append((cmd, Discovery.DESC_PROJECT_MODULE))
-                        seen_commands.add(cmd)
+                    pyproject_data = tomllib.load(f)
             except Exception:
-                pass
+                pyproject_data = {}
 
-        # 2. Root-level entry files
+        # 1. Project name from pyproject.toml
+        project_name = pyproject_data.get("project", {}).get("name", "")
+        if project_name:
+            module_name = project_name.replace("-", "_")
+            pkg_dir = os.path.join(project_dir, module_name)
+            init_path = os.path.join(pkg_dir, Paths.INIT_PY)
+            if os.path.isdir(pkg_dir) and os.path.exists(init_path):
+                cmd = f"python -m {module_name}"
+                if cmd not in seen_commands:
+                    entries.append((cmd, Discovery.DESC_PROJECT_MODULE))
+                    seen_commands.add(cmd)
+                main_module = os.path.join(pkg_dir, Paths.PACKAGE_MAIN_MODULE)
+                if os.path.exists(main_module):
+                    main_cmd = f"python -m {module_name}.main"
+                    if main_cmd not in seen_commands:
+                        entries.append((main_cmd, Discovery.DESC_PACKAGE_MAIN_MODULE))
+                        seen_commands.add(main_cmd)
+
+        # 2. Build-config-declared packages (e.g. hatch, setuptools)
+        for declared in self._declared_packages(pyproject_data):
+            self._add_package_entries(
+                project_dir,
+                declared,
+                seen_commands,
+                entries,
+                main_desc=Discovery.DESC_DECLARED_MAIN_MODULE,
+                package_main_desc=Discovery.DESC_DECLARED_PACKAGE_MAIN,
+            )
+
+        # 3. Root-level entry files
         for filename in Discovery.ROOT_ENTRY_FILES:
             filepath = os.path.join(project_dir, filename)
             if os.path.isfile(filepath):
@@ -467,7 +487,7 @@ class ScriptRunner:
                     entries.append((cmd, Discovery.DESC_ROOT_FILE))
                     seen_commands.add(cmd)
 
-        # 3. Packages with __main__.py
+        # 4. Subdir scan: packages with __main__.py or main.py
         try:
             for entry in os.listdir(project_dir):
                 entry_path = os.path.join(project_dir, entry)
@@ -477,16 +497,109 @@ class ScriptRunner:
                     continue
                 if entry in Discovery.EXCLUDED_DIRS:
                     continue
-                main_path = os.path.join(entry_path, Paths.MAIN_PY)
-                if os.path.exists(main_path):
-                    cmd = f"python -m {entry}"
-                    if cmd not in seen_commands:
-                        entries.append((cmd, Discovery.DESC_MAIN_MODULE))
-                        seen_commands.add(cmd)
+                self._add_package_entries(
+                    project_dir,
+                    entry,
+                    seen_commands,
+                    entries,
+                    main_desc=Discovery.DESC_MAIN_MODULE,
+                    package_main_desc=Discovery.DESC_PACKAGE_MAIN_MODULE,
+                )
         except OSError:
             pass
 
         return entries
+
+    def _declared_packages(self, pyproject_data: dict) -> list[str]:
+        """
+        Collect top-level package names declared by build backends.
+
+        Reads:
+            - [tool.hatch.build.targets.wheel].packages
+            - [tool.setuptools].packages (simple list form)
+            - [tool.setuptools.packages.find].include (literal entries only)
+
+        Skips nested package paths (containing '/', '\\' or '.').
+        """
+        names: list[str] = []
+        seen: set[str] = set()
+
+        def add(value: object) -> None:
+            if not isinstance(value, str):
+                return
+            name = value.strip()
+            if not name:
+                return
+            if "/" in name or "\\" in name or "." in name:
+                return
+            if name in Discovery.EXCLUDED_DIRS:
+                return
+            if name in seen:
+                return
+            seen.add(name)
+            names.append(name)
+
+        tool = pyproject_data.get("tool", {})
+        if not isinstance(tool, dict):
+            return names
+
+        hatch_pkgs = (
+            tool.get("hatch", {})
+            .get("build", {})
+            .get("targets", {})
+            .get("wheel", {})
+            .get("packages")
+        )
+        if isinstance(hatch_pkgs, list):
+            for pkg in hatch_pkgs:
+                add(pkg)
+
+        setuptools = tool.get("setuptools", {})
+        if isinstance(setuptools, dict):
+            packages = setuptools.get("packages")
+            if isinstance(packages, list):
+                for pkg in packages:
+                    add(pkg)
+            elif isinstance(packages, dict):
+                find = packages.get("find", {})
+                if isinstance(find, dict):
+                    include = find.get("include", [])
+                    if isinstance(include, list):
+                        for pkg in include:
+                            if isinstance(pkg, str) and "*" not in pkg:
+                                add(pkg)
+
+        return names
+
+    def _add_package_entries(
+        self,
+        project_dir: str,
+        package_name: str,
+        seen_commands: set[str],
+        entries: list[tuple[str, str]],
+        *,
+        main_desc: str,
+        package_main_desc: str,
+    ) -> None:
+        """
+        Append `python -m <pkg>` and/or `python -m <pkg>.main` candidates
+        based on which entry-point files exist under <project_dir>/<package_name>/.
+        """
+        pkg_dir = os.path.join(project_dir, package_name)
+        if not os.path.isdir(pkg_dir):
+            return
+
+        if os.path.exists(os.path.join(pkg_dir, Paths.MAIN_PY)):
+            cmd = f"python -m {package_name}"
+            if cmd not in seen_commands:
+                entries.append((cmd, main_desc))
+                seen_commands.add(cmd)
+
+        if os.path.exists(os.path.join(pkg_dir, Paths.PACKAGE_MAIN_MODULE)):
+            cmd = f"python -m {package_name}.main"
+            if cmd not in seen_commands:
+                entries.append((cmd, package_main_desc))
+                seen_commands.add(cmd)
 
     def run_uv_command(
         self,

@@ -17,6 +17,7 @@ class Paths:
     BAT_EXTENSION = ".bat"
     INIT_PY = "__init__.py"
     MAIN_PY = "__main__.py"
+    PACKAGE_MAIN_MODULE = "main.py"
 
 
 class Database:
@@ -118,6 +119,9 @@ class Discovery:
     DESC_PROJECT_MODULE = "project module (from pyproject.toml name)"
     DESC_ROOT_FILE = "found in project root"
     DESC_MAIN_MODULE = "package with __main__.py"
+    DESC_PACKAGE_MAIN_MODULE = "package main module (<pkg>/main.py)"
+    DESC_DECLARED_MAIN_MODULE = "declared package with __main__.py"
+    DESC_DECLARED_PACKAGE_MAIN = "declared package main module"
 
 
 class Interactive:
