@@ -11,7 +11,7 @@ from src.logger import Logger, setup_bot_library_logging
 from src.cli_output import CliOutput
 from src.config import Config
 from src.constants import Bot, Paths
-from src.formatters import format_task_list
+from src.formatters import format_task_list, parse_interval
 from src.bot.command_processor import TaskCommandProcessor
 from src.bot_health import BotHealthMonitor
 from src.commands import (
@@ -32,6 +32,14 @@ from src.commands import (
 )
 
 
+def _interval_arg(value: str) -> int:
+    """Argparse adapter for parse_interval that surfaces friendly errors."""
+    try:
+        return parse_interval(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+
+
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
@@ -48,6 +56,9 @@ Examples:
 
     # Add a batch file task
     python main.py --script "backup.bat" --name "backup task" --interval 60
+
+    # Intervals can use suffixes m/h/d/w (e.g. 4h, 7d, 1w)
+    python main.py --script "weekly.py" --name "weekly job" --interval 7d
 
     # Add a uv command task with arguments
     python main.py --uv-command "D:\\project" "sync-to-local" --name "Sync" --interval 5 -- --config "config.json"
@@ -106,8 +117,12 @@ Note:
 
     parser.add_argument(
         "--interval",
-        type=int,
-        help="Interval in minutes between script executions"
+        type=_interval_arg,
+        metavar="INTERVAL",
+        help=(
+            "Interval between executions: bare minutes (e.g. 5) or with "
+            "suffix Nm/Nh/Nd/Nw (e.g. 4h, 7d, 1w). Use 0 for manual only."
+        ),
     )
 
     parser.add_argument(
@@ -127,8 +142,8 @@ Note:
     parser.add_argument(
         "--set-interval",
         nargs=2,
-        metavar=("ID", "MINUTES"),
-        help="Set interval for a task"
+        metavar=("ID", "INTERVAL"),
+        help="Set interval for a task (e.g. 5, 4h, 7d, 1w; 0 = manual only)"
     )
 
     parser.add_argument(

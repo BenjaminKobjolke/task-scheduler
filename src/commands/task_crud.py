@@ -4,8 +4,8 @@ from argparse import Namespace
 
 from ..cli_input import get_task_input
 from ..cli_output import CliOutput
-from ..constants import Defaults, Paths, TaskTypes
-from ..formatters import format_task_list
+from ..constants import Paths, TaskTypes
+from ..formatters import format_interval, format_task_list
 from ..scheduler import TaskScheduler
 
 
@@ -19,7 +19,7 @@ def _log_task_details(cli: CliOutput, task_details: dict) -> None:
     else:
         cli.info(f"Script: {task_details['script_path']}")
     interval = task_details["interval"]
-    interval_display = Defaults.MANUAL_ONLY_LABEL if interval == 0 else f"{interval} minute(s)"
+    interval_display = format_interval(interval)
     cli.info(f"Interval: {interval_display}")
     if task_details.get("start_time"):
         cli.info(f"Start time: {task_details['start_time']}")
@@ -156,7 +156,7 @@ def handle_script(scheduler: TaskScheduler, cli: CliOutput, args) -> None:
         launch_new_process=launch_new_process,
     )
 
-    interval_display = Defaults.MANUAL_ONLY_LABEL if args.interval == 0 else f"{args.interval} minute(s)"
+    interval_display = format_interval(args.interval)
     cli.info("Task added successfully:")
     cli.info(f"Name: {args.name}")
     cli.info(f"Script: {script_path}")

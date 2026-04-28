@@ -68,7 +68,7 @@ This will prompt you for:
 - Script path or uv project directory (with validation)
 - For uv projects: command selection (predefined or custom)
 - Task name
-- Interval in minutes
+- Interval (minutes, or suffix `m`/`h`/`d`/`w` — e.g. `5`, `4h`, `7d`, `1w`)
 - Start time (optional, HH:MM format for aligned scheduling)
 - Arguments (optional, press Enter twice to finish)
 
@@ -129,10 +129,10 @@ python main.py --uv-command "D:\GIT\my-project" "backup" --name "Scheduled backu
 - `--script`: Path to the Python script or batch file to schedule (absolute path or relative to current directory)
 - `--uv-command PROJECT_DIR COMMAND`: Add a uv command task (project directory + command name)
 - `--name`: Descriptive name for the task (e.g., "convert audio notes to text")
-- `--interval`: Interval in minutes between script executions
+- `--interval`: Interval between executions. Bare minutes (e.g. `5`) or with a suffix `Nm`/`Nh`/`Nd`/`Nw` for minutes/hours/days/weeks (e.g. `4h`, `7d`, `1w`). Use `0` for manual-only.
 - `--start-time`: Optional start time for aligned scheduling (HH:MM format)
 - `--set-start-time ID TIME`: Set or clear start time for an existing task (use `none` to clear)
-- `--set-interval ID MINUTES`: Set interval for an existing task
+- `--set-interval ID INTERVAL`: Set interval for an existing task (same syntax as `--interval`)
 - `--run_id ID`: Run a specific task immediately by its ID
 - `--`: Separator after which all arguments are passed to the script/command
 - Arguments after `--` are passed directly to the script/command
@@ -175,7 +175,7 @@ For convenience, batch files are provided for common operations:
 | `taskscheduler_add.bat` | Add a new task (interactive) |
 | `taskscheduler_run_with_id.bat ID` | Run a specific task by ID |
 | `taskscheduler_remove_with_id.bat ID` | Delete a task by ID |
-| `taskscheduler_set_interval.bat ID MINUTES` | Set task interval |
+| `taskscheduler_set_interval.bat ID INTERVAL` | Set task interval (e.g. `5`, `4h`, `7d`) |
 | `taskscheduler_set_start_time.bat ID TIME` | Set task start time |
 | `taskscheduler_history.bat` | Show execution history |
 
@@ -279,14 +279,21 @@ taskscheduler_set_start_time.bat 5 09:00
 
 #### Setting Interval
 
-Quickly change the interval of an existing task:
+Quickly change the interval of an existing task. Accepts bare minutes or a
+suffix `m`/`h`/`d`/`w` (minutes / hours / days / weeks):
 
 ```bash
 # Set task 5 to run every 60 minutes
 python main.py --set-interval 5 60
 
+# Same task, every 4 hours
+python main.py --set-interval 5 4h
+
+# Same task, weekly
+python main.py --set-interval 5 7d
+
 # Using batch file
-taskscheduler_set_interval.bat 5 60
+taskscheduler_set_interval.bat 5 4h
 ```
 
 #### Deleting a Task

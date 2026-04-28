@@ -8,6 +8,7 @@ from prompt_toolkit import PromptSession
 from ..cli_input import _create_path_key_bindings
 from ..cli_output import CliOutput
 from ..constants import TaskTypes
+from ..formatters import format_interval, parse_interval
 from ..scheduler import TaskScheduler
 
 
@@ -74,12 +75,9 @@ def handle_set_interval(
         sys.exit(1)
 
     try:
-        new_interval = int(interval_str)
-        if new_interval < 0:
-            cli.error("Interval must be 0 or higher. Use 0 for manual-only tasks.")
-            sys.exit(1)
-    except ValueError:
-        cli.error(f"Invalid interval: {interval_str}. Must be a non-negative integer.")
+        new_interval = parse_interval(interval_str)
+    except ValueError as exc:
+        cli.error(str(exc))
         sys.exit(1)
 
     tasks = scheduler.list_tasks()
@@ -114,7 +112,8 @@ def handle_set_interval(
             )
         else:
             cli.info(
-                f"Task '{task['name']}' (ID: {task_id}) interval set to {new_interval} minute(s)"
+                f"Task '{task['name']}' (ID: {task_id}) interval set to "
+                f"{format_interval(new_interval)}"
             )
     except ValueError as e:
         cli.error(str(e))
