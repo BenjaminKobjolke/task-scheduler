@@ -170,14 +170,21 @@ For convenience, batch files are provided for common operations:
 
 | Batch File | Description |
 |------------|-------------|
-| `taskscheduler_run.bat` | Start the scheduler |
-| `taskscheduler_list.bat` | List all tasks |
-| `taskscheduler_add.bat` | Add a new task (interactive) |
-| `taskscheduler_run_with_id.bat ID` | Run a specific task by ID |
-| `taskscheduler_remove_with_id.bat ID` | Delete a task by ID |
-| `taskscheduler_set_interval.bat ID INTERVAL` | Set task interval (e.g. `5`, `4h`, `7d`) |
-| `taskscheduler_set_start_time.bat ID TIME` | Set task start time |
-| `taskscheduler_history.bat` | Show execution history |
+| `start.bat` | Start the scheduler |
+| `list.bat` | List all tasks |
+| `add.bat` | Add a new task (interactive) |
+| `edit_task.bat ID` | Edit a task by ID |
+| `copy_task.bat ID` | Duplicate a task by ID |
+| `rename.bat ID` | Rename a task by ID |
+| `run_task_with_id.bat ID` | Run a specific task by ID |
+| `remove_with_id.bat ID` | Delete a task by ID |
+| `set_task_interval.bat ID INTERVAL` | Set task interval (e.g. `5`, `4h`, `7d`) |
+| `set_task_start_time.bat ID TIME` | Set task start time |
+| `history.bat` | Show execution history |
+| `activate_environment.bat` | Open a Python shell in the project environment |
+| `compile_exe.bat` | Build a standalone executable with PyInstaller |
+| `install.bat` | Install project dependencies |
+| `update.bat` | Update dependencies |
 
 ### Managing Tasks
 
@@ -225,7 +232,7 @@ To run a specific task immediately without starting the scheduler:
 python main.py --run_id 5
 
 # Or using batch file
-taskscheduler_run_with_id.bat 5
+run_task_with_id.bat 5
 ```
 
 #### Editing a Task
@@ -270,7 +277,7 @@ python main.py --set-start-time 5 none
 
 ```bash
 # Set start time using batch file
-taskscheduler_set_start_time.bat 5 09:00
+set_task_start_time.bat 5 09:00
 ```
 
 **Without start time:** Tasks run immediately when added and then repeat at the interval.
@@ -293,7 +300,7 @@ python main.py --set-interval 5 4h
 python main.py --set-interval 5 7d
 
 # Using batch file
-taskscheduler_set_interval.bat 5 4h
+set_task_interval.bat 5 4h
 ```
 
 #### Deleting a Task
@@ -585,14 +592,20 @@ task-scheduler/
 ├── config.ini               # Configuration file
 ├── config.ini.example       # Example configuration
 ├── pyproject.toml           # Project dependencies (uv)
+├── activate_environment.bat # Open a Python shell in the project environment
+├── add.bat                  # Add task (interactive)
+├── compile_exe.bat          # Build standalone executable
+├── copy_task.bat            # Duplicate a task
+├── edit_task.bat            # Edit a task
+├── history.bat              # Show execution history
 ├── install.bat              # Installation script
-├── taskscheduler_run.bat    # Start the scheduler
-├── taskscheduler_list.bat   # List all tasks
-├── taskscheduler_add.bat    # Add task (interactive)
-├── taskscheduler_run_with_id.bat     # Run specific task
-├── taskscheduler_remove_with_id.bat  # Delete task
-├── taskscheduler_set_interval.bat    # Set task interval
-├── taskscheduler_set_start_time.bat  # Set task start time
-├── taskscheduler_history.bat         # Show execution history
+├── list.bat                 # List all tasks
+├── remove_with_id.bat       # Delete task
+├── rename.bat               # Rename a task
+├── run_task_with_id.bat     # Run specific task
+├── set_task_interval.bat    # Set task interval
+├── set_task_start_time.bat  # Set task start time
+├── start.bat                # Start the scheduler
+├── update.bat               # Update dependencies
 └── README.md                # This file
 ```
