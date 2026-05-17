@@ -4,16 +4,12 @@ import signal
 import sys
 import time
 
-from bot_commander import BotManager
-
 from src.scheduler import TaskScheduler
 from src.logger import Logger, setup_bot_library_logging
 from src.cli_output import CliOutput
 from src.config import Config
 from src.constants import Bot, Paths
 from src.formatters import format_task_list, parse_interval
-from src.bot.command_processor import TaskCommandProcessor
-from src.bot_health import BotHealthMonitor
 from src.commands import (
     handle_list,
     handle_history,
@@ -237,7 +233,8 @@ Note:
 def signal_handler(signum, frame):
     """Handle shutdown signals."""
     logger.info("Shutdown signal received")
-    bot_manager.shutdown()
+    if bot_manager is not None:
+        bot_manager.shutdown()
     scheduler.shutdown()
     sys.exit(0)
 
@@ -320,13 +317,32 @@ if __name__ == "__main__":
         # If no specific action was requested, run the scheduler
         bot_logger = Logger("Bot", log_file_prefix=Paths.LOG_FILE_PREFIX_BOT)
         setup_bot_library_logging()
-        bot_config_dto = config.get_bot_config()
-        processor = TaskCommandProcessor(scheduler, bot_config_dto)
-        bot_manager = BotManager(
-            message_handler=processor,
-            config_provider=config,
-            bot_type=config.get_bot_type(),
-        )
+
+        bot_manager = None
+        processor = None
+        health_monitor = None
+        bot_type = config.get_bot_type()
+
+        if bot_type and bot_type.lower() != "none":
+            try:
+                from bot_commander import BotManager
+                from src.bot.command_processor import TaskCommandProcessor
+                from src.bot_health import BotHealthMonitor
+            except ImportError as exc:
+                bot_logger.warning(
+                    f"Bot type '{bot_type}' configured but bot-commander not installed "
+                    f"({exc}). Run `uv sync --extra bot` (telegram) or "
+                    f"`uv sync --extra xmpp` (xmpp) to enable bot support. "
+                    f"Continuing without bot."
+                )
+            else:
+                bot_config_dto = config.get_bot_config()
+                processor = TaskCommandProcessor(scheduler, bot_config_dto)
+                bot_manager = BotManager(
+                    message_handler=processor,
+                    config_provider=config,
+                    bot_type=bot_type,
+                )
 
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
@@ -334,15 +350,15 @@ if __name__ == "__main__":
         scheduler.start()
 
         # Initialize bot if configured
-        health_monitor = None
-        try:
-            bot_started = bot_manager.start()
-            if bot_started:
-                processor.set_notifier(bot_manager.send_message)
-                bot_logger.info("Bot integration started")
-                health_monitor = BotHealthMonitor(bot_manager, bot_logger)
-        except Exception as e:
-            bot_logger.error(f"Bot failed to start: {e}", exc_info=True)
+        if bot_manager is not None:
+            try:
+                bot_started = bot_manager.start()
+                if bot_started:
+                    processor.set_notifier(bot_manager.send_message)
+                    bot_logger.info("Bot integration started")
+                    health_monitor = BotHealthMonitor(bot_manager, bot_logger)
+            except Exception as e:
+                bot_logger.error(f"Bot failed to start: {e}", exc_info=True)
 
         tasks = scheduler.list_tasks()
         logger.info("Current tasks:" + format_task_list(tasks, show_next_run=True))
@@ -361,8 +377,9 @@ if __name__ == "__main__":
                     last_health_check = now
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received")
-            bot_logger.info("Bot shutting down")
-            bot_manager.shutdown()
+            if bot_manager is not None:
+                bot_logger.info("Bot shutting down")
+                bot_manager.shutdown()
             scheduler.shutdown()
             sys.exit(0)
 

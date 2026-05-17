@@ -488,17 +488,25 @@ python main.py --ftp-sync
 
 Manage tasks remotely via Telegram or XMPP messenger. Configure one bot type in `config.ini` and send commands from your phone or desktop.
 
-### Setup
-
-Install the bot library you want to use:
+Bot support is **optional**. The base `uv sync` installs the scheduler without bot dependencies. Install the appropriate extra to enable a bot:
 
 ```bash
-# For Telegram
+# Telegram support (installs bot-commander + telegram-bot)
 tools\install_telegram_bot.bat
 
-# For XMPP (requires Rust compiler, install from https://rustup.rs/)
+# XMPP support (requires Rust compiler, install from https://rustup.rs/)
 tools\install_xmpp_bot.bat
 ```
+
+Or directly via uv:
+
+```bash
+uv sync --extra bot     # bot-commander framework only
+uv sync --extra xmpp    # bot-commander + xmpp-bot
+uv sync --all-extras    # everything
+```
+
+If you set `[Bot] type = telegram` or `xmpp` in `config.ini` without installing the matching extra, the scheduler still starts but logs a warning and runs without bot support.
 
 ### Configuration
 

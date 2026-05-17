@@ -254,21 +254,7 @@ wheels = [
 [[package]]
 name = "bot-commander"
 version = "0.1.0"
-source = { editable = "../bot-commander" }
-
-[package.metadata]
-requires-dist = [
-    { name = "aiodns", marker = "extra == 'xmpp'", specifier = "<4.0.0" },
-    { name = "telegram-bot", marker = "extra == 'telegram'", git = "https://github.com/BenjaminKobjolke/telegram-bot.git" },
-    { name = "xmpp-bot", marker = "extra == 'xmpp'", git = "https://github.com/BenjaminKobjolke/xmpp-bot.git" },
-]
-provides-extras = ["telegram", "xmpp"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=8.0.0" },
-    { name = "ruff", specifier = ">=0.4.0" },
-]
+source = { git = "https://github.com/BenjaminKobjolke/bot-commander.git#da05bd3b9304a17745a4fb091b42f0f1c1094379" }
 
 [[package]]
 name = "cffi"
@@ -1275,7 +1261,6 @@ version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "apscheduler" },
-    { name = "bot-commander" },
     { name = "prompt-toolkit" },
     { name = "pyftpsync" },
     { name = "tzdata" },
@@ -1284,8 +1269,12 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+bot = [
+    { name = "bot-commander" },
+]
 xmpp = [
     { name = "aiodns" },
+    { name = "bot-commander" },
     { name = "xmpp-bot" },
 ]
 
@@ -1299,7 +1288,8 @@ dev = [
 requires-dist = [
     { name = "aiodns", marker = "extra == 'xmpp'", specifier = "<4.0.0" },
     { name = "apscheduler", specifier = ">=3.11.0" },
-    { name = "bot-commander", editable = "../bot-commander" },
+    { name = "bot-commander", marker = "extra == 'bot'", git = "https://github.com/BenjaminKobjolke/bot-commander.git" },
+    { name = "bot-commander", marker = "extra == 'xmpp'", git = "https://github.com/BenjaminKobjolke/bot-commander.git" },
     { name = "prompt-toolkit", specifier = ">=3.0.52" },
     { name = "pyftpsync", specifier = ">=4.0.0" },
     { name = "tzdata", specifier = ">=2025.2" },
@@ -1307,7 +1297,7 @@ requires-dist = [
     { name = "wcwidth", specifier = ">=0.2.13" },
     { name = "xmpp-bot", marker = "extra == 'xmpp'", git = "https://github.com/BenjaminKobjolke/xmpp-bot.git" },
 ]
-provides-extras = ["xmpp"]
+provides-extras = ["bot", "xmpp"]
 
 [package.metadata.requires-dev]
 dev = [
