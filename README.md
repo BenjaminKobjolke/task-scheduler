@@ -51,6 +51,19 @@ To see all available commands and options:
 python main.py --help
 ```
 
+### Running and Stopping the Scheduler
+
+Start the continuous scheduler with `start.bat` (or `python main.py`). Only **one
+instance** can run at a time — it holds a lock at `data/scheduler.lock`.
+
+- If you start the scheduler while one is already running, it asks:
+  `Shut it down and start a new instance? (y/N)`. Answer `y` to stop the old one and
+  take over, or `n` to leave it running.
+- Stop a running scheduler with `shutdown.bat` (or `python main.py --shutdown`). It
+  signals the running instance, which stops scheduling and exits immediately. Any
+  external script already running is a separate process and continues to completion on
+  its own — the scheduler does not wait for it.
+
 ### Adding a New Task
 
 There are three ways to add a new task:
@@ -170,7 +183,8 @@ For convenience, batch files are provided for common operations:
 
 | Batch File | Description |
 |------------|-------------|
-| `start.bat` | Start the scheduler |
+| `start.bat` | Start the scheduler (prompts to take over if one is already running) |
+| `shutdown.bat` | Gracefully stop the running scheduler |
 | `list.bat` | List all tasks |
 | `add.bat` | Add a new task (interactive) |
 | `edit_task.bat ID` | Edit a task by ID |
@@ -614,6 +628,7 @@ task-scheduler/
 ├── set_task_interval.bat    # Set task interval
 ├── set_task_start_time.bat  # Set task start time
 ├── start.bat                # Start the scheduler
+├── shutdown.bat             # Gracefully stop the running scheduler
 ├── update.bat               # Update dependencies
 └── README.md                # This file
 ```

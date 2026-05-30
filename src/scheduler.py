@@ -67,9 +67,14 @@ class TaskScheduler:
             f"Scheduler started with {len(tasks)} tasks (hot-reload every {Defaults.RELOAD_INTERVAL}s)"
         )
 
-    def shutdown(self):
-        """Shutdown the scheduler."""
-        self.scheduler.shutdown()
+    def shutdown(self, wait: bool = False):
+        """Shutdown the scheduler.
+
+        wait=False (default) stops dispatching immediately without blocking on
+        jobs already running. Any external script subprocess already launched is a
+        separate OS process and keeps running to completion on its own.
+        """
+        self.scheduler.shutdown(wait=wait)
         self.logger.info("Scheduler shutdown")
 
     def _get_job_id(self, task_id: int) -> str:

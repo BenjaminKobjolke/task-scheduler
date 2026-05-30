@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import argparse
+import logging
+import os
 import signal
 import sys
 import time
@@ -8,7 +10,8 @@ from src.scheduler import TaskScheduler
 from src.logger import Logger, setup_bot_library_logging
 from src.cli_output import CliOutput
 from src.config import Config
-from src.constants import Bot, Paths
+from src.constants import Bot, Defaults, Messages, Paths
+from src.instance_controller import InstanceController
 from src.formatters import format_task_list, parse_interval
 from src.commands import (
     handle_list,
@@ -25,6 +28,7 @@ from src.commands import (
     handle_run_id,
     handle_ftp_sync,
     handle_uv_command,
+    handle_shutdown,
 )
 
 
@@ -103,6 +107,12 @@ Note:
         nargs=2,
         metavar=("PROJECT_DIR", "COMMAND"),
         help="Add a uv command task: PROJECT_DIR is the uv project path, COMMAND is the uv command to run"
+    )
+
+    group.add_argument(
+        "--shutdown",
+        action="store_true",
+        help="Ask the running scheduler instance to stop and wait for it to exit"
     )
 
     parser.add_argument(
@@ -230,12 +240,29 @@ Note:
     return parser.parse_args()
 
 
+def perform_shutdown():
+    """Stop bot and scheduler, release the lock, then exit immediately.
+
+    Uses os._exit after releasing the lock so a job already running in an
+    APScheduler worker thread (e.g. blocked in subprocess) cannot stall the
+    interpreter's exit. Already-launched external scripts keep running as
+    independent OS processes.
+    """
+    if bot_manager is not None:
+        bot_logger.info("Bot shutting down")
+        bot_manager.shutdown()
+    scheduler.shutdown()  # wait=False: do not block on running jobs
+    instance.clear_request()
+    instance.release()
+    logger.info("Scheduler stopped")
+    logging.shutdown()  # flush log handlers before the hard exit
+    os._exit(0)
+
+
 def signal_handler(signum, frame):
     """Handle shutdown signals."""
     logger.info("Shutdown signal received")
-    if bot_manager is not None:
-        bot_manager.shutdown()
-    scheduler.shutdown()
+    perform_shutdown()
     sys.exit(0)
 
 
@@ -314,7 +341,35 @@ if __name__ == "__main__":
             handle_ftp_sync(cli, config)
             sys.exit(0)
 
-        # If no specific action was requested, run the scheduler
+        elif args.shutdown:
+            handle_shutdown(cli)
+            sys.exit(0)
+
+        # If no specific action was requested, run the scheduler.
+        # Guard against a second continuous instance firing every task twice;
+        # offer to shut down an already-running instance and take over.
+        instance = InstanceController()
+        if not instance.try_acquire():
+            answer = input(Messages.RESTART_PROMPT).strip().lower()
+            if answer not in ("y", "yes"):
+                cli.info(Messages.RESTART_ABORTED)
+                sys.exit(0)
+            cli.info(Messages.TAKEOVER_STOPPING)
+            instance.request_shutdown()
+            if not instance.wait_until_stopped(Defaults.SHUTDOWN_WAIT_SECONDS):
+                cli.error(
+                    Messages.SHUTDOWN_TIMEOUT.format(
+                        seconds=Defaults.SHUTDOWN_WAIT_SECONDS
+                    )
+                )
+                sys.exit(1)
+            cli.info(Messages.TAKEOVER_STOPPED)
+            if not instance.try_acquire():
+                cli.error(Messages.ALREADY_RUNNING)
+                sys.exit(1)
+        instance.clear_request()
+        cli.info(Messages.STARTING_INSTANCE)
+
         bot_logger = Logger("Bot", log_file_prefix=Paths.LOG_FILE_PREFIX_BOT)
         setup_bot_library_logging()
 
@@ -368,6 +423,9 @@ if __name__ == "__main__":
             last_health_check = time.time()
             while True:
                 time.sleep(1)
+                if instance.shutdown_requested():
+                    logger.info("Shutdown request received")
+                    break
                 now = time.time()
                 if (
                     health_monitor is not None
@@ -377,11 +435,9 @@ if __name__ == "__main__":
                     last_health_check = now
         except KeyboardInterrupt:
             logger.info("Keyboard interrupt received")
-            if bot_manager is not None:
-                bot_logger.info("Bot shutting down")
-                bot_manager.shutdown()
-            scheduler.shutdown()
-            sys.exit(0)
+
+        perform_shutdown()
+        sys.exit(0)
 
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

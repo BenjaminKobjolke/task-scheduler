@@ -1,6 +1,6 @@
 """Tests for constants module."""
 
-from src.constants import Paths, Database, Config, Defaults
+from src.constants import Paths, Database, Config, Defaults, Messages
 
 
 class TestPaths:
@@ -67,3 +67,25 @@ class TestDefaults:
 
     def test_manual_only_label(self):
         assert Defaults.MANUAL_ONLY_LABEL == "manual only"
+
+    def test_shutdown_wait_defined(self):
+        assert Defaults.SHUTDOWN_WAIT_SECONDS == 30
+        assert Defaults.SHUTDOWN_POLL_SECONDS == 0.5
+
+
+class TestShutdownConstants:
+    """Tests for shutdown-related constants."""
+
+    def test_shutdown_request_path(self):
+        assert Paths.SHUTDOWN_REQUEST == "shutdown.request"
+
+    def test_shutdown_messages_defined(self):
+        assert Messages.NO_INSTANCE_RUNNING
+        assert Messages.SHUTDOWN_SENT
+        assert Messages.SHUTDOWN_CONFIRMED
+        assert "{seconds}" in Messages.SHUTDOWN_TIMEOUT
+        assert Messages.RESTART_PROMPT
+        assert Messages.RESTART_ABORTED
+        assert Messages.TAKEOVER_STOPPING
+        assert Messages.TAKEOVER_STOPPED
+        assert Messages.STARTING_INSTANCE

@@ -9,6 +9,8 @@ class Paths:
     ACTIVATE_SCRIPT = "activate"
     PYTHON_EXE = "python.exe"
     DATA_DIR = "data"
+    LOCK_FILE = "scheduler.lock"
+    SHUTDOWN_REQUEST = "shutdown.request"
     LOGS_DIR = "logs"
     LOG_FILE_PREFIX_SCHEDULER = "scheduler"
     LOG_FILE_PREFIX_BOT = "bot"
@@ -134,6 +136,25 @@ class Interactive:
     ENV_MARKER = "INTERACTIVE"
 
 
+class Messages:
+    """User-facing message strings."""
+
+    ALREADY_RUNNING = (
+        "Scheduler already running (another instance holds the lock)."
+    )
+    NO_INSTANCE_RUNNING = "No running scheduler instance found."
+    SHUTDOWN_SENT = "Shutdown requested. Waiting for scheduler to stop..."
+    SHUTDOWN_CONFIRMED = "Scheduler stopped."
+    SHUTDOWN_TIMEOUT = "Scheduler did not stop within {seconds}s."
+    RESTART_PROMPT = (
+        "Scheduler already running. Shut it down and start a new instance? (y/N): "
+    )
+    RESTART_ABORTED = "Aborted. Existing scheduler left running."
+    TAKEOVER_STOPPING = "Stopping the running instance..."
+    TAKEOVER_STOPPED = "Previous instance stopped."
+    STARTING_INSTANCE = "Starting new scheduler instance..."
+
+
 class Defaults:
     """Default values used throughout the application."""
 
@@ -142,3 +163,5 @@ class Defaults:
     MIN_INTERVAL = 0
     MANUAL_ONLY_LABEL = "manual only"
     RELOAD_INTERVAL = 60  # seconds between database checks for hot-reload
+    SHUTDOWN_WAIT_SECONDS = 30  # max wait for a running instance to stop
+    SHUTDOWN_POLL_SECONDS = 0.5  # poll interval while waiting for stop

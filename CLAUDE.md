@@ -12,8 +12,11 @@ Windows task scheduler for Python scripts and batch files. Uses APScheduler for 
 # Install dependencies
 install.bat
 
-# Run scheduler (continuous mode)
+# Run scheduler (continuous mode; prompts to take over if one is already running)
 python main.py
+
+# Gracefully stop the running scheduler
+python main.py --shutdown        # or shutdown.bat
 
 # Task management
 python main.py --add              # Interactive add
@@ -44,6 +47,8 @@ python main.py --script "path.py" --name "name" --interval 5 -- --arg1 value
   - **venv projects**: Must have `venv/` subdirectory, uses `venv/Scripts/python.exe` directly
 - Batch files run directly from their directory without venv
 - Tasks persist in `data/tasks.sqlite`
+- Single-instance + shutdown handled by `src/instance_controller.py` (`InstanceController`): an OS-level file lock (`data/scheduler.lock`, via `filelock`) enforces one running instance; a stop-request flag file (`data/shutdown.request`) is polled by the main loop each second. `--shutdown` / `shutdown.bat` writes the flag and waits; starting a second instance prompts to take over the running one.
+- Shutdown is immediate, not blocking: `TaskScheduler.shutdown()` uses `wait=False` and `main.perform_shutdown()` calls `os._exit(0)` after releasing the lock. This is deliberate — APScheduler worker threads are non-daemon, so a job blocked in `subprocess` would otherwise stall interpreter exit indefinitely (notably the startup burst of coalesced overdue tasks). Already-launched external scripts are separate OS processes and finish independently.
 - APScheduler jobs use `misfire_grace_time=60` and `coalesce=True` to handle delayed executions
 - Timestamps stored in local time using SQLite's `datetime('now', 'localtime')`
 
