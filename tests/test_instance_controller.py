@@ -78,3 +78,21 @@ class TestWaitUntilStopped:
             assert probe.wait_until_stopped(timeout=0.3, poll=0.05) is False
         finally:
             holder.release()
+
+
+class TestStopRunning:
+    """stop_running combines request_shutdown + wait_until_stopped."""
+
+    def test_writes_flag_and_returns_true_when_idle(self, tmp_path):
+        ctrl = InstanceController(data_dir=str(tmp_path))
+        assert ctrl.stop_running(timeout=1, poll=0.05) is True
+        assert ctrl.shutdown_requested() is True
+
+    def test_returns_false_while_held(self, tmp_path):
+        holder = InstanceController(data_dir=str(tmp_path))
+        assert holder.try_acquire() is True
+        try:
+            probe = InstanceController(data_dir=str(tmp_path))
+            assert probe.stop_running(timeout=0.3, poll=0.05) is False
+        finally:
+            holder.release()

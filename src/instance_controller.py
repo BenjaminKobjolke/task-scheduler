@@ -75,3 +75,15 @@ class InstanceController:
                 return True
             time.sleep(poll)
         return not self.is_running()
+
+    def stop_running(
+        self,
+        timeout: float = Defaults.SHUTDOWN_WAIT_SECONDS,
+        poll: float = Defaults.SHUTDOWN_POLL_SECONDS,
+    ) -> bool:
+        """Request shutdown of a running instance and wait until it stops.
+
+        Returns True if it stopped within the timeout.
+        """
+        self.request_shutdown()
+        return self.wait_until_stopped(timeout, poll)

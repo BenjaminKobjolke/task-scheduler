@@ -355,8 +355,7 @@ if __name__ == "__main__":
                 cli.info(Messages.RESTART_ABORTED)
                 sys.exit(0)
             cli.info(Messages.TAKEOVER_STOPPING)
-            instance.request_shutdown()
-            if not instance.wait_until_stopped(Defaults.SHUTDOWN_WAIT_SECONDS):
+            if not instance.stop_running():
                 cli.error(
                     Messages.SHUTDOWN_TIMEOUT.format(
                         seconds=Defaults.SHUTDOWN_WAIT_SECONDS

@@ -16,9 +16,7 @@ def handle_shutdown(cli: CliOutput) -> None:
         return
 
     cli.info(Messages.SHUTDOWN_SENT)
-    controller.request_shutdown()
-
-    if controller.wait_until_stopped(Defaults.SHUTDOWN_WAIT_SECONDS):
+    if controller.stop_running():
         cli.info(Messages.SHUTDOWN_CONFIRMED)
     else:
         cli.error(
