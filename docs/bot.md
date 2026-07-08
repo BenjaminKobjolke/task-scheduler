@@ -99,6 +99,16 @@ start.bat        # or: python main.py
 
 The bot comes up with the scheduler. Message it `/help` to confirm.
 
+## Troubleshooting
+
+**`RuntimeError: Event loop is closed` / `XMLStream.__del__` tracebacks on startup.**
+Older `xmpp-bot` builds printed repeated `Exception ignored in ... XMLStream.__del__`
+followed by `RuntimeError: Event loop is closed` on `start.bat`, emitted while the XMPP
+bot cycled through reconnect attempts (each abandoned connection was garbage-collected
+after its event loop had stopped). The messages were harmless but noisy. This is fixed in
+`xmpp-bot` — update to the current build with `tools\install_xmpp_bot.bat` (or
+`uv sync --extra xmpp`).
+
 ## Commands
 
 Commands work with or without the leading `/`. Short aliases in parentheses.
