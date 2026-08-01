@@ -191,6 +191,7 @@ For convenience, batch files are provided for common operations:
 | `copy_task.bat ID` | Duplicate a task by ID |
 | `rename.bat ID` | Rename a task by ID |
 | `run_task_with_id.bat ID` | Run a specific task by ID |
+| `run_by_name.bat [FILTER]` | Select and run a task by partial name match |
 | `remove_with_id.bat ID` | Delete a task by ID |
 | `set_task_interval.bat ID INTERVAL` | Set task interval (e.g. `5`, `4h`, `7d`) |
 | `set_task_start_time.bat ID TIME` | Set task start time |
@@ -248,6 +249,14 @@ python main.py --run_id 5
 # Or using batch file
 run_task_with_id.bat 5
 ```
+
+To find a task by part of its name, select it from the matching tasks, and run it:
+
+```bash
+run_by_name.bat backup
+```
+
+Omit the filter to select from all configured tasks. Quote filters containing spaces.
 
 #### Editing a Task
 
@@ -625,6 +634,7 @@ task-scheduler/
 ├── remove_with_id.bat       # Delete task
 ├── rename.bat               # Rename a task
 ├── run_task_with_id.bat     # Run specific task
+├── run_by_name.bat          # Select and run task by partial name
 ├── set_task_interval.bat    # Set task interval
 ├── set_task_start_time.bat  # Set task start time
 ├── start.bat                # Start the scheduler

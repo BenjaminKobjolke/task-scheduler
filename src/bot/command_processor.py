@@ -13,6 +13,7 @@ from .interaction_handler import BotInteractionHandler, BotScriptOutput
 from src.config import Config
 from src.logger import Logger
 from src.scheduler import TaskScheduler
+from src.task_queries import filter_tasks_by_name
 
 
 @dataclass(frozen=True)
@@ -126,10 +127,7 @@ class TaskCommandProcessor(Commander):
 
     def _cmd_list(self, user_id: str, args: str) -> BotResponse:
         """Handle the /list command with optional filter."""
-        tasks = self._scheduler.list_tasks()
-        if args:
-            filter_lower = args.lower()
-            tasks = [t for t in tasks if filter_lower in t["name"].lower()]
+        tasks = filter_tasks_by_name(self._scheduler.list_tasks(), args)
         return BotResponse(text=format_task_list_compact(tasks))
 
     def _cmd_run(self, user_id: str, args: str) -> BotResponse:

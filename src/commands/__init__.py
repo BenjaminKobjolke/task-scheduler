@@ -1,5 +1,11 @@
 from .lifecycle import handle_shutdown
-from .query import handle_ftp_sync, handle_history, handle_list, handle_run_id
+from .query import (
+    handle_ftp_sync,
+    handle_history,
+    handle_list,
+    handle_run_id,
+    handle_run_name,
+)
 from .task_crud import (
     handle_add,
     handle_copy_task,
@@ -25,6 +31,7 @@ __all__ = [
     "handle_list",
     "handle_rename",
     "handle_run_id",
+    "handle_run_name",
     "handle_script",
     "handle_shutdown",
     "handle_set_arguments",

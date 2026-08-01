@@ -153,6 +153,11 @@ class Messages:
     TAKEOVER_STOPPING = "Stopping the running instance..."
     TAKEOVER_STOPPED = "Previous instance stopped."
     STARTING_INSTANCE = "Starting new scheduler instance..."
+    RUN_NAME_MATCHES = "Matching tasks:"
+    RUN_NAME_CHOICE = "{position}. {name} (ID: {task_id})"
+    RUN_NAME_NO_MATCHES = "No tasks found matching '{filter_term}'."
+    RUN_NAME_PROMPT = "Select task [1-{count}]: "
+    RUN_NAME_INVALID_SELECTION = "Please enter a number between 1 and {count}."
 
 
 class Defaults:

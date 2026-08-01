@@ -2,19 +2,56 @@ import sys
 
 from ..cli_output import CliOutput
 from ..config import Config
+from ..constants import Messages
 from ..formatters import format_execution_history, format_task_list
 from ..interaction import CliInteractionHandler, ConsoleScriptOutput
 from ..scheduler import TaskScheduler
 from ..status_page import StatusPage
+from ..task_queries import filter_tasks_by_name
 
 
 def handle_list(scheduler: TaskScheduler, cli: CliOutput, filter_term: str) -> None:
     """List scheduled tasks and exit."""
-    tasks = scheduler.list_tasks()
-    if filter_term:
-        filter_lower = filter_term.lower()
-        tasks = [t for t in tasks if filter_lower in t["name"].lower()]
+    tasks = filter_tasks_by_name(scheduler.list_tasks(), filter_term)
     cli.info("Scheduled tasks:" + format_task_list(tasks, show_next_run=False))
+
+
+def handle_run_name(
+    scheduler: TaskScheduler, cli: CliOutput, filter_term: str
+) -> None:
+    """Select and run a task from case-insensitive partial-name matches."""
+    tasks = filter_tasks_by_name(scheduler.list_tasks(), filter_term)
+    if not tasks:
+        cli.error(Messages.RUN_NAME_NO_MATCHES.format(filter_term=filter_term))
+        sys.exit(1)
+
+    choices = "\n".join(
+        Messages.RUN_NAME_CHOICE.format(
+            position=position,
+            name=task["name"],
+            task_id=task["id"],
+        )
+        for position, task in enumerate(tasks, start=1)
+    )
+    cli.info(f"{Messages.RUN_NAME_MATCHES}\n{choices}")
+    selected_task = _prompt_for_task_selection(tasks, cli)
+    handle_run_id(scheduler, cli, selected_task["id"])
+
+
+def _prompt_for_task_selection(tasks: list[dict], cli: CliOutput) -> dict:
+    """Prompt until the user selects a valid one-based task position."""
+    task_count = len(tasks)
+    while True:
+        selection = input(Messages.RUN_NAME_PROMPT.format(count=task_count)).strip()
+        try:
+            selection_index = int(selection) - 1
+        except ValueError:
+            selection_index = -1
+
+        if 0 <= selection_index < task_count:
+            return tasks[selection_index]
+
+        cli.error(Messages.RUN_NAME_INVALID_SELECTION.format(count=task_count))
 
 
 def handle_history(scheduler: TaskScheduler, cli: CliOutput, count: int) -> None:

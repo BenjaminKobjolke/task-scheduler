@@ -26,6 +26,7 @@ from src.commands import (
     handle_add,
     handle_script,
     handle_run_id,
+    handle_run_name,
     handle_ftp_sync,
     handle_uv_command,
     handle_shutdown,
@@ -219,6 +220,15 @@ Note:
     )
 
     parser.add_argument(
+        "--run-name",
+        nargs="?",
+        const="",
+        default=None,
+        metavar="FILTER",
+        help="Select and run a task by a partial name match"
+    )
+
+    parser.add_argument(
         "--launch-new-process",
         action="store_true",
         help="Launch task in a new console window (only for manual tasks with interval 0)"
@@ -335,6 +345,10 @@ if __name__ == "__main__":
 
         elif args.run_id:
             handle_run_id(scheduler, cli, args.run_id)
+            sys.exit(0)
+
+        elif args.run_name is not None:
+            handle_run_name(scheduler, cli, args.run_name)
             sys.exit(0)
 
         elif args.ftp_sync:
