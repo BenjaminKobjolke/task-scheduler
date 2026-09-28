@@ -17,6 +17,9 @@ class Paths:
     PYPROJECT_TOML = "pyproject.toml"
     UV_LOCK = "uv.lock"
     BAT_EXTENSION = ".bat"
+    PS1_EXTENSION = ".ps1"
+    POWERSHELL_EXE = "powershell.exe"
+    POWERSHELL_ARGS = ("-ExecutionPolicy", "Bypass", "-File")
     INIT_PY = "__init__.py"
     MAIN_PY = "__main__.py"
     PACKAGE_MAIN_MODULE = "main.py"

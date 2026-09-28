@@ -101,6 +101,37 @@ class TestRunScript:
         # Test that it returns a boolean (may fail or succeed depending on env)
         assert isinstance(result, bool)
 
+    def test_run_ps1_builds_powershell_command(self, runner, temp_dir):
+        ps1_path = os.path.join(temp_dir, "x.ps1")
+        open(ps1_path, "w").close()
+
+        with patch("src.script_runner.subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = ""
+            mock_run.return_value.stderr = ""
+            assert runner.run_script(ps1_path, ["--a"]) is True
+
+        args, kwargs = mock_run.call_args
+        assert args[0] == [
+            "powershell.exe",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            "x.ps1",
+            "--a",
+        ]
+        assert kwargs["cwd"] == temp_dir
+        assert kwargs["shell"] is False
+
+    @pytest.mark.skipif(os.name != "nt", reason="Windows-only test")
+    @pytest.mark.parametrize("code,expected", [(0, True), (1, False)])
+    def test_run_ps1_exit_code(self, runner, temp_dir, code, expected):
+        ps1_path = os.path.join(temp_dir, "exit.ps1")
+        with open(ps1_path, "w") as f:
+            f.write(f"Write-Output 'hi'\nexit {code}\n")
+
+        assert runner.run_script(ps1_path) is expected
+
 
 class TestGetUvCommands:
     """Tests for get_uv_commands method."""

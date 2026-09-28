@@ -44,7 +44,7 @@ def _interval_arg(value: str) -> int:
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Task Scheduler for Python Scripts and Batch Files",
+        description="Task Scheduler for Python Scripts, Batch and PowerShell Files",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -57,6 +57,9 @@ Examples:
 
     # Add a batch file task
     python main.py --script "backup.bat" --name "backup task" --interval 60
+
+    # Add a PowerShell task (runs via powershell.exe -ExecutionPolicy Bypass -File)
+    python main.py --script "C:\\prosody\\renew-certificates.ps1" --name "renew certs" --interval 1d
 
     # Intervals can use suffixes m/h/d/w (e.g. 4h, 7d, 1w)
     python main.py --script "weekly.py" --name "weekly job" --interval 7d
@@ -78,7 +81,7 @@ Examples:
 
 Note:
     - Python scripts should have their own venv in their directory.
-    - Batch files will run from their own directory.
+    - Batch and PowerShell (.ps1) files will run from their own directory.
         """
     )
 
@@ -100,7 +103,7 @@ Note:
     group.add_argument(
         "--script",
         type=str,
-        help="Path to the Python script or batch file to schedule"
+        help="Path to the Python script, batch or PowerShell file to schedule"
     )
 
     group.add_argument(

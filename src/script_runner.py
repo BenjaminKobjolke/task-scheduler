@@ -18,7 +18,7 @@ DEFAULT_TIMEOUT = 1800
 
 
 class ScriptRunner:
-    """Handles the execution of Python scripts, batch files, and uv CLI commands."""
+    """Handles the execution of Python scripts, batch/PowerShell files, and uv CLI commands."""
 
     def __init__(self):
         """Initialize ScriptRunner with logger."""
@@ -148,6 +148,19 @@ class ScriptRunner:
 
         return os.path.join(venv_path, Paths.SCRIPTS_DIR, Paths.ACTIVATE_SCRIPT)
 
+    def _shell_script_cmd(
+        self, script_name: str, arguments: List[str] | None
+    ) -> list[str] | None:
+        """Build the command for a batch or PowerShell file, or None for Python."""
+        ext = os.path.splitext(script_name)[1].lower()
+        if ext == Paths.BAT_EXTENSION:
+            return [script_name] + (arguments or [])
+        if ext == Paths.PS1_EXTENSION:
+            return [Paths.POWERSHELL_EXE, *Paths.POWERSHELL_ARGS, script_name] + (
+                arguments or []
+            )
+        return None
+
     def run_script(
         self,
         script_path: str,
@@ -156,10 +169,10 @@ class ScriptRunner:
         script_output: ScriptOutput | None = None,
     ) -> bool:
         """
-        Run a Python script with its virtual environment or a batch file.
+        Run a Python script with its virtual environment, or a batch/PowerShell file.
 
         Args:
-            script_path: Path to the Python script or batch file
+            script_path: Path to the Python script, batch or PowerShell file
             arguments: List of command line arguments for the script
             interaction_handler: Optional handler for interactive prompts
             script_output: Optional output handler for direct console display
@@ -171,25 +184,23 @@ class ScriptRunner:
             self.logger.error(f"Script not found: {script_path}")
             return False
 
-        # Determine if it's a batch file or Python script
-        _, ext = os.path.splitext(script_path)
-        is_batch = ext.lower() == Paths.BAT_EXTENSION
-
         try:
             # Get script directory and name
             script_dir = os.path.dirname(os.path.abspath(script_path))
             script_name = os.path.basename(script_path)
+            # Batch/PowerShell files get a direct command; Python scripts get None
+            cmd = self._shell_script_cmd(script_name, arguments)
+            is_batch = os.path.splitext(script_name)[1].lower() == Paths.BAT_EXTENSION
 
-            if is_batch:
-                # For batch files, run directly in their directory
-                cmd = [script_name] + (arguments or [])
+            if cmd:
+                # For batch/PowerShell files, run directly in their directory
 
                 # Log execution details
-                self.logger.info(f"Running batch file: {script_path}")
+                self.logger.info(f"Running script file: {script_path}")
 
                 if self.logger.is_detailed_logging_enabled():
                     self.logger.debug(f"Working directory: {script_dir}")
-                    self.logger.log_arguments(arguments, "Batch File Execution Details")
+                    self.logger.log_arguments(arguments, "Script File Execution Details")
                     self.logger.debug(f"Full command: {' '.join(cmd)}")
                 else:
                     # Basic logging when detailed logging is disabled
@@ -203,7 +214,7 @@ class ScriptRunner:
                         cmd=cmd,
                         cwd=script_dir,
                         env=self._build_env(),
-                        shell=True,
+                        shell=is_batch,
                         interaction_handler=interaction_handler,
                         script_output=script_output,
                     )
@@ -214,13 +225,13 @@ class ScriptRunner:
                         stderr=subprocess.PIPE,
                         text=True,
                         cwd=script_dir,
-                        shell=True,
+                        shell=is_batch,
                         env=self._build_env(),
                         timeout=DEFAULT_TIMEOUT,
                     )
                 except subprocess.TimeoutExpired:
                     self.logger.error(
-                        f"Batch file timed out after {DEFAULT_TIMEOUT}s: {script_path}"
+                        f"Script file timed out after {DEFAULT_TIMEOUT}s: {script_path}"
                     )
                     return False
             elif self._is_uv_project(script_dir):
@@ -358,18 +369,15 @@ class ScriptRunner:
                     f"Launching uv command in new console: {command} in {script_path}"
                 )
             else:
-                _, ext = os.path.splitext(script_path)
-                is_batch = ext.lower() == Paths.BAT_EXTENSION
                 script_dir = os.path.dirname(os.path.abspath(script_path))
                 script_name = os.path.basename(script_path)
+                shell_cmd = self._shell_script_cmd(script_name, arguments)
 
-                if is_batch:
-                    cmd = [script_name] + (arguments or [])
+                if shell_cmd:
+                    cmd = shell_cmd
                     cwd = script_dir
                     env = self._build_env()
-                    self.logger.info(
-                        f"Launching batch file in new console: {script_path}"
-                    )
+                    self.logger.info(f"Launching script file in new console: {script_path}")
                 elif self._is_uv_project(script_dir):
                     cmd = ["uv", "run", "python", script_name] + (arguments or [])
                     cwd = script_dir

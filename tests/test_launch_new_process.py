@@ -136,6 +136,31 @@ class TestScriptRunnerLaunchInNewConsole:
                     == subprocess.CREATE_NEW_CONSOLE
                 )
 
+    def test_launch_ps1_uses_powershell(self):
+        """launch_in_new_console should run .ps1 files via powershell.exe."""
+        runner = ScriptRunner()
+        script_path = "C:/scripts/renew.ps1"
+
+        with patch("subprocess.Popen") as mock_popen:
+            mock_popen.return_value = MagicMock()
+            result = runner.launch_in_new_console(
+                script_path, ["-Force"], TaskTypes.SCRIPT, None
+            )
+
+            assert result is True
+            assert mock_popen.call_args.args[0] == [
+                "powershell.exe",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "renew.ps1",
+                "-Force",
+            ]
+            assert (
+                mock_popen.call_args.kwargs.get("creationflags")
+                == subprocess.CREATE_NEW_CONSOLE
+            )
+
     def test_launch_uv_command_uses_create_new_console(self):
         """launch_in_new_console should handle uv commands."""
         runner = ScriptRunner()

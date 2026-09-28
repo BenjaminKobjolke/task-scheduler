@@ -22,6 +22,11 @@ class TestPaths:
     def test_bat_extension_defined(self):
         assert Paths.BAT_EXTENSION == ".bat"
 
+    def test_powershell_constants_defined(self):
+        assert Paths.PS1_EXTENSION == ".ps1"
+        assert Paths.POWERSHELL_EXE == "powershell.exe"
+        assert Paths.POWERSHELL_ARGS == ("-ExecutionPolicy", "Bypass", "-File")
+
 
 class TestDatabase:
     """Tests for Database constants."""
