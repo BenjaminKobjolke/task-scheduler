@@ -11,6 +11,7 @@ Task Scheduler for Python Scripts and Batch Files is a utility that allows you t
 - Automatic virtual environment activation for Python scripts (venv and uv projects)
 - **Custom uv commands** (e.g., `python -m module_name`) for uv projects (interactive and CLI modes)
 - Batch files run directly from their own directory
+- PowerShell scripts (.ps1) run via `powershell.exe -ExecutionPolicy Bypass -File` from their own directory
 - Persistent storage of tasks in SQLite database
 - Configurable logging system with detailed debugging options
 - Graceful shutdown handling
@@ -28,7 +29,7 @@ Task Scheduler for Python Scripts and Batch Files is a utility that allows you t
 - Each **Python script** must have one of:
   - A `venv` subfolder (traditional virtual environment), OR
   - A `pyproject.toml` + `uv.lock` (uv-managed project, requires `uv` installed)
-- Batch files (.bat) can be scheduled without any additional requirements
+- Batch files (.bat) and PowerShell scripts (.ps1) can be scheduled without any additional requirements
 
 ## Installation
 
@@ -139,7 +140,7 @@ python main.py --uv-command "D:\GIT\my-project" "backup" --name "Scheduled backu
 
 #### Parameters
 
-- `--script`: Path to the Python script or batch file to schedule (absolute path or relative to current directory)
+- `--script`: Path to the Python script, batch or PowerShell file to schedule (absolute path or relative to current directory)
 - `--uv-command PROJECT_DIR COMMAND`: Add a uv command task (project directory + command name)
 - `--name`: Descriptive name for the task (e.g., "convert audio notes to text")
 - `--interval`: Interval between executions. Bare minutes (e.g. `5`) or with a suffix `Nm`/`Nh`/`Nd`/`Nw` for minutes/hours/days/weeks (e.g. `4h`, `7d`, `1w`). Use `0` for manual-only.
@@ -158,6 +159,9 @@ python main.py --script "local_script.py" --name "local task" --interval 1
 
 # Batch file task
 python main.py --script "backup.bat" --name "daily backup" --interval 60
+
+# PowerShell task
+python main.py --script "C:\prosody\renew-certificates.ps1" --name "renew certs" --interval 1d
 
 # Complex Python task with quoted arguments and paths
 python main.py --script "D:\GIT\BenjaminKobjolke\ai-file-renamer\main.py" --name "convert XIDA invoices" --interval 5 -- --source "Z:\Resilio Sync\XIDA_Invoices" --examples "E:\Owncloud\xida\company\GmbH\[--Dokumente--]\[--Rechnungen--]\[--In--]"
@@ -386,6 +390,7 @@ python main.py --set-interval 5 30
 
    For uv projects, you can run predefined commands from `[project.scripts]` or custom commands like `python -m module_name`.
 2. **Batch files:** Batch files (.bat) are executed directly from their own directory. No virtual environment is required.
+3. **PowerShell scripts:** `.ps1` files are executed from their own directory via `powershell.exe -ExecutionPolicy Bypass -File <script> [args]`.
 3. Tasks persist between scheduler restarts
 4. The scheduler executes scripts in their respective directories
 

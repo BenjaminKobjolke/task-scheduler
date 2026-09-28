@@ -35,7 +35,7 @@ python main.py --script "path.py" --name "name" --interval 5 -- --arg1 value
 - `main.py` - Entry point, CLI argument parsing, signal handling
 - `src/scheduler.py` - TaskScheduler class wrapping APScheduler's BackgroundScheduler
 - `src/database.py` - SQLite persistence for tasks and execution history
-- `src/script_runner.py` - Executes Python scripts (with venv/uv support) and batch files
+- `src/script_runner.py` - Executes Python scripts (with venv/uv support), batch and PowerShell files
 - `src/config.py` - Config file handling (config.ini)
 - `src/logger.py` - Logging to console and files (logs/scheduler_YYYYMMDD.log)
 - `src/status_page.py` - Generates HTML status page
@@ -46,6 +46,7 @@ python main.py --script "path.py" --name "name" --interval 5 -- --arg1 value
   - **uv projects**: Detected by presence of `pyproject.toml` + `uv.lock`, runs via `uv run python script.py`
   - **venv projects**: Must have `venv/` subdirectory, uses `venv/Scripts/python.exe` directly
 - Batch files run directly from their directory without venv
+- PowerShell `.ps1` files run via `powershell.exe -ExecutionPolicy Bypass -File` from their directory (`shell=False`)
 - Tasks persist in `data/tasks.sqlite`
 - Single-instance + shutdown handled by `src/instance_controller.py` (`InstanceController`): an OS-level file lock (`data/scheduler.lock`, via `filelock`) enforces one running instance; a stop-request flag file (`data/shutdown.request`) is polled by the main loop each second. `--shutdown` / `shutdown.bat` writes the flag and waits; starting a second instance prompts to take over the running one.
 - Shutdown is immediate, not blocking: `TaskScheduler.shutdown()` uses `wait=False` and `main.perform_shutdown()` calls `os._exit(0)` after releasing the lock. This is deliberate — APScheduler worker threads are non-daemon, so a job blocked in `subprocess` would otherwise stall interpreter exit indefinitely (notably the startup burst of coalesced overdue tasks). Already-launched external scripts are separate OS processes and finish independently.
