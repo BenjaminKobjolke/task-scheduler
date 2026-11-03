@@ -55,6 +55,7 @@ class TestHandleRename:
             command=None,
             start_time="09:00",
             launch_new_process=False,
+            days_of_month=None,
         )
         mock_cli.info.assert_called_once_with(
             "Task 'Old Name' (ID: 5) renamed to 'New Name'"
@@ -104,6 +105,7 @@ class TestHandleRename:
             command=None,
             start_time="09:00",
             launch_new_process=False,
+            days_of_month=None,
         )
         mock_cli.info.assert_any_call("\nTask: Old Name (ID: 5)")
 
@@ -130,4 +132,5 @@ class TestHandleRename:
             command=None,
             start_time="09:00",
             launch_new_process=False,
+            days_of_month=None,
         )

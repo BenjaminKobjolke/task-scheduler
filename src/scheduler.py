@@ -6,11 +6,13 @@ from datetime import datetime, time, timedelta
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from .constants import Defaults, Paths, TaskTypes
 from .database import Database
 from .logger import Logger
+from .month_days import cron_fields, next_monthly_run
 from .script_runner import ScriptRunner
 from .status_page import StatusPage
 
@@ -49,6 +51,7 @@ class TaskScheduler:
                 task.get("task_type", TaskTypes.SCRIPT),
                 task.get("command"),
                 task.get("start_time"),
+                days_of_month=task.get("days_of_month"),
             )
             # Store initial checksum for hot-reload
             self._task_checksums[task["id"]] = self._get_task_checksum(task)
@@ -101,7 +104,7 @@ class TaskScheduler:
             f"{task['name']}|{task['script_path']}|{task['interval']}|"
             f"{task.get('start_time')}|{task['arguments']}|"
             f"{task.get('task_type')}|{task.get('command')}|"
-            f"{task.get('launch_new_process', False)}"
+            f"{task.get('launch_new_process', False)}|{task.get('days_of_month')}"
         )
         return hashlib.md5(data.encode()).hexdigest()
 
@@ -128,6 +131,7 @@ class TaskScheduler:
                         task.get("task_type", TaskTypes.SCRIPT),
                         task.get("command"),
                         task.get("start_time"),
+                        days_of_month=task.get("days_of_month"),
                     )
                     self._task_checksums[task_id] = checksum
                     self.logger.info(
@@ -148,6 +152,7 @@ class TaskScheduler:
                         task.get("task_type", TaskTypes.SCRIPT),
                         task.get("command"),
                         task.get("start_time"),
+                        days_of_month=task.get("days_of_month"),
                     )
                     self._task_checksums[task_id] = checksum
                     self.logger.info(
@@ -274,6 +279,7 @@ class TaskScheduler:
         task_type: str = TaskTypes.SCRIPT,
         command: Optional[str] = None,
         start_time: Optional[str] = None,
+        days_of_month: Optional[str] = None,
     ):
         """
         Schedule a task in the APScheduler.
@@ -304,6 +310,13 @@ class TaskScheduler:
 
         # Get last execution time to calculate proper next_run_time
         last_executions = self.db.get_last_execution_per_task()
+
+        if days_of_month:
+            self._schedule_days_task(
+                task_id, name, script_path, arguments, task_type, command,
+                start_time, days_of_month, last_executions.get(task_id),
+            )
+            return
 
         if start_time:
             # Use aligned scheduling based on start_time
@@ -345,6 +358,42 @@ class TaskScheduler:
             coalesce=True,  # If multiple runs were missed, only run once
         )
 
+    def _schedule_days_task(
+        self,
+        task_id: int,
+        name: str,
+        script_path: str,
+        arguments: Optional[List[str]],
+        task_type: str,
+        command: Optional[str],
+        start_time: Optional[str],
+        days_of_month: str,
+        last_execution: Optional[Dict],
+    ):
+        """Schedule a task that runs once on each listed day of the month."""
+        now = datetime.now()
+        last_run = (
+            datetime.strptime(last_execution["execution_time"], "%Y-%m-%d %H:%M:%S")
+            if last_execution
+            else None
+        )
+        next_run = next_monthly_run(days_of_month, start_time, last_run, now)
+        self.logger.info(
+            f"Task '{name}' (ID: {task_id}) runs on days {days_of_month}, "
+            f"next run at {next_run.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        self.scheduler.add_job(
+            func=self._process_job,
+            trigger=CronTrigger(**cron_fields(days_of_month, start_time)),
+            args=[task_id, name, script_path, arguments or [], task_type, command],
+            next_run_time=next_run,
+            id=self._get_job_id(task_id),
+            replace_existing=True,
+            name=name,
+            misfire_grace_time=Defaults.DAYS_MISFIRE_GRACE_TIME,
+            coalesce=True,
+        )
+
     def add_task(
         self,
         name: str,
@@ -355,6 +404,7 @@ class TaskScheduler:
         command: Optional[str] = None,
         start_time: Optional[str] = None,
         launch_new_process: bool = False,
+        days_of_month: Optional[str] = None,
     ):
         """
         Add a new task to both database and scheduler.
@@ -380,6 +430,7 @@ class TaskScheduler:
                 command,
                 start_time,
                 launch_new_process=launch_new_process,
+                days_of_month=days_of_month,
             )
 
             # Schedule the task with the ID
@@ -392,6 +443,7 @@ class TaskScheduler:
                 task_type,
                 command,
                 start_time,
+                days_of_month=days_of_month,
             )
 
             interval_info = Defaults.MANUAL_ONLY_LABEL if interval == 0 else f"{interval} minutes"
@@ -462,6 +514,7 @@ class TaskScheduler:
         command: Optional[str] = None,
         start_time: Optional[str] = None,
         launch_new_process: bool = False,
+        days_of_month: Optional[str] = None,
     ):
         """
         Edit an existing task in both database and scheduler.
@@ -496,6 +549,7 @@ class TaskScheduler:
                 command,
                 start_time,
                 launch_new_process=launch_new_process,
+                days_of_month=days_of_month,
             ):
                 raise ValueError(f"Task with ID {task_id} not found")
 
@@ -519,6 +573,7 @@ class TaskScheduler:
                     task_type,
                     command,
                     start_time,
+                    days_of_month=days_of_month,
                 )
 
             interval_info = Defaults.MANUAL_ONLY_LABEL if interval == 0 else f"{interval} minutes"

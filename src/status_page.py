@@ -5,6 +5,7 @@ from datetime import datetime
 from .logger import Logger
 from .config import Config
 from .constants import Defaults, TaskTypes
+from .month_days import format_days_schedule
 from .php_login import PhpLoginHandler
 from .ftp_syncer import FtpSyncer
 
@@ -80,6 +81,7 @@ class StatusPage:
         command: Optional[str] = None,
         interval: Optional[int] = None,
         start_time: Optional[str] = None,
+        days_of_month: Optional[str] = None,
     ) -> str:
         """Generate HTML for a task card."""
         if success is not None:
@@ -119,7 +121,9 @@ class StatusPage:
         # Format schedule info if interval is provided
         schedule_html = ""
         if interval is not None:
-            if interval == 0:
+            if days_of_month:
+                schedule_html = f'<div class="task-schedule">{format_days_schedule(days_of_month, start_time).capitalize()}</div>'
+            elif interval == 0:
                 schedule_html = f'<div class="task-schedule">{Defaults.MANUAL_ONLY_LABEL.capitalize()}</div>'
             elif start_time:
                 schedule_html = f'<div class="task-schedule">Every {interval} min from {start_time}</div>'
@@ -196,9 +200,11 @@ class StatusPage:
                     # Get interval and start_time from task lookup
                     interval = None
                     start_time = None
+                    days_of_month = None
                     if task_id in task_lookup:
                         interval = task_lookup[task_id].get("interval")
                         start_time = task_lookup[task_id].get("start_time")
+                        days_of_month = task_lookup[task_id].get("days_of_month")
 
                     task_html = self._generate_task_card(
                         name=job.name,
@@ -210,6 +216,7 @@ class StatusPage:
                         command=command,
                         interval=interval,
                         start_time=start_time,
+                        days_of_month=days_of_month,
                     )
                     next_html.append(task_html)
                 next_html = "\n".join(next_html)

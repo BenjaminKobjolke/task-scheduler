@@ -272,6 +272,10 @@ class TaskCommandProcessor(Commander):
                     "launch_new_process",
                     original.get("launch_new_process", False),
                 ),
+                # Bot cannot set days; an interval change switches back to interval mode
+                days_of_month=None
+                if "interval" in changes
+                else original.get("days_of_month"),
             )
             return BotResponse(
                 text=Messages.WIZARD_EDIT_SUCCESS.format(

@@ -68,6 +68,9 @@ class Database:
                 DbConstants.COL_LAUNCH_NEW_PROCESS,
                 "INTEGER DEFAULT 0",
             )
+            self._migrate_add_column(
+                conn, DbConstants.TABLE_TASKS, DbConstants.COL_DAYS_OF_MONTH, "TEXT"
+            )
 
     def _migrate_add_column(self, conn, table: str, column: str, definition: str):
         """Add a column to a table if it doesn't exist."""
@@ -89,6 +92,7 @@ class Database:
         command: Optional[str] = None,
         start_time: Optional[str] = None,
         launch_new_process: bool = False,
+        days_of_month: Optional[str] = None,
     ) -> int:
         """
         Add a new task to the database.
@@ -115,7 +119,7 @@ class Database:
                 self.logger.debug(f"JSON stored in database: {json_args}")
 
             cursor = conn.execute(
-                "INSERT INTO tasks (name, script_path, arguments, interval, task_type, command, start_time, launch_new_process) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO tasks (name, script_path, arguments, interval, task_type, command, start_time, launch_new_process, days_of_month) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     name,
                     script_path,
@@ -125,6 +129,7 @@ class Database:
                     command,
                     start_time,
                     int(launch_new_process),
+                    days_of_month,
                 ),
             )
             return cursor.lastrowid
@@ -276,6 +281,7 @@ class Database:
         command: Optional[str] = None,
         start_time: Optional[str] = None,
         launch_new_process: bool = False,
+        days_of_month: Optional[str] = None,
     ) -> bool:
         """
         Edit an existing task in the database.
@@ -305,7 +311,7 @@ class Database:
             cursor = conn.execute(
                 """
                 UPDATE tasks
-                SET name = ?, script_path = ?, arguments = ?, interval = ?, task_type = ?, command = ?, start_time = ?, launch_new_process = ?
+                SET name = ?, script_path = ?, arguments = ?, interval = ?, task_type = ?, command = ?, start_time = ?, launch_new_process = ?, days_of_month = ?
                 WHERE id = ?
                 """,
                 (
@@ -317,6 +323,7 @@ class Database:
                     command,
                     start_time,
                     int(launch_new_process),
+                    days_of_month,
                     task_id,
                 ),
             )

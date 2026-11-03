@@ -8,8 +8,9 @@ from prompt_toolkit.completion import PathCompleter, FuzzyCompleter
 from prompt_toolkit.key_binding import KeyBindings
 
 from .formatters import format_interval, parse_interval
+from .month_days import parse_days_of_month
 from .script_runner import ScriptRunner
-from .constants import Messages, TaskTypes, Paths
+from .constants import Defaults, Messages, TaskTypes, Paths
 
 
 def _create_path_key_bindings() -> KeyBindings:
@@ -225,6 +226,8 @@ def get_task_input(existing_task: Optional[Dict[str, Any]] = None) -> Dict[str, 
         print(f"  Interval: {interval_display}")
         if existing_task.get("start_time"):
             print(f"  Start time: {existing_task['start_time']}")
+        if existing_task.get("days_of_month"):
+            print(f"  Days of month: {existing_task['days_of_month']}")
         if existing_task.get("launch_new_process"):
             print("  Launch mode: new console")
         print(
@@ -241,8 +244,12 @@ def get_task_input(existing_task: Optional[Dict[str, Any]] = None) -> Dict[str, 
     # Get task name
     name = _get_task_name(existing_task, command)
 
-    # Get interval
-    interval = _get_interval(existing_task)
+    days_of_month = _get_days_of_month(existing_task)
+
+    # Days-of-month tasks skip the interval prompt; interval is stored but unused
+    interval = (
+        Defaults.DAYS_STORED_INTERVAL if days_of_month else _get_interval(existing_task)
+    )
 
     # Get start time and launch_new_process (skip based on interval)
     if interval == 0:
@@ -264,6 +271,7 @@ def get_task_input(existing_task: Optional[Dict[str, Any]] = None) -> Dict[str, 
         "command": command,
         "start_time": start_time,
         "launch_new_process": launch_new_process,
+        "days_of_month": days_of_month,
     }
 
 
@@ -318,6 +326,27 @@ def _get_interval(existing_task: Optional[Dict[str, Any]]) -> int:
 
         try:
             return parse_interval(interval_input)
+        except ValueError as exc:
+            print(f"Error: {exc}")
+
+
+def _get_days_of_month(existing_task: Optional[Dict[str, Any]]) -> Optional[str]:
+    """Get optional days of month ("3", "3,4,5", "3-5"), normalized."""
+    current = existing_task.get("days_of_month") if existing_task else None
+    print(Messages.DAYS_OF_MONTH_HELP)
+    prompt_text = Messages.DAYS_OF_MONTH_PROMPT
+    if current:
+        prompt_text += Messages.DAYS_OF_MONTH_KEEP.format(days=current)
+    prompt_text += ": "
+
+    while True:
+        days_input = input(prompt_text).strip()
+        if not days_input:
+            return current
+        if days_input == "-":
+            return None
+        try:
+            return parse_days_of_month(days_input)
         except ValueError as exc:
             print(f"Error: {exc}")
 

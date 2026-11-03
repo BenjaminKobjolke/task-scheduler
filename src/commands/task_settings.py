@@ -52,6 +52,7 @@ def handle_set_start_time(
             command=task.get("command"),
             start_time=new_start_time,
             launch_new_process=task.get("launch_new_process", False),
+            days_of_month=task.get("days_of_month"),
         )
         if new_start_time:
             cli.info(
@@ -163,6 +164,7 @@ def handle_rename(
             command=task.get("command"),
             start_time=task.get("start_time"),
             launch_new_process=task.get("launch_new_process", False),
+            days_of_month=task.get("days_of_month"),
         )
         cli.info(f"Task '{old_name}' (ID: {task_id}) renamed to '{new_name}'")
     except ValueError as e:
@@ -217,6 +219,7 @@ def handle_set_arguments(
             command=task.get("command"),
             start_time=task.get("start_time"),
             launch_new_process=task.get("launch_new_process", False),
+            days_of_month=task.get("days_of_month"),
         )
         if new_arguments:
             cli.info(

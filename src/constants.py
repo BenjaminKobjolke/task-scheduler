@@ -42,6 +42,7 @@ class Database:
     COL_SUCCESS = "success"
     COL_START_TIME = "start_time"
     COL_LAUNCH_NEW_PROCESS = "launch_new_process"
+    COL_DAYS_OF_MONTH = "days_of_month"
 
 
 class Config:
@@ -170,6 +171,15 @@ class Messages:
         "and has no .bat or .ps1 files.\n"
         "Enter a .py, .bat or .ps1 file path, or a uv project directory."
     )
+    DAYS_OF_MONTH_HELP = (
+        "\nDays of month (optional): run once on these days at the start time.\n"
+        "  3       = on the 3rd\n"
+        "  3,4,5   = on the 3rd, 4th and 5th\n"
+        "  3-5     = same as 3,4,5\n"
+        "  Enter   = no, use an interval instead"
+    )
+    DAYS_OF_MONTH_PROMPT = "Days of month"
+    DAYS_OF_MONTH_KEEP = " (Enter = keep '{days}', - = clear)"
 
 
 class Defaults:
@@ -179,6 +189,9 @@ class Defaults:
     MISFIRE_GRACE_TIME = 60
     MIN_INTERVAL = 0
     MANUAL_ONLY_LABEL = "manual only"
+    DAYS_DEFAULT_START_TIME = "00:00"  # run time for days-of-month tasks without start_time
+    DAYS_STORED_INTERVAL = 1440  # interval stored for days-of-month tasks (not used for timing)
+    DAYS_MISFIRE_GRACE_TIME = 3600
     RELOAD_INTERVAL = 60  # seconds between database checks for hot-reload
     SHUTDOWN_WAIT_SECONDS = 30  # max wait for a running instance to stop
     SHUTDOWN_POLL_SECONDS = 0.5  # poll interval while waiting for stop

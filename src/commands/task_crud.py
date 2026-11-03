@@ -20,7 +20,10 @@ def _log_task_details(cli: CliOutput, task_details: dict) -> None:
         cli.info(f"Script: {task_details['script_path']}")
     interval = task_details["interval"]
     interval_display = format_interval(interval)
-    cli.info(f"Interval: {interval_display}")
+    if task_details.get("days_of_month"):
+        cli.info(f"Days of month: {task_details['days_of_month']}")
+    else:
+        cli.info(f"Interval: {interval_display}")
     if task_details.get("start_time"):
         cli.info(f"Start time: {task_details['start_time']}")
     if task_details.get("launch_new_process"):
@@ -42,6 +45,7 @@ def handle_add(scheduler: TaskScheduler, cli: CliOutput) -> None:
         command=task_details.get("command"),
         start_time=task_details.get("start_time"),
         launch_new_process=task_details.get("launch_new_process", False),
+        days_of_month=task_details.get("days_of_month"),
     )
 
     cli.info("Task added successfully:")
@@ -73,6 +77,7 @@ def handle_edit(scheduler: TaskScheduler, cli: CliOutput, task_id: int) -> None:
             command=task_details.get("command"),
             start_time=task_details.get("start_time"),
             launch_new_process=task_details.get("launch_new_process", False),
+            days_of_month=task_details.get("days_of_month"),
         )
         cli.info("Task updated successfully:")
         _log_task_details(cli, task_details)
@@ -186,6 +191,7 @@ def handle_copy_task(scheduler: TaskScheduler, cli: CliOutput, task_id: int) -> 
             command=task.get("command"),
             start_time=task.get("start_time"),
             launch_new_process=task.get("launch_new_process", False),
+            days_of_month=task.get("days_of_month"),
         )
         cli.info(
             f"Task '{task['name']}' (ID: {task['id']}) copied successfully as new task (ID: {new_task_id})"

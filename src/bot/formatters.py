@@ -3,6 +3,7 @@
 from typing import Dict, List
 
 from ..constants import Defaults, TaskTypes
+from ..month_days import format_days_schedule
 from .constants import Messages
 
 
@@ -19,7 +20,10 @@ def format_task_list_compact(tasks: List[Dict]) -> str:
     for task in tasks:
         task_type = task.get("task_type", TaskTypes.SCRIPT)
         interval = task["interval"]
-        interval_tag = "manual" if interval == 0 else f"{interval}min"
+        if task.get("days_of_month"):
+            interval_tag = f"days {task['days_of_month']}"
+        else:
+            interval_tag = "manual" if interval == 0 else f"{interval}min"
         line = f"{task['id']}. {task['name']} [{interval_tag}]"
 
         if task_type == TaskTypes.UV_COMMAND:
@@ -57,10 +61,14 @@ def format_task_detail(task: Dict) -> str:
 
     interval = task["interval"]
     interval_display = Defaults.MANUAL_ONLY_LABEL if interval == 0 else f"{interval} min"
-    lines.append(f"Interval: {interval_display}")
-
     start_time = task.get("start_time")
-    if start_time:
+    days_of_month = task.get("days_of_month")
+    if days_of_month:
+        lines.append(f"Schedule: {format_days_schedule(days_of_month, start_time)}")
+    else:
+        lines.append(f"Interval: {interval_display}")
+
+    if start_time and not days_of_month:
         lines.append(f"Start time: {start_time}")
 
     if task.get("launch_new_process"):

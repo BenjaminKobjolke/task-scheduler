@@ -1,6 +1,7 @@
 from typing import Dict, List
 
 from .constants import Defaults, TaskTypes
+from .month_days import format_days_schedule
 
 
 _INTERVAL_SUFFIX_MINUTES = {
@@ -129,21 +130,27 @@ def format_task_list(tasks: List[Dict], show_next_run: bool = True) -> str:
         start_time = task.get("start_time")
         interval = task["interval"]
         interval_display = format_interval(interval)
+        days_of_month = task.get("days_of_month")
+        schedule_line = (
+            f"   Schedule: {format_days_schedule(days_of_month, start_time)}"
+            if days_of_month
+            else f"   Interval: {interval_display}"
+        )
         if task_type == TaskTypes.UV_COMMAND:
             lines = [
                 f"\n{task['id']}. {task['name']} [uv command]",
                 f"   Project: {task['script_path']}",
                 f"   Command: {task.get('command', 'N/A')}",
-                f"   Interval: {interval_display}",
+                schedule_line,
             ]
         else:
             lines = [
                 f"\n{task['id']}. {task['name']}",
                 f"   Script: {task['script_path']}",
-                f"   Interval: {interval_display}",
+                schedule_line,
             ]
 
-        if start_time:
+        if start_time and not days_of_month:
             lines.append(f"   Start time: {start_time}")
 
         if task.get("launch_new_process"):
