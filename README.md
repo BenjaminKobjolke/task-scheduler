@@ -6,6 +6,7 @@ Task Scheduler for Python Scripts and Batch Files is a utility that allows you t
 
 - Schedule Python scripts and batch files to run at specified intervals
 - **Optional start time** for aligned scheduling (e.g., run every 2 hours starting at 09:00)
+- **Days of month** scheduling (e.g., run once on the 3rd, or on the 3rd-5th, at 08:00)
 - Give descriptive names to scheduled tasks
 - Edit existing tasks with updated parameters
 - Automatic virtual environment activation for Python scripts (venv and uv projects)
@@ -83,6 +84,7 @@ This will prompt you for:
 - For uv projects: command selection (predefined or custom)
 - For other directories (e.g. Node/Bun projects): pick one of its top-level `.bat`/`.ps1` files (e.g. `start.bat`)
 - Task name
+- Days of month (optional, e.g. `3`, `3,4,5`, `3-5`; when set, the interval prompt is skipped)
 - Interval (minutes, or suffix `m`/`h`/`d`/`w` — e.g. `5`, `4h`, `7d`, `1w`)
 - Start time (optional, HH:MM format for aligned scheduling)
 - Arguments (optional, press Enter twice to finish)
@@ -311,6 +313,23 @@ set_task_start_time.bat 5 09:00
 **Without start time:** Tasks run immediately when added and then repeat at the interval.
 
 **With start time:** Tasks align to the start_time grid based on the interval.
+
+#### Days of Month
+
+Run a task once on specific days of the month instead of on an interval.
+In `add.bat` / `--edit`, enter the days at the "Days of month" prompt:
+`3` (the 3rd), `3,4,5` or `3-5` (the 3rd, 4th and 5th), or mixed like `1,15-17`.
+The task runs at its start time on those days (Enter = `00:00`). Days a month
+does not have (e.g. `31` in April) are skipped. In edit mode, `-` clears the
+days and switches the task back to an interval.
+
+**Missed runs:** if the scheduler was off at a scheduled time, the task runs once
+when the scheduler starts, unless it has another slot later the same day.
+Example with `3,4,5` at 08:00: missed the 3rd, scheduler started on the 4th at
+07:00 → it runs only at 08:00. Started on the 6th → it runs once at startup.
+A newly added task never catches up; it waits for its first day.
+`--set-interval` switches a days task back to interval scheduling.
+Details: [docs/DAYS_OF_MONTH.md](docs/DAYS_OF_MONTH.md).
 
 #### Setting Interval
 

@@ -127,6 +127,23 @@ Commands work with or without the leading `/`. Short aliases in parentheses.
 `/add`, `/edit`, `/delete` require the matching `allow_*` permission to be
 `true` in `config.ini`; otherwise the bot replies that the command is disabled.
 
+### Days-of-month tasks
+
+Tasks that run on specific days of the month (e.g. the 3rd-5th at 08:00) are
+shown by the bot but cannot be created or given days through it:
+
+- `/list` tags them `[days 3,4,5]` instead of `[1440min]`.
+- The task detail shows `Schedule: days 3,4,5 at 08:00` instead of the interval.
+- `/add` cannot set days. Use `add.bat` or `python main.py --edit ID` on the
+  scheduler machine.
+- `/edit` keeps the days unless you enter a new interval. A new interval
+  clears the days and switches the task back to interval scheduling.
+  Changing only the start time moves the daily run time.
+
+See [DAYS_OF_MONTH.md](DAYS_OF_MONTH.md).
+
+### Interactive scripts
+
 Interactive scripts run via `/run` can prompt the user in chat — replies are
 relayed back to the script (timeout from `[Interactive] timeout`). See
 [interactive_scripts.md](interactive_scripts.md) for how to write such scripts.

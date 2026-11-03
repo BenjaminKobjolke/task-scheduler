@@ -52,6 +52,7 @@ python main.py --script "path.py" --name "name" --interval 5 -- --arg1 value
 - Single-instance + shutdown handled by `src/instance_controller.py` (`InstanceController`): an OS-level file lock (`data/scheduler.lock`, via `filelock`) enforces one running instance; a stop-request flag file (`data/shutdown.request`) is polled by the main loop each second. `--shutdown` / `shutdown.bat` writes the flag and waits; starting a second instance prompts to take over the running one.
 - Shutdown is immediate, not blocking: `TaskScheduler.shutdown()` uses `wait=False` and `main.perform_shutdown()` calls `os._exit(0)` after releasing the lock. This is deliberate — APScheduler worker threads are non-daemon, so a job blocked in `subprocess` would otherwise stall interpreter exit indefinitely (notably the startup burst of coalesced overdue tasks). Already-launched external scripts are separate OS processes and finish independently.
 - APScheduler jobs use `misfire_grace_time=60` and `coalesce=True` to handle delayed executions
+- Days-of-month tasks (`days_of_month` column, e.g. `"3,4,5"`) use a `CronTrigger` at `start_time` (default 00:00); the stored interval (1440) is unused. Startup catch-up rule lives in `src/month_days.py:next_monthly_run`: run now only if the task has history, missed its last slot, and has no slot later today
 - Timestamps stored in local time using SQLite's `datetime('now', 'localtime')`
 
 ## Code Analysis
