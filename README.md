@@ -79,8 +79,9 @@ python main.py --add
 
 This will prompt you for:
 
-- Script path or uv project directory (with validation)
+- Script path or project directory (with validation)
 - For uv projects: command selection (predefined or custom)
+- For other directories (e.g. Node/Bun projects): pick one of its top-level `.bat`/`.ps1` files (e.g. `start.bat`)
 - Task name
 - Interval (minutes, or suffix `m`/`h`/`d`/`w` — e.g. `5`, `4h`, `7d`, `1w`)
 - Start time (optional, HH:MM format for aligned scheduling)

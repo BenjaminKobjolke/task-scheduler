@@ -46,6 +46,7 @@ python main.py --script "path.py" --name "name" --interval 5 -- --arg1 value
   - **uv projects**: Detected by presence of `pyproject.toml` + `uv.lock`, runs via `uv run python script.py`
   - **venv projects**: Must have `venv/` subdirectory, uses `venv/Scripts/python.exe` directly
 - Batch files run directly from their directory without venv
+- Interactive add: a non-uv directory lists its top-level `.bat`/`.ps1` files to pick from (`cli_input._find_shell_scripts`); this is how Node/other projects get scheduled
 - PowerShell `.ps1` files run via `powershell.exe -ExecutionPolicy Bypass -File` from their directory (`shell=False`)
 - Tasks persist in `data/tasks.sqlite`
 - Single-instance + shutdown handled by `src/instance_controller.py` (`InstanceController`): an OS-level file lock (`data/scheduler.lock`, via `filelock`) enforces one running instance; a stop-request flag file (`data/shutdown.request`) is polled by the main loop each second. `--shutdown` / `shutdown.bat` writes the flag and waits; starting a second instance prompts to take over the running one.
