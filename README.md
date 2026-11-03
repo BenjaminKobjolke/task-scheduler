@@ -582,6 +582,8 @@ Set `type = none` to disable bot integration.
 
 The `/add`, `/edit`, and `/delete` commands can be individually disabled via `allow_add`, `allow_edit`, and `allow_delete` in the config. Destructive operations (`/delete`) require confirmation before executing.
 
+Scripts started with `/run` can ask the user questions in the chat. See [docs/interactive_scripts.md](docs/interactive_scripts.md) for the protocol and a copy-paste Python helper.
+
 ## Shutdown
 
 To stop the scheduler:

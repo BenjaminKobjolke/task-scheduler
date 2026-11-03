@@ -128,4 +128,5 @@ Commands work with or without the leading `/`. Short aliases in parentheses.
 `true` in `config.ini`; otherwise the bot replies that the command is disabled.
 
 Interactive scripts run via `/run` can prompt the user in chat — replies are
-relayed back to the script (timeout from `[Interactive] timeout`).
+relayed back to the script (timeout from `[Interactive] timeout`). See
+[interactive_scripts.md](interactive_scripts.md) for how to write such scripts.
