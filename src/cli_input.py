@@ -9,7 +9,7 @@ from prompt_toolkit.key_binding import KeyBindings
 
 from .formatters import format_interval, parse_interval
 from .script_runner import ScriptRunner
-from .constants import TaskTypes, Paths
+from .constants import Messages, TaskTypes, Paths
 
 
 def _create_path_key_bindings() -> KeyBindings:
@@ -45,7 +45,7 @@ def _get_script_path(
         Tuple of (script_path, task_type, command)
     """
     while True:
-        prompt_text = "\nScript path or uv project directory (Use Tab for suggestions)"
+        prompt_text = "\nScript path or project directory (Use Tab for suggestions)"
         if existing_task:
             prompt_text += "\n(Enter = keep current)"
         prompt_text += ":"
@@ -76,14 +76,14 @@ def _get_script_path(
                 if result:
                     return (path_input, result[0], result[1])
                 continue
-            else:
-                print(
-                    "Error: Directory is not a valid uv project (missing pyproject.toml or uv.lock)"
-                )
-                print(
-                    "Please enter a script file path or a valid uv project directory."
-                )
+            scripts = _find_shell_scripts(path_input)
+            if not scripts:
+                print(Messages.DIR_NOT_RUNNABLE.format(path=path_input))
                 continue
+            selected = _select_shell_script(scripts)
+            if selected:
+                return (selected, TaskTypes.SCRIPT, None)
+            continue
 
         # Check if it's a file
         if os.path.isfile(path_input):
@@ -92,6 +92,37 @@ def _get_script_path(
         print(
             "Error: Not a valid file or uv project directory. Please enter a valid path."
         )
+
+
+def _find_shell_scripts(directory: str) -> list[str]:
+    """Top-level .bat/.ps1 files in directory as absolute paths, sorted by name."""
+    extensions = (Paths.BAT_EXTENSION, Paths.PS1_EXTENSION)
+    try:
+        with os.scandir(directory) as entries:
+            found = [
+                os.path.abspath(e.path)
+                for e in entries
+                if e.is_file() and os.path.splitext(e.name)[1].lower() in extensions
+            ]
+    except OSError:
+        return []
+    return sorted(found, key=lambda p: os.path.basename(p).lower())
+
+
+def _select_shell_script(scripts: list[str]) -> Optional[str]:
+    """Let the user pick one of scripts; returns None on empty input."""
+    print(Messages.SCRIPT_FILES_FOUND)
+    for position, path in enumerate(scripts, 1):
+        print(Messages.SCRIPT_FILE_CHOICE.format(position=position, name=os.path.basename(path)))
+
+    count = len(scripts)
+    while True:
+        choice = input(Messages.SCRIPT_FILE_PROMPT.format(count=count)).strip()
+        if not choice:
+            return None
+        if choice.isdigit() and 1 <= int(choice) <= count:
+            return scripts[int(choice) - 1]
+        print(Messages.SCRIPT_FILE_INVALID_SELECTION.format(count=count))
 
 
 def _handle_uv_project(path_input: str, script_runner: ScriptRunner) -> Optional[tuple]:

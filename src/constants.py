@@ -161,6 +161,15 @@ class Messages:
     RUN_NAME_NO_MATCHES = "No tasks found matching '{filter_term}'."
     RUN_NAME_PROMPT = "Select task [1-{count}]: "
     RUN_NAME_INVALID_SELECTION = "Please enter a number between 1 and {count}."
+    SCRIPT_FILES_FOUND = "\nNot a uv project. Found runnable script files:"
+    SCRIPT_FILE_CHOICE = "  {position}. {name}"
+    SCRIPT_FILE_PROMPT = "Select script [1-{count}], or Enter to type another path: "
+    SCRIPT_FILE_INVALID_SELECTION = "Error: Please enter a number between 1 and {count}."
+    DIR_NOT_RUNNABLE = (
+        "Error: {path} is not a uv project (needs pyproject.toml + uv.lock) "
+        "and has no .bat or .ps1 files.\n"
+        "Enter a .py, .bat or .ps1 file path, or a uv project directory."
+    )
 
 
 class Defaults:
