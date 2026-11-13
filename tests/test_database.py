@@ -126,6 +126,18 @@ class TestDatabaseExecutionHistory:
         assert executions[0]["name"] == "My Task"
         assert executions[0]["script_path"] == "/path/script.py"
 
+    def test_get_last_execution_per_task_returns_history_by_task(self, temp_db):
+        first_task_id = temp_db.add_task("First", "/path/first.py", 5)
+        second_task_id = temp_db.add_task("Second", "/path/second.py", 5)
+        temp_db.add_task_execution(first_task_id, True)
+        temp_db.add_task_execution(second_task_id, False)
+
+        last_executions = temp_db.get_last_execution_per_task()
+
+        assert set(last_executions) == {first_task_id, second_task_id}
+        assert last_executions[first_task_id]["success"] is True
+        assert last_executions[second_task_id]["success"] is False
+
 
 class TestDatabaseClearAll:
     """Tests for clear_all_tasks method."""

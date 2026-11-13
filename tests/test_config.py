@@ -154,3 +154,41 @@ class TestConfigPersistence:
 
         # Restore original path
         config.config_path = original_path
+
+
+class TestConfigFtpSettings:
+    """Tests for the FTP settings shape and persistence."""
+
+    def test_get_ftp_settings_preserves_defaults_and_types(self, temp_config_dir):
+        config = config_module.Config()
+        config.config_path = os.path.join(temp_config_dir, "config.ini")
+        config.config = configparser.ConfigParser()
+        config.config["FTP"] = {"enabled": "true", "port": "2121"}
+
+        settings = config.get_ftp_settings()
+
+        assert settings == {
+            "enabled": True,
+            "host": "",
+            "port": 2121,
+            "username": "",
+            "password": "",
+            "remote_path": "/",
+            "passive_mode": True,
+            "timeout": 30,
+        }
+
+    def test_set_ftp_settings_keeps_partial_updates_and_saves(self, temp_config_dir):
+        config = config_module.Config()
+        config.config_path = os.path.join(temp_config_dir, "config.ini")
+        config.config = configparser.ConfigParser()
+        config.config["FTP"] = {"host": "old-host", "port": "21"}
+
+        config.set_ftp_settings({"host": "new-host", "passive_mode": False})
+
+        assert config.get_ftp_settings()["host"] == "new-host"
+        assert config.get_ftp_settings()["port"] == 21
+        assert config.get_ftp_settings()["passive_mode"] is False
+        saved = configparser.ConfigParser()
+        saved.read(config.config_path)
+        assert saved.get("FTP", "host") == "new-host"

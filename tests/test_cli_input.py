@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from src.cli_input import _find_shell_scripts, _select_shell_script
+from src import cli_input, cli_script_selection
 
 
 @pytest.fixture
@@ -22,6 +23,11 @@ def script_dir(tmp_path: Path) -> Path:
 def _feed_input(monkeypatch: pytest.MonkeyPatch, answers: list[str]) -> None:
     it = iter(answers)
     monkeypatch.setattr("builtins.input", lambda _prompt="": next(it))
+
+
+def test_script_selection_helpers_keep_the_cli_input_import_paths() -> None:
+    assert cli_input._find_shell_scripts is cli_script_selection._find_shell_scripts
+    assert cli_input._select_shell_script is cli_script_selection._select_shell_script
 
 
 class TestFindShellScripts:

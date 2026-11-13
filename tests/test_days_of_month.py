@@ -15,6 +15,7 @@ from src.month_days import (
     parse_days_of_month,
 )
 from src.scheduler import TaskScheduler
+from src.scheduler_jobs import SchedulerJobs
 from src.script_runner import ScriptRunner
 from src.status_page import StatusPage
 
@@ -135,6 +136,13 @@ class TestSchedulerJob:
         scheduler.db.get_last_execution_per_task.return_value = {}
         scheduler.status_page = MagicMock(spec=StatusPage)
         scheduler.scheduler = MagicMock()
+        scheduler._job_scheduling = SchedulerJobs(
+            scheduler.scheduler,
+            scheduler.db,
+            scheduler.logger,
+            scheduler._process_job,
+            scheduler._get_job_id,
+        )
 
         scheduler._schedule_task(
             7, "m", "x.bat", 1440, start_time="08:00", days_of_month="3,4,5"

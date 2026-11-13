@@ -1,1 +1,1 @@
-"""Test package for task-scheduler."""
+"""Project test package."""
