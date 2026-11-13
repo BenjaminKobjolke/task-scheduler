@@ -25,5 +25,10 @@
     "tests": true
   },
   "analysis_tests_answered": true,
-  "project_id": 12403
+  "project_id": 12403,
+  "analysis_command_states": {
+    "tools\\analyze_code.bat": {
+      "code_quality": "failed"
+    }
+  }
 }
