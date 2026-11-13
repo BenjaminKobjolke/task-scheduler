@@ -32,7 +32,11 @@ bot-commander = { git = "https://github.com/BenjaminKobjolke/bot-commander.git" 
 dev = [
     "pyinstaller>=6.0.0",
     "pytest>=9.0.2",
+    "pytest-timeout>=2.4.0",
 ]
 
 [tool.ruff]
 extend-exclude = ["*.md"]
+
+[tool.pytest.ini_options]
+timeout = 120

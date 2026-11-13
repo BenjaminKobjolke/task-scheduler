@@ -50,6 +50,7 @@ python main.py
 
 # Gracefully stop the running scheduler
 python main.py --shutdown        # or shutdown.bat
+tools\run_tests.bat            # Run the test suite (pytest -v)
 
 # Task management
 python main.py --add              # Interactive add

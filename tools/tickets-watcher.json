@@ -9,10 +9,12 @@
     "graphify_update.bat",
     "install_telegram_bot.bat",
     "install_xmpp_bot.bat",
-    "reinstall.bat"
+    "reinstall.bat",
+    "run_tests.bat"
   ],
   "analysis_commands": [
-    "tools\\analyze_code.bat"
+    "tools\\analyze_code.bat",
+    "tools\\run_tests.bat"
   ],
   "analysis_commands_seen": {
     "scripts": [
@@ -30,6 +32,9 @@
   "analysis_command_states": {
     "tools\\analyze_code.bat": {
       "code_quality": "failed"
+    },
+    "tools\\run_tests.bat": {
+      "test": "green"
     }
   }
 }
