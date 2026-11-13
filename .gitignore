@@ -22,3 +22,6 @@ PLAN.md
 HANDOFF.md
 /PLAN_*.md
 /tickets/
+graphify-out/
+tmp/commit_msg.tmp
+.reasonix/

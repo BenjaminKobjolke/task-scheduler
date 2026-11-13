@@ -1,0 +1,29 @@
+{
+  "files": {
+    "TICKETS_WATCHER_COMMANDS.md": 3
+  },
+  "command_check_scripts": [
+    "analyze_code.bat",
+    "fix_ruff_issues.bat",
+    "fix_ruff_issues_dry_run.bat",
+    "install_telegram_bot.bat",
+    "install_xmpp_bot.bat",
+    "reinstall.bat"
+  ],
+  "analysis_commands": [
+    "tools\\analyze_code.bat"
+  ],
+  "analysis_commands_seen": {
+    "scripts": [
+      "analyze_code.bat",
+      "fix_ruff_issues.bat",
+      "fix_ruff_issues_dry_run.bat",
+      "install_telegram_bot.bat",
+      "install_xmpp_bot.bat",
+      "reinstall.bat"
+    ],
+    "tests": true
+  },
+  "analysis_tests_answered": true,
+  "project_id": 12403
+}
