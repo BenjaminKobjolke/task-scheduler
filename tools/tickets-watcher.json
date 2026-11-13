@@ -6,6 +6,7 @@
     "analyze_code.bat",
     "fix_ruff_issues.bat",
     "fix_ruff_issues_dry_run.bat",
+    "graphify_update.bat",
     "install_telegram_bot.bat",
     "install_xmpp_bot.bat",
     "reinstall.bat"
