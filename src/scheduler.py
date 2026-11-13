@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-import hashlib
 import os
-from datetime import datetime, time, timedelta
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from .constants import Defaults, Paths, TaskTypes
 from .database import Database
 from .logger import Logger
-from .month_days import cron_fields, next_monthly_run
 from .script_runner import ScriptRunner
+from .scheduler_hot_reload import SchedulerHotReload
+from .scheduler_jobs import SchedulerJobs
 from .status_page import StatusPage
 
 if TYPE_CHECKING:
@@ -36,6 +34,18 @@ class TaskScheduler:
         self.scheduler = BackgroundScheduler()
         self.status_page = StatusPage()
         self._task_checksums = {}  # Track task state for hot-reload change detection
+        self._job_scheduling = SchedulerJobs(
+            self.scheduler, self.db, self.logger, self._process_job, self._get_job_id
+        )
+        self._hot_reload = SchedulerHotReload(
+            self.db,
+            self.scheduler,
+            self.logger,
+            self._get_task_checksum,
+            self._get_job_id,
+            self._schedule_task,
+            self._task_checksums,
+        )
 
     def start(self):
         """Start the scheduler and load tasks from database."""
@@ -81,125 +91,15 @@ class TaskScheduler:
         self.logger.info("Scheduler shutdown")
 
     def _get_job_id(self, task_id: int) -> str:
-        """Generate a unique job ID for a task.
-
-        Args:
-            task_id: ID of the task
-
-        Returns:
-            str: Unique job identifier
-        """
+        """Return the stable APScheduler id for a task."""
         return f"job_{task_id}"
 
     def _get_task_checksum(self, task: Dict) -> str:
-        """Generate a checksum of task properties to detect changes.
-
-        Args:
-            task: Task dictionary from database
-
-        Returns:
-            str: MD5 checksum of task properties
-        """
-        data = (
-            f"{task['name']}|{task['script_path']}|{task['interval']}|"
-            f"{task.get('start_time')}|{task['arguments']}|"
-            f"{task.get('task_type')}|{task.get('command')}|"
-            f"{task.get('launch_new_process', False)}|{task.get('days_of_month')}"
-        )
-        return hashlib.md5(data.encode()).hexdigest()
+        """Hash scheduler-relevant task fields for hot-reload comparison."""
+        return SchedulerHotReload.get_task_checksum(task)
 
     def _reload_tasks(self):
-        """Check database for changes and update scheduler accordingly (hot-reload)."""
-        try:
-            db_tasks = self.db.get_all_tasks()
-            db_task_ids = {task["id"] for task in db_tasks}
-            scheduled_task_ids = set(self._task_checksums.keys())
-
-            # Check for new or modified tasks
-            for task in db_tasks:
-                task_id = task["id"]
-                checksum = self._get_task_checksum(task)
-
-                if task_id not in scheduled_task_ids:
-                    # New task - add it
-                    self._schedule_task(
-                        task_id,
-                        task["name"],
-                        task["script_path"],
-                        task["interval"],
-                        task["arguments"],
-                        task.get("task_type", TaskTypes.SCRIPT),
-                        task.get("command"),
-                        task.get("start_time"),
-                        days_of_month=task.get("days_of_month"),
-                    )
-                    self._task_checksums[task_id] = checksum
-                    self.logger.info(
-                        f"Hot-reload: Added new task '{task['name']}' (ID: {task_id})"
-                    )
-                elif self._task_checksums.get(task_id) != checksum:
-                    # Task changed - reschedule it
-                    try:
-                        self.scheduler.remove_job(self._get_job_id(task_id))
-                    except Exception:
-                        pass  # Job may not exist
-                    self._schedule_task(
-                        task_id,
-                        task["name"],
-                        task["script_path"],
-                        task["interval"],
-                        task["arguments"],
-                        task.get("task_type", TaskTypes.SCRIPT),
-                        task.get("command"),
-                        task.get("start_time"),
-                        days_of_month=task.get("days_of_month"),
-                    )
-                    self._task_checksums[task_id] = checksum
-                    self.logger.info(
-                        f"Hot-reload: Updated task '{task['name']}' (ID: {task_id})"
-                    )
-
-            # Check for removed tasks
-            for task_id in scheduled_task_ids - db_task_ids:
-                try:
-                    self.scheduler.remove_job(self._get_job_id(task_id))
-                except Exception:
-                    pass  # Job may not exist
-                del self._task_checksums[task_id]
-                self.logger.info(f"Hot-reload: Removed task ID {task_id}")
-
-        except Exception as e:
-            self.logger.error(f"Error during hot-reload: {str(e)}")
-
-    def _calculate_next_aligned_run(self, start_time: str, interval: int) -> datetime:
-        """
-        Calculate next run time aligned to start_time grid.
-
-        Args:
-            start_time: Start time in HH:MM format
-            interval: Interval in minutes
-
-        Returns:
-            datetime: Next aligned run time
-        """
-        now = datetime.now()
-        today = now.date()
-        hour, minute = map(int, start_time.split(":"))
-        anchor = datetime.combine(today, time(hour, minute))
-
-        if now < anchor:
-            # Check if there's a slot before the anchor today
-            minutes_diff = (anchor - now).total_seconds() / 60
-            intervals_back = int(minutes_diff / interval)
-            candidate = anchor - timedelta(minutes=intervals_back * interval)
-            if candidate <= now:
-                return candidate + timedelta(minutes=interval)
-            return candidate
-        else:
-            # Calculate next slot after now
-            minutes_since = (now - anchor).total_seconds() / 60
-            intervals_passed = int(minutes_since / interval)
-            return anchor + timedelta(minutes=(intervals_passed + 1) * interval)
+        self._hot_reload.reload_tasks()
 
     def _update_status_page(self):
         """Update the status page and sync to FTP if enabled."""
@@ -298,100 +198,16 @@ class TaskScheduler:
             command: Command name for uv_command tasks
             start_time: Optional start time for aligned scheduling (HH:MM format)
         """
-        # Manual-only tasks (interval 0) don't get an APScheduler job
-        if interval == 0:
-            self.logger.info(
-                f"Task '{name}' (ID: {task_id}) is {Defaults.MANUAL_ONLY_LABEL} — no scheduled job created"
-            )
-            return
-
-        # Create unique job ID using task ID
-        job_id = self._get_job_id(task_id)
-
-        # Get last execution time to calculate proper next_run_time
-        last_executions = self.db.get_last_execution_per_task()
-
-        if days_of_month:
-            self._schedule_days_task(
-                task_id, name, script_path, arguments, task_type, command,
-                start_time, days_of_month, last_executions.get(task_id),
-            )
-            return
-
-        if start_time:
-            # Use aligned scheduling based on start_time
-            next_run = self._calculate_next_aligned_run(start_time, interval)
-            self.logger.debug(
-                f"Task '{name}' (ID: {task_id}) using aligned scheduling from {start_time}, "
-                f"next run at {next_run.strftime('%Y-%m-%d %H:%M:%S')}"
-            )
-        elif task_id in last_executions:
-            last_run = datetime.strptime(
-                last_executions[task_id]["execution_time"], "%Y-%m-%d %H:%M:%S"
-            )
-            next_run = last_run + timedelta(minutes=interval)
-
-            # If overdue, run immediately (catch-up)
-            if next_run < datetime.now():
-                self.logger.info(
-                    f"Task '{name}' (ID: {task_id}) is overdue, scheduling immediate catch-up"
-                )
-                next_run = datetime.now()
-        else:
-            # New task with no execution history, run immediately
-            next_run = datetime.now()
-
-        # Scale misfire_grace_time based on interval
-        # Minimum 60s, maximum 10% of interval (capped at 1 hour)
-        grace_time = max(60, min(interval * 60 * 0.1, 3600))
-
-        # Add the job to the scheduler
-        self.scheduler.add_job(
-            func=self._process_job,
-            trigger=IntervalTrigger(minutes=interval),
-            args=[task_id, name, script_path, arguments or [], task_type, command],
-            next_run_time=next_run,
-            id=job_id,
-            replace_existing=True,  # Replace if job exists
-            name=name,  # Store task name
-            misfire_grace_time=int(grace_time),
-            coalesce=True,  # If multiple runs were missed, only run once
-        )
-
-    def _schedule_days_task(
-        self,
-        task_id: int,
-        name: str,
-        script_path: str,
-        arguments: Optional[List[str]],
-        task_type: str,
-        command: Optional[str],
-        start_time: Optional[str],
-        days_of_month: str,
-        last_execution: Optional[Dict],
-    ):
-        """Schedule a task that runs once on each listed day of the month."""
-        now = datetime.now()
-        last_run = (
-            datetime.strptime(last_execution["execution_time"], "%Y-%m-%d %H:%M:%S")
-            if last_execution
-            else None
-        )
-        next_run = next_monthly_run(days_of_month, start_time, last_run, now)
-        self.logger.info(
-            f"Task '{name}' (ID: {task_id}) runs on days {days_of_month}, "
-            f"next run at {next_run.strftime('%Y-%m-%d %H:%M:%S')}"
-        )
-        self.scheduler.add_job(
-            func=self._process_job,
-            trigger=CronTrigger(**cron_fields(days_of_month, start_time)),
-            args=[task_id, name, script_path, arguments or [], task_type, command],
-            next_run_time=next_run,
-            id=self._get_job_id(task_id),
-            replace_existing=True,
-            name=name,
-            misfire_grace_time=Defaults.DAYS_MISFIRE_GRACE_TIME,
-            coalesce=True,
+        self._job_scheduling.schedule_task(
+            task_id,
+            name,
+            script_path,
+            interval,
+            arguments,
+            task_type,
+            command,
+            start_time,
+            days_of_month,
         )
 
     def add_task(

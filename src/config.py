@@ -9,6 +9,8 @@ if TYPE_CHECKING:
 from .constants import Bot as BotConstants
 from .constants import Config as ConfigConstants
 from .constants import Interactive as InteractiveConstants
+from .config_ftp import get_ftp_settings as read_ftp_settings
+from .config_ftp import set_ftp_settings as write_ftp_settings
 
 
 class Config:
@@ -212,81 +214,11 @@ class Config:
 
     def get_ftp_settings(self) -> Dict:
         """Get all FTP settings as a dictionary."""
-        return {
-            "enabled": self.is_ftp_enabled(),
-            "host": self.config.get(
-                ConfigConstants.SECTION_FTP,
-                ConfigConstants.KEY_FTP_HOST,
-                fallback=ConfigConstants.DEFAULT_FTP_HOST,
-            ),
-            "port": self.config.getint(
-                ConfigConstants.SECTION_FTP,
-                ConfigConstants.KEY_FTP_PORT,
-                fallback=int(ConfigConstants.DEFAULT_FTP_PORT),
-            ),
-            "username": self.config.get(
-                ConfigConstants.SECTION_FTP,
-                ConfigConstants.KEY_FTP_USERNAME,
-                fallback=ConfigConstants.DEFAULT_FTP_USERNAME,
-            ),
-            "password": self.config.get(
-                ConfigConstants.SECTION_FTP,
-                ConfigConstants.KEY_FTP_PASSWORD,
-                fallback=ConfigConstants.DEFAULT_FTP_PASSWORD,
-            ),
-            "remote_path": self.config.get(
-                ConfigConstants.SECTION_FTP,
-                ConfigConstants.KEY_FTP_REMOTE_PATH,
-                fallback=ConfigConstants.DEFAULT_FTP_REMOTE_PATH,
-            ),
-            "passive_mode": self.config.getboolean(
-                ConfigConstants.SECTION_FTP,
-                ConfigConstants.KEY_FTP_PASSIVE_MODE,
-                fallback=True,
-            ),
-            "timeout": self.config.getint(
-                ConfigConstants.SECTION_FTP,
-                ConfigConstants.KEY_FTP_TIMEOUT,
-                fallback=int(ConfigConstants.DEFAULT_FTP_TIMEOUT),
-            ),
-        }
+        return read_ftp_settings(self.config)
 
     def set_ftp_settings(self, settings: Dict):
         """Set FTP settings from a dictionary."""
-        self._ensure_section(ConfigConstants.SECTION_FTP)
-        if "enabled" in settings:
-            self.config[ConfigConstants.SECTION_FTP][
-                ConfigConstants.KEY_FTP_ENABLED
-            ] = str(settings["enabled"]).lower()
-        if "host" in settings:
-            self.config[ConfigConstants.SECTION_FTP][ConfigConstants.KEY_FTP_HOST] = (
-                settings["host"]
-            )
-        if "port" in settings:
-            self.config[ConfigConstants.SECTION_FTP][ConfigConstants.KEY_FTP_PORT] = (
-                str(settings["port"])
-            )
-        if "username" in settings:
-            self.config[ConfigConstants.SECTION_FTP][
-                ConfigConstants.KEY_FTP_USERNAME
-            ] = settings["username"]
-        if "password" in settings:
-            self.config[ConfigConstants.SECTION_FTP][
-                ConfigConstants.KEY_FTP_PASSWORD
-            ] = settings["password"]
-        if "remote_path" in settings:
-            self.config[ConfigConstants.SECTION_FTP][
-                ConfigConstants.KEY_FTP_REMOTE_PATH
-            ] = settings["remote_path"]
-        if "passive_mode" in settings:
-            self.config[ConfigConstants.SECTION_FTP][
-                ConfigConstants.KEY_FTP_PASSIVE_MODE
-            ] = str(settings["passive_mode"]).lower()
-        if "timeout" in settings:
-            self.config[ConfigConstants.SECTION_FTP][
-                ConfigConstants.KEY_FTP_TIMEOUT
-            ] = str(settings["timeout"])
-        self._save_config()
+        write_ftp_settings(self.config, settings, self._save_config)
 
     def get_ftp_sync_interval(self) -> int:
         """Get minimum minutes between FTP syncs (0 = sync every time)."""

@@ -1,0 +1,212 @@
+"""Bot conversation flow state machines."""
+
+import shlex
+from typing import Optional
+
+from bot_commander import (
+    BotResponse,
+    CONFIRMED_SENTINEL,
+    ConversationState,
+    is_skip,
+    is_valid_time,
+)
+
+from .constants import Messages
+from .formatters import format_edit_changes
+
+
+class EditWizard:
+    """Stateless wizard for editing an existing task step-by-step.
+
+    Steps:
+        0 - script_path
+        1 - command (only for uv_command type)
+        2 - task name
+        3 - interval in minutes
+        4 - start time
+        5 - launch_new_process (only when interval == 0)
+        6 - arguments
+        7 - confirmation
+    """
+
+    @staticmethod
+    def start(task: dict) -> tuple[ConversationState, BotResponse]:
+        """Start the edit wizard for *task*. Returns initial state and prompt."""
+        from .formatters import format_task_detail
+
+        state = ConversationState(
+            kind="edit_wizard",
+            step=0,
+            data={"original": task, "changes": {}},
+        )
+        detail = format_task_detail(task)
+        intro = Messages.WIZARD_EDIT_START.format(task["name"], task["id"], detail)
+        first_prompt = Messages.WIZARD_EDIT_SCRIPT.format(
+            task.get("script_path", "")
+        )
+        return state, BotResponse(text=f"{intro}\n\n{first_prompt}")
+
+    @staticmethod
+    def advance(
+        state: ConversationState, user_input: str
+    ) -> tuple[Optional[ConversationState], BotResponse]:
+        """Advance one step. Returns (new_state, response).
+
+        new_state is None when the wizard completes or is cancelled.
+        """
+        step = state.step
+        text = user_input.strip()
+
+        if step == 0:
+            return _edit_step_script_path(state, text)
+        if step == 1:
+            return _edit_step_command(state, text)
+        if step == 2:
+            return _edit_step_name(state, text)
+        if step == 3:
+            return _edit_step_interval(state, text)
+        if step == 4:
+            return _edit_step_start_time(state, text)
+        if step == 5:
+            return _edit_step_launch_new_process(state, text)
+        if step == 6:
+            return _edit_step_arguments(state, text)
+        if step == 7:
+            return _edit_step_confirm(state, text)
+
+        return None, BotResponse(text=Messages.OPERATION_CANCELLED)
+
+
+def _edit_step_script_path(
+    state: ConversationState, text: str
+) -> tuple[ConversationState, BotResponse]:
+    original = state.data["original"]
+    if not is_skip(text):
+        state.data["changes"]["script_path"] = text
+
+    task_type = original.get("task_type", "script")
+    if task_type == "uv_command":
+        state.step = 1
+        return state, BotResponse(
+            text=Messages.WIZARD_EDIT_COMMAND.format(original.get("command", ""))
+        )
+
+    state.step = 2
+    return state, BotResponse(text=Messages.WIZARD_EDIT_NAME.format(original["name"]))
+def _edit_step_command(
+    state: ConversationState, text: str
+) -> tuple[ConversationState, BotResponse]:
+    original = state.data["original"]
+    if not is_skip(text):
+        state.data["changes"]["command"] = text
+    state.step = 2
+    return state, BotResponse(text=Messages.WIZARD_EDIT_NAME.format(original["name"]))
+def _edit_step_name(
+    state: ConversationState, text: str
+) -> tuple[ConversationState, BotResponse]:
+    original = state.data["original"]
+    if not is_skip(text):
+        state.data["changes"]["name"] = text
+    state.step = 3
+    return state, BotResponse(
+        text=Messages.WIZARD_EDIT_INTERVAL.format(original["interval"])
+    )
+def _edit_step_interval(
+    state: ConversationState, text: str
+) -> tuple[ConversationState, BotResponse]:
+    original = state.data["original"]
+    if is_skip(text):
+        # Check effective interval (changed or original) for start_time skip
+        effective_interval = state.data["changes"].get("interval", original["interval"])
+        if effective_interval == 0:
+            state.step = 5
+            current_launch = original.get("launch_new_process", False)
+            return state, BotResponse(
+                text=Messages.WIZARD_EDIT_LAUNCH_NEW_PROCESS.format(
+                    "yes" if current_launch else "no"
+                )
+            )
+        state.step = 4
+        return state, BotResponse(
+            text=Messages.WIZARD_EDIT_START_TIME.format(original.get("start_time", ""))
+        )
+
+    try:
+        interval = int(text)
+        if interval < 0:
+            return state, BotResponse(text=Messages.WIZARD_INVALID_INTERVAL)
+        state.data["changes"]["interval"] = interval
+        if interval == 0:
+            # Manual-only: clear start_time and go to launch_new_process
+            state.data["changes"]["start_time"] = None
+            state.step = 5
+            current_launch = original.get("launch_new_process", False)
+            return state, BotResponse(
+                text=Messages.WIZARD_EDIT_LAUNCH_NEW_PROCESS.format(
+                    "yes" if current_launch else "no"
+                )
+            )
+        # Non-zero interval: clear launch_new_process
+        state.data["changes"]["launch_new_process"] = False
+        state.step = 4
+        return state, BotResponse(
+            text=Messages.WIZARD_EDIT_START_TIME.format(original.get("start_time", ""))
+        )
+    except ValueError:
+        return state, BotResponse(text=Messages.WIZARD_INVALID_INTERVAL)
+def _edit_step_start_time(
+    state: ConversationState, text: str
+) -> tuple[ConversationState, BotResponse]:
+    original = state.data["original"]
+    if text.lower() in ("skip", "s"):
+        pass  # no change
+    elif text.lower() in ("none", ""):
+        state.data["changes"]["start_time"] = None
+    else:
+        if not is_valid_time(text):
+            return state, BotResponse(text=Messages.WIZARD_INVALID_TIME)
+        state.data["changes"]["start_time"] = text
+
+    state.step = 6
+    args = original.get("arguments", [])
+    args_display = " ".join(args) if args else ""
+    return state, BotResponse(text=Messages.WIZARD_EDIT_ARGUMENTS.format(args_display))
+def _edit_step_launch_new_process(
+    state: ConversationState, text: str
+) -> tuple[ConversationState, BotResponse]:
+    original = state.data["original"]
+    if text.lower() in ("yes", "y"):
+        state.data["changes"]["launch_new_process"] = True
+    elif text.lower() in ("no", "n"):
+        state.data["changes"]["launch_new_process"] = False
+    # skip => no change
+
+    state.step = 6
+    args = original.get("arguments", [])
+    args_display = " ".join(args) if args else ""
+    return state, BotResponse(text=Messages.WIZARD_EDIT_ARGUMENTS.format(args_display))
+def _edit_step_arguments(
+    state: ConversationState, text: str
+) -> tuple[ConversationState, BotResponse]:
+    original = state.data["original"]
+    changes = state.data["changes"]
+
+    if text.lower() in ("skip", "s"):
+        pass  # no change
+    elif text.lower() in ("none", ""):
+        changes["arguments"] = None
+    else:
+        changes["arguments"] = shlex.split(text)
+
+    state.step = 7
+    if not changes:
+        return state, BotResponse(text=Messages.WIZARD_EDIT_NO_CHANGES)
+
+    diff = format_edit_changes(original, changes)
+    return state, BotResponse(text=Messages.WIZARD_EDIT_CONFIRM.format(diff))
+def _edit_step_confirm(
+    state: ConversationState, text: str
+) -> tuple[Optional[ConversationState], BotResponse]:
+    if text.lower() in ("yes", "y"):
+        return None, BotResponse(text=CONFIRMED_SENTINEL)
+    return None, BotResponse(text=Messages.OPERATION_CANCELLED)
